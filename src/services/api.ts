@@ -21,6 +21,11 @@ export interface Category {
   name: string;
 }
 
+export interface Unit {
+  id: string;
+  name: string;
+}
+
 export interface Supplier {
   id: string;
   name: string;
@@ -40,6 +45,8 @@ export interface Product {
   category?: Category;
   supplierId: string;
   supplier?: Supplier;
+  unitId?: string;
+  unit?: Unit;
   location: string;
   status: 'Active' | 'Inactive';
 }
@@ -55,9 +62,56 @@ export const fetchCategories = async (): Promise<Category[]> => {
   return response.data;
 };
 
+export const createCategory = async (data: { name: string }): Promise<Category> => {
+  const response = await dataService.post('/categories', data);
+  return response.data;
+};
+
+export const updateCategory = async (id: string, data: { name: string }): Promise<Category> => {
+  const response = await dataService.put(`/categories/${id}`, data);
+  return response.data;
+};
+
+export const deleteCategory = async (id: string): Promise<void> => {
+  await dataService.delete(`/categories/${id}`);
+};
+
+export const fetchUnits = async (): Promise<Unit[]> => {
+  const response = await dataService.get('/units');
+  return response.data;
+};
+
+export const createUnit = async (data: { name: string }): Promise<Unit> => {
+  const response = await dataService.post('/units', data);
+  return response.data;
+};
+
+export const updateUnit = async (id: string, data: { name: string }): Promise<Unit> => {
+  const response = await dataService.put(`/units/${id}`, data);
+  return response.data;
+};
+
+export const deleteUnit = async (id: string): Promise<void> => {
+  await dataService.delete(`/units/${id}`);
+};
+
 export const fetchSuppliers = async (): Promise<Supplier[]> => {
   const response = await dataService.get('/suppliers');
   return response.data;
+};
+
+export const createSupplier = async (data: { name: string; contact?: string; email?: string }): Promise<Supplier> => {
+  const response = await dataService.post('/suppliers', data);
+  return response.data;
+};
+
+export const updateSupplier = async (id: string, data: { name: string; contact?: string; email?: string }): Promise<Supplier> => {
+  const response = await dataService.put(`/suppliers/${id}`, data);
+  return response.data;
+};
+
+export const deleteSupplier = async (id: string): Promise<void> => {
+  await dataService.delete(`/suppliers/${id}`);
 };
 
 export const createProduct = async (product: Product): Promise<Product> => {

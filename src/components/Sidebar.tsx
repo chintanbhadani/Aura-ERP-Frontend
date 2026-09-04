@@ -10,28 +10,36 @@ import {
   ChevronLeft,
   ChevronRight,
   Factory,
-  Briefcase
+  Briefcase,
+  Database,
+  ChevronDown
 } from 'lucide-react';
 import { cn } from './Button';
 
 interface NavItem {
   name: string;
-  href: string;
+  href?: string;
   icon: React.ElementType;
+  subItems?: { name: string; href: string }[];
 }
 
 const navItems: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Active Jobs', href: '/jobs', icon: Activity },
   { name: 'Inventory', href: '/inventory', icon: Package },
-  { name: 'Clients CRM', href: '/clients', icon: Briefcase },
-  { name: 'QC Logs', href: '/qc', icon: ClipboardCheck },
-  { name: 'User Roles', href: '/roles', icon: Users },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { 
+    name: 'Master Data', 
+    icon: Database,
+    subItems: [
+      { name: 'Categories', href: '/master-data/categories' },
+      { name: 'Suppliers', href: '/master-data/suppliers' },
+      { name: 'Units', href: '/master-data/units' }
+    ]
+  },
 ];
 
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
   const location = useLocation();
 
   return (
@@ -57,7 +65,7 @@ export function Sidebar() {
         
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 absolute -right-3 top-5 bg-white border border-gray-200 shadow-sm z-10"
+          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 absolute -right-3 top-5 bg-white border border-gray-200 shadow-sm z-10 cursor-pointer"
         >
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
@@ -69,21 +77,60 @@ export function Sidebar() {
           const isActive = location.pathname === item.href;
           
           return (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm",
-                isActive 
-                  ? "bg-primary-600 text-white shadow-md shadow-primary-500/20" 
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
-                isCollapsed ? "justify-center px-0" : ""
+            <div key={item.name}>
+              {item.subItems ? (
+                <button
+                  onClick={() => setIsMasterDataOpen(!isMasterDataOpen)}
+                  title={isCollapsed ? item.name : undefined}
+                  className={cn(
+                    "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors font-medium text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer",
+                    isCollapsed ? "justify-center px-0" : ""
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <item.icon size={20} className="flex-shrink-0 text-gray-500" />
+                    {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
+                  </div>
+                  {!isCollapsed && (
+                    <ChevronDown size={16} className={`transition-transform ${isMasterDataOpen ? 'rotate-180' : ''}`} />
+                  )}
+                </button>
+              ) : (
+                <Link
+                  to={item.href || '#'}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm cursor-pointer",
+                    isActive 
+                      ? "bg-primary-600 text-white shadow-md shadow-primary-500/20" 
+                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                    isCollapsed ? "justify-center px-0" : ""
+                  )}
+                  title={isCollapsed ? item.name : undefined}
+                >
+                  <item.icon size={20} className={cn("flex-shrink-0", isActive ? "text-white" : "text-gray-500")} />
+                  {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
+                </Link>
               )}
-              title={isCollapsed ? item.name : undefined}
-            >
-              <item.icon size={20} className={cn("flex-shrink-0", isActive ? "text-white" : "text-gray-500")} />
-              {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
-            </Link>
+              
+              {item.subItems && isMasterDataOpen && !isCollapsed && (
+                <div className="mt-1 ml-9 space-y-1">
+                  {item.subItems.map(subItem => (
+                    <Link
+                      key={subItem.name}
+                      to={subItem.href}
+                      className={cn(
+                        "block px-4 py-2 text-sm rounded-lg transition-colors cursor-pointer",
+                        location.pathname === subItem.href
+                          ? "bg-primary-50 text-primary-600 font-medium"
+                          : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                      )}
+                    >
+                      {subItem.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

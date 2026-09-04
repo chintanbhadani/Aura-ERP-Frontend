@@ -90,7 +90,7 @@ export const InventoryTable: React.FC = () => {
           </h2> */}
           <button 
             onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
-            className="border-2 border-[#0f8b5a] text-[#0f8b5a] px-5 py-2 rounded-full font-medium hover:bg-[#0f8b5a] hover:text-white transition-colors text-sm"
+            className="border-2 border-[#0f8b5a] text-[#0f8b5a] px-5 py-2 rounded-full font-medium hover:bg-[#0f8b5a] hover:text-white transition-colors text-sm cursor-pointer"
           >
             Add Stock
           </button>
@@ -103,8 +103,9 @@ export const InventoryTable: React.FC = () => {
                 <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Material Name</th>
                 <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Category</th>
                 <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Supplier</th>
-                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Price (Cost / Sell)</th>
-                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Stock Info</th>
+                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Quantity</th>
+                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Price / Unit</th>
+                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Total Value</th>
                 <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Status</th>
                 <th className="px-2 py-4 text-right text-sm font-semibold text-gray-500">Actions</th>
               </tr>
@@ -126,12 +127,15 @@ export const InventoryTable: React.FC = () => {
                     <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
                       {product.supplier?.name || '-'}
                     </td>
-                    <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
-                      <p>${Number(product.cost_price || 0).toFixed(2)} / ${Number(product.selling_price || 0).toFixed(2)}</p>
-                    </td>
                     <td className="px-2 py-5 whitespace-nowrap text-gray-600">
-                      <p className="font-medium text-gray-900">{product.quantity} kg</p>
-                      <p className="text-xs text-gray-400">Min: {threshold} kg</p>
+                      <p className="font-medium text-gray-900">{product.quantity} {product.unit?.name || 'units'}</p>
+                      <p className="text-xs text-gray-400">Min: {threshold} {product.unit?.name || 'units'}</p>
+                    </td>
+                    <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
+                      <p>${Number(product.cost_price || 0).toFixed(2)}</p>
+                    </td>
+                    <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
+                      <p className="font-medium text-[#0f8b5a]">${(Number(product.quantity || 0) * Number(product.cost_price || 0)).toFixed(2)}</p>
                     </td>
                     <td className="px-2 py-5 whitespace-nowrap">
                       {isLowStock ? (
@@ -148,14 +152,14 @@ export const InventoryTable: React.FC = () => {
                       <div className="flex items-center justify-end gap-3">
                         <button 
                           onClick={() => openEditModal(product)} 
-                          className="p-2 text-gray-400 hover:text-[#0f8b5a] hover:bg-green-50 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-[#0f8b5a] hover:bg-green-50 rounded-lg transition-colors cursor-pointer"
                           title="Edit"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => product.id && handleDelete(product.id)} 
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                           title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -167,7 +171,7 @@ export const InventoryTable: React.FC = () => {
               })}
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-500">
+                  <td colSpan={8} className="py-12 text-center text-gray-500">
                     No items found.
                   </td>
                 </tr>
@@ -190,7 +194,7 @@ export const InventoryTable: React.FC = () => {
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="border border-gray-200 rounded-lg p-1 text-sm bg-white focus:outline-none focus:border-[#0f8b5a] text-gray-700"
+                className="border border-gray-200 rounded-lg p-1 text-sm bg-white focus:outline-none focus:border-[#0f8b5a] text-gray-700 cursor-pointer"
               >
                 {/* <option value={5}>5</option> */}
                 <option value={10}>10</option>
@@ -203,7 +207,7 @@ export const InventoryTable: React.FC = () => {
               <button 
                 onClick={handlePrevPage}
                 disabled={currentPage === 1 || totalPages === 0}
-                className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
@@ -212,7 +216,7 @@ export const InventoryTable: React.FC = () => {
                   <button
                     key={index}
                     onClick={() => setCurrentPage(index + 1)}
-                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                       currentPage === index + 1 
                         ? 'bg-[#0f8b5a] text-white' 
                         : 'text-gray-500 hover:bg-gray-50'
@@ -221,7 +225,7 @@ export const InventoryTable: React.FC = () => {
                     {index + 1}
                   </button>
                 )) : (
-                  <button className="w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors bg-[#0f8b5a] text-white">
+                  <button className="w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors bg-[#0f8b5a] text-white cursor-pointer">
                     1
                   </button>
                 )}
@@ -229,7 +233,7 @@ export const InventoryTable: React.FC = () => {
               <button 
                 onClick={handleNextPage}
                 disabled={currentPage === totalPages || totalPages === 0}
-                className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
