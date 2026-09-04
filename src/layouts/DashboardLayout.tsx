@@ -11,17 +11,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
 
+  console.log(" user :: ",user);
+  
+
   const handleLogout = () => {
     dispatch(setToken(null));
     dispatch(setLoggedUser(null));
     navigate('/');
   };
 
-  const username = user?.username || 'John Doe';
+  const displayName = user?.name || user?.username || 'John Doe';
   const role = (user?.role || 'Admin').replace('_', ' ').toLowerCase();
   
   // Extract initials for the avatar
-  const initials = username.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+  const initials = displayName.split(' ').map((n: string) => n[0] || '').join('').substring(0, 2).toUpperCase();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -53,7 +56,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       {initials}
                     </div>
                     <div className="overflow-hidden">
-                      <p className="text-sm font-bold text-gray-900 truncate">{username}</p>
+                      <p className="text-sm font-bold text-gray-900 truncate">{displayName}</p>
                       <p className="text-xs font-medium text-gray-500 capitalize truncate">{role}</p>
                     </div>
                   </div>

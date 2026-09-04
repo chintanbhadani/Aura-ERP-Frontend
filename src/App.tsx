@@ -113,9 +113,6 @@ const TopBar = () => {
   const dispatch = useDispatch();
   const user = useSelector((state: RootState) => state.base.user);
 
-  // console.log(" user :: ", user);
-  
-
   const handleLogout = () => {
     dispatch(setToken(null));
     dispatch(setLoggedUser(null));
@@ -143,10 +140,10 @@ const TopBar = () => {
           <div className="absolute top-20 right-6 w-64 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden py-2">
             <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-50">
               <div className="bg-[#0f8b5a] text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 uppercase">
-                {user?.name ? user.name.substring(0, 2) : 'U'}
+                {user?.username ? user?.username.substring(0, 2) : 'U'}
               </div>
               <div className="overflow-hidden">
-                <p className="text-gray-900 font-semibold text-sm truncate">{user?.name || ''}</p>
+                <p className="text-gray-900 font-semibold text-sm truncate">{user?.username || ''}</p>
                 <p className="text-gray-400 text-xs truncate">{user?.role || user?.email || ''}</p>
               </div>
             </div>

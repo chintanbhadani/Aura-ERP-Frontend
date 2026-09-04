@@ -3,6 +3,7 @@ export interface User {
   name?: string;
   email?: string;
   role?: string;
+  username?: string;
 }
 
 export interface BaseState {
