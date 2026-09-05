@@ -3,17 +3,21 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, us
 import { useDispatch, useSelector } from 'react-redux';
 import { setToken, setLoggedUser } from './slices/Base';
 import type { RootState } from './store';
-import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database } from 'lucide-react';
+import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database, FileText } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { InventoryTable } from './components/InventoryTable';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import { MasterData } from './components/MasterData';
+import { InvoiceList } from './components/InvoiceList';
+import { InvoiceForm } from './components/InvoiceForm';
 import WithAuth from './components/WithAuth';
 
 const ProtectedDashboard = WithAuth(Dashboard);
 const ProtectedInventoryTable = WithAuth(InventoryTable);
 const ProtectedMasterData = WithAuth(MasterData);
+const ProtectedInvoiceList = WithAuth(InvoiceList);
+const ProtectedInvoiceForm = WithAuth(InvoiceForm);
 
 const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: () => void }) => {
   const location = useLocation();
@@ -21,12 +25,14 @@ const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: ()
   const links = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Inventory', path: '/inventory', icon: Package },
+    { name: 'Invoices', path: '/invoices', icon: FileText },
     { 
       name: 'Master Data', 
       icon: Database,
       subItems: [
         { name: 'Categories', path: '/master-data/categories' },
         { name: 'Suppliers', path: '/master-data/suppliers' },
+        { name: 'Customers', path: '/master-data/customers' },
         { name: 'Units', path: '/master-data/units' }
       ]
     }
@@ -202,6 +208,8 @@ function App() {
         <Routes>
           <Route path="/" element={<ProtectedDashboard />} />
           <Route path="/inventory" element={<ProtectedInventoryTable />} />
+          <Route path="/invoices" element={<ProtectedInvoiceList />} />
+          <Route path="/invoices/new" element={<ProtectedInvoiceForm />} />
           <Route path="/master-data/:type" element={<ProtectedMasterData />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />

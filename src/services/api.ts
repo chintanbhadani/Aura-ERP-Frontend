@@ -127,3 +127,32 @@ export const updateProduct = async (id: string, product: Product): Promise<Produ
 export const deleteProduct = async (id: string): Promise<void> => {
   await dataService.delete(`/inventory/${id}`);
 };
+
+export const fetchCustomers = async (): Promise<any[]> => {
+  const response = await dataService.get('/customers');
+  return response.data;
+};
+
+export const createCustomer = async (data: { name: string; contact?: string; email?: string }): Promise<any> => {
+  const response = await dataService.post('/customers', data);
+  return response.data;
+};
+
+export const updateCustomer = async (id: string, data: { name: string; contact?: string; email?: string }): Promise<any> => {
+  const response = await dataService.put(`/customers/${id}`, data);
+  return response.data;
+};
+
+export const deleteCustomer = async (id: string): Promise<void> => {
+  await dataService.delete(`/customers/${id}`);
+};
+
+export const fetchInvoices = async (): Promise<any[]> => {
+  const response = await dataService.get('/invoices');
+  return response.data;
+};
+
+export const createInvoice = async (data: any): Promise<any> => {
+  const response = await dataService.post('/invoices', data);
+  return response.data;
+};

@@ -4,11 +4,12 @@ import { Pencil, Trash2, Plus, Database } from 'lucide-react';
 import { 
   fetchCategories, createCategory, updateCategory, deleteCategory,
   fetchSuppliers, createSupplier, updateSupplier, deleteSupplier,
-  fetchUnits, createUnit, updateUnit, deleteUnit
+  fetchUnits, createUnit, updateUnit, deleteUnit,
+  fetchCustomers, createCustomer, updateCustomer, deleteCustomer
 } from '../services/api';
-import type { Category, Supplier, Unit } from '../services/api';
+import type { Category, Supplier, Unit, Customer } from '../types';
 
-type MasterDataType = 'categories' | 'suppliers' | 'units';
+type MasterDataType = 'categories' | 'suppliers' | 'units' | 'customers';
 
 export const MasterData: React.FC = () => {
   const { type } = useParams<{ type: MasterDataType }>();
@@ -23,7 +24,7 @@ export const MasterData: React.FC = () => {
   const [contact, setContact] = useState('');
   const [email, setEmail] = useState('');
 
-  const isValidType = type === 'categories' || type === 'suppliers' || type === 'units';
+  const isValidType = type === 'categories' || type === 'suppliers' || type === 'units' || type === 'customers';
 
   useEffect(() => {
     if (!isValidType) {
@@ -44,6 +45,9 @@ export const MasterData: React.FC = () => {
       } else if (type === 'units') {
         const res = await fetchUnits();
         setData(res);
+      } else if (type === 'customers') {
+        const res = await fetchCustomers();
+        setData(res);
       }
     } catch (error) {
       console.error('Failed to load data', error);
@@ -55,6 +59,7 @@ export const MasterData: React.FC = () => {
       case 'categories': return 'Category Master';
       case 'suppliers': return 'Supplier Master';
       case 'units': return 'Unit Master';
+      case 'customers': return 'Customer Master';
       default: return 'Master Data';
     }
   };
@@ -62,7 +67,7 @@ export const MasterData: React.FC = () => {
   const openModal = (item: any = null) => {
     setEditingItem(item);
     setName(item ? item.name : '');
-    if (type === 'suppliers') {
+    if (type === 'suppliers' || type === 'customers') {
       setContact(item?.contact || '');
       setEmail(item?.email || '');
     }
@@ -89,6 +94,9 @@ export const MasterData: React.FC = () => {
       } else if (type === 'units') {
         if (editingItem) await updateUnit(editingItem.id, { name });
         else await createUnit({ name });
+      } else if (type === 'customers') {
+        if (editingItem) await updateCustomer(editingItem.id, { name, contact, email });
+        else await createCustomer({ name, contact, email });
       }
       closeModal();
       loadData();
@@ -104,6 +112,7 @@ export const MasterData: React.FC = () => {
       if (type === 'categories') await deleteCategory(id);
       else if (type === 'suppliers') await deleteSupplier(id);
       else if (type === 'units') await deleteUnit(id);
+      else if (type === 'customers') await deleteCustomer(id);
       loadData();
     } catch (error) {
       console.error('Error deleting data', error);
@@ -140,7 +149,7 @@ export const MasterData: React.FC = () => {
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500 w-1/3">Name</th>
-                {type === 'suppliers' && (
+                {(type === 'suppliers' || type === 'customers') && (
                   <>
                     <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Contact</th>
                     <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Email</th>
@@ -153,7 +162,7 @@ export const MasterData: React.FC = () => {
               {data.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50/50">
                   <td className="px-2 py-5 whitespace-nowrap text-gray-900 font-medium">{item.name}</td>
-                  {type === 'suppliers' && (
+                  {(type === 'suppliers' || type === 'customers') && (
                     <>
                       <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">{item.contact || '-'}</td>
                       <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">{item.email || '-'}</td>
@@ -181,7 +190,7 @@ export const MasterData: React.FC = () => {
               ))}
               {data.length === 0 && (
                 <tr>
-                  <td colSpan={type === 'suppliers' ? 4 : 2} className="py-12 text-center text-gray-500">
+                  <td colSpan={(type === 'suppliers' || type === 'customers') ? 4 : 2} className="py-12 text-center text-gray-500">
                     No records found.
                   </td>
                 </tr>
@@ -195,7 +204,7 @@ export const MasterData: React.FC = () => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in duration-200">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              {editingItem ? 'Edit' : 'Add New'} {type === 'categories' ? 'Category' : type === 'suppliers' ? 'Supplier' : 'Unit'}
+              {editingItem ? 'Edit' : 'Add New'} {type === 'categories' ? 'Category' : type === 'suppliers' ? 'Supplier' : type === 'customers' ? 'Customer' : 'Unit'}
             </h2>
             
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -210,7 +219,7 @@ export const MasterData: React.FC = () => {
                 />
               </div>
 
-              {type === 'suppliers' && (
+              {(type === 'suppliers' || type === 'customers') && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Contact Number</label>
