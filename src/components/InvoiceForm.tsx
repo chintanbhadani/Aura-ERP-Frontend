@@ -8,6 +8,7 @@ import { fetchInventory, fetchCustomers, fetchSuppliers, createInvoice, createCu
 import type { Product, Customer, Supplier } from '../types';
 import { successToast, errorToast } from '../helper/toast';
 import { TextFieldComponent, SelectOutlinedField, DatePickerComponent } from './input/index';
+import { useCurrency } from '../helper/currency';
 
 const invoiceValidationSchema = Yup.object({
   type: Yup.string().required(),
@@ -38,6 +39,7 @@ const subModalValidationSchema = Yup.object({
 
 export const InvoiceForm: React.FC = () => {
   const navigate = useNavigate();
+  const { format } = useCurrency();
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -309,7 +311,7 @@ export const InvoiceForm: React.FC = () => {
                                 fontSize: '0.9rem'
                               }}
                             >
-                              ${((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}
+                              {format((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0))}
                             </Box>
                           </div>
 
@@ -354,7 +356,7 @@ export const InvoiceForm: React.FC = () => {
                           Add Another Line
                         </Button>
                         <div className="text-xl font-bold text-gray-900">
-                          Total: ${calculateTotal().toFixed(2)}
+                          Total: {format(calculateTotal())}
                         </div>
                       </div>
                     </div>

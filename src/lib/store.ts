@@ -3,6 +3,7 @@ import { combineReducers } from 'redux';
 import { persistReducer, persistStore } from 'redux-persist';
 import { FLUSH, PAUSE, PERSIST, PURGE, REGISTER, REHYDRATE } from 'redux-persist/es/constants';
 import baseSlice from './slice/Base';
+import settingsSlice from './slice/settingsSlice';
 
 // Custom storage wrapper to avoid Vite/Rollup commonjs import issues with redux-persist
 const storage = {
@@ -20,13 +21,14 @@ const storage = {
 };
 
 const reducers = combineReducers({
-  base: baseSlice
+  base: baseSlice,
+  settings: settingsSlice,
 });
 
 const persistConfig = {
   key: 'root',
   storage,
-  whitelist: ['base', 'propertyMeta'],
+  whitelist: ['base', 'settings', 'propertyMeta'],
   blacklist: ['table']
 };
 

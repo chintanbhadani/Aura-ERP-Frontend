@@ -11,6 +11,7 @@ import { Signup } from './components/Signup';
 import { MasterData } from './components/MasterData';
 import { InvoiceList } from './components/InvoiceList';
 import { InvoiceForm } from './components/InvoiceForm';
+import { Settings as SettingsComponent } from './components/Settings';
 import WithAuth from './components/WithAuth';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -22,6 +23,7 @@ const ProtectedInventoryTable = WithAuth(InventoryTable);
 const ProtectedMasterData = WithAuth(MasterData);
 const ProtectedInvoiceList = WithAuth(InvoiceList);
 const ProtectedInvoiceForm = WithAuth(InvoiceForm);
+const ProtectedSettings = WithAuth(SettingsComponent);
 
 const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: () => void }) => {
   const location = useLocation();
@@ -39,7 +41,8 @@ const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: ()
         { name: 'Customers', path: '/master-data/customers' },
         { name: 'Units', path: '/master-data/units' }
       ]
-    }
+    },
+    { name: 'Settings', path: '/settings', icon: Settings }
   ];
 
   const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
@@ -162,7 +165,13 @@ const TopBar = () => {
                 <User className="w-4 h-4" />
                 My Profile
               </button>
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
+              <button 
+                onClick={() => {
+                  setIsUserMenuOpen(false);
+                  navigate('/settings');
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors cursor-pointer"
+              >
                 <Settings className="w-4 h-4" />
                 Settings
               </button>
@@ -217,6 +226,7 @@ function App() {
             <Route path="/invoices" element={<ProtectedInvoiceList />} />
             <Route path="/invoices/new" element={<ProtectedInvoiceForm />} />
             <Route path="/master-data/:type" element={<ProtectedMasterData />} />
+            <Route path="/settings" element={<ProtectedSettings />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="*" element={<Navigate to="/login" replace />} />

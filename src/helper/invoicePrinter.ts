@@ -3,6 +3,8 @@ import autoTable from 'jspdf-autotable';
 import type { Invoice } from '../types';
 import { THEME_CONFIG } from '../theme/muiTheme';
 import { successToast, errorToast } from './toast';
+import { formatCurrency, getActiveCurrency } from './currency';
+import type { CurrencySetting } from '../slices/settingsSlice';
 
 // Helper to convert hex color to RGB tuple
 const hexToRgb = (hex: string): [number, number, number] => {
@@ -43,7 +45,8 @@ cleanupDomArtifacts();
 /**
  * Generate full HTML for printable invoice (used by printInvoice)
  */
-export const generateInvoiceHtml = (invoice: Invoice): string => {
+export const generateInvoiceHtml = (invoice: Invoice, currency?: CurrencySetting): string => {
+  const activeCurrency = currency || getActiveCurrency();
   const isSales = invoice.type === 'SALES';
   const entityTitle = isSales ? 'Customer' : 'Supplier';
   const entityName = isSales ? (invoice.customer?.name || 'Customer') : (invoice.supplier?.name || 'Supplier');
@@ -54,15 +57,15 @@ export const generateInvoiceHtml = (invoice: Invoice): string => {
     month: 'long',
     day: 'numeric',
   });
-  const totalAmount = Number(invoice.totalAmount || 0).toFixed(2);
+  const totalAmountFormatted = formatCurrency(invoice.totalAmount, activeCurrency);
   const themeColor = THEME_CONFIG.primary || '#0f8b5a';
 
   const itemsRows = (invoice.items || []).map((item, index) => {
     const productName = item.product?.name || item.productId || 'Item';
     const sku = item.product?.sku ? `<span style="color: #6b7280; font-size: 11px;">(SKU: ${item.product.sku})</span>` : '';
     const qty = Number(item.quantity || 0);
-    const unitPrice = Number(item.unitPrice || 0).toFixed(2);
-    const lineTotal = Number(item.totalPrice || (qty * Number(item.unitPrice || 0))).toFixed(2);
+    const unitPrice = formatCurrency(item.unitPrice, activeCurrency);
+    const lineTotal = formatCurrency(item.totalPrice || (qty * Number(item.unitPrice || 0)), activeCurrency);
 
     return `
       <tr style="border-bottom: 1px solid #f3f4f6;">
@@ -71,8 +74,8 @@ export const generateInvoiceHtml = (invoice: Invoice): string => {
           ${productName} ${sku}
         </td>
         <td style="padding: 10px 14px; text-align: center; color: #374151; font-size: 13px;">${qty}</td>
-        <td style="padding: 10px 14px; text-align: right; color: #374151; font-size: 13px;">$${unitPrice}</td>
-        <td style="padding: 10px 14px; text-align: right; color: #111827; font-weight: 600; font-size: 13px;">$${lineTotal}</td>
+        <td style="padding: 10px 14px; text-align: right; color: #374151; font-size: 13px;">${unitPrice}</td>
+        <td style="padding: 10px 14px; text-align: right; color: #111827; font-weight: 600; font-size: 13px;">${lineTotal}</td>
       </tr>
     `;
   }).join('');
@@ -303,7 +306,7 @@ export const generateInvoiceHtml = (invoice: Invoice): string => {
           <div class="summary-card">
             <div class="summary-total">
               <span>Total Amount</span>
-              <span>$${totalAmount}</span>
+              <span>${totalAmountFormatted}</span>
             </div>
           </div>
         </div>
@@ -321,11 +324,11 @@ export const generateInvoiceHtml = (invoice: Invoice): string => {
 /**
  * Print Invoice via clean invisible iframe (NO scroll offset / NO layout shift)
  */
-export const printInvoice = (invoice: Invoice): void => {
+export const printInvoice = (invoice: Invoice, currency?: CurrencySetting): void => {
   try {
     cleanupDomArtifacts();
 
-    const htmlContent = generateInvoiceHtml(invoice);
+    const htmlContent = generateInvoiceHtml(invoice, currency);
     const iframe = document.createElement('iframe');
     
     // Positioned safely without negative offset to avoid page scroll jumps
@@ -369,11 +372,12 @@ export const printInvoice = (invoice: Invoice): void => {
  * Generates 100% in-memory with jsPDF & autoTable.
  * ZERO DOM manipulation, ZERO layout shift, ZERO UI changes to the page!
  */
-export const downloadInvoicePdf = async (invoice: Invoice): Promise<void> => {
+export const downloadInvoicePdf = async (invoice: Invoice, currency?: CurrencySetting): Promise<void> => {
   try {
     // Immediately clean up any previous DOM artifacts
     cleanupDomArtifacts();
 
+    const activeCurrency = currency || getActiveCurrency();
     const isSales = invoice.type === 'SALES';
     const primaryRgb = hexToRgb(THEME_CONFIG.primary || '#0f8b5a');
     const entityTitle = isSales ? 'CUSTOMER' : 'SUPPLIER';
@@ -381,7 +385,7 @@ export const downloadInvoicePdf = async (invoice: Invoice): Promise<void> => {
     const entityContact = isSales ? (invoice.customer?.contact || '-') : (invoice.supplier?.contact || '-');
     const entityEmail = isSales ? (invoice.customer?.email || '-') : (invoice.supplier?.email || '-');
     const formattedDate = new Date(invoice.date).toLocaleDateString();
-    const totalAmount = Number(invoice.totalAmount || 0).toFixed(2);
+    const totalAmount = formatCurrency(invoice.totalAmount, activeCurrency);
 
     // Initialize portrait A4 document
     const doc = new jsPDF({
@@ -474,8 +478,8 @@ export const downloadInvoicePdf = async (invoice: Invoice): Promise<void> => {
       const prodName = item.product?.name || item.productId || 'Item';
       const sku = item.product?.sku ? ` (${item.product.sku})` : '';
       const qty = String(item.quantity || 0);
-      const unitPrice = `$${Number(item.unitPrice || 0).toFixed(2)}`;
-      const lineTotal = `$${Number(item.totalPrice || 0).toFixed(2)}`;
+      const unitPrice = formatCurrency(item.unitPrice, activeCurrency);
+      const lineTotal = formatCurrency(item.totalPrice, activeCurrency);
       return [String(index + 1), `${prodName}${sku}`, qty, unitPrice, lineTotal];
     });
 
@@ -527,7 +531,7 @@ export const downloadInvoicePdf = async (invoice: Invoice): Promise<void> => {
     doc.setFontSize(13);
     doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text(`$${totalAmount}`, 191, finalY + 12, { align: 'right' });
+    doc.text(totalAmount, 191, finalY + 12, { align: 'right' });
 
     // Footer
     doc.setFont('helvetica', 'normal');

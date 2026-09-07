@@ -4,9 +4,11 @@ import { ProductForm } from './ProductForm';
 import { Leaf, Package, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { successToast, errorToast } from '../helper/toast';
+import { useCurrency } from '../helper/currency';
 
 export const InventoryTable: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
+  const { format } = useCurrency();
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -180,10 +182,10 @@ export const InventoryTable: React.FC = () => {
                       <p className="text-xs text-gray-400">Min: {threshold} {product.unit?.name || 'units'}</p>
                     </td>
                     <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
-                      <p>${Number(product.cost_price || 0).toFixed(2)}</p>
+                      <p>{format(product.cost_price)}</p>
                     </td>
                     <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
-                      <p className="font-medium text-primary">${(Number(product.quantity || 0) * Number(product.cost_price || 0)).toFixed(2)}</p>
+                      <p className="font-medium text-primary">{format(Number(product.quantity || 0) * Number(product.cost_price || 0))}</p>
                     </td>
                     <td className="px-2 py-5 whitespace-nowrap">
                       {isLowStock ? (

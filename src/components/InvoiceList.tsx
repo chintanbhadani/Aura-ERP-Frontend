@@ -5,11 +5,14 @@ import { Button, IconButton, Tooltip } from '@mui/material';
 import { fetchInvoices } from '../services/api';
 import type { Invoice } from '../types';
 import { printInvoice, downloadInvoicePdf } from '../helper/invoicePrinter';
+import { useCurrency } from '../helper/currency';
 
 export const InvoiceList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { format, currency } = useCurrency();
 
   useEffect(() => {
     loadInvoices();
@@ -78,7 +81,7 @@ export const InvoiceList: React.FC = () => {
                     {invoice.type === 'SALES' ? invoice.customer?.name : invoice.supplier?.name}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-right text-gray-900 font-medium">
-                    ${Number(invoice.totalAmount).toFixed(2)}
+                    {format(invoice.totalAmount)}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -95,7 +98,7 @@ export const InvoiceList: React.FC = () => {
                         <IconButton 
                           size="small"
                           color="primary"
-                          onClick={() => printInvoice(invoice)} 
+                          onClick={() => printInvoice(invoice, currency)} 
                         >
                           <Printer className="w-4 h-4" />
                         </IconButton>
@@ -104,7 +107,7 @@ export const InvoiceList: React.FC = () => {
                         <IconButton 
                           size="small"
                           color="primary"
-                          onClick={() => downloadInvoicePdf(invoice)} 
+                          onClick={() => downloadInvoicePdf(invoice, currency)} 
                         >
                           <Download className="w-4 h-4" />
                         </IconButton>
@@ -162,7 +165,7 @@ export const InvoiceList: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Total Amount</p>
-                  <p className="text-sm font-bold text-gray-900">${Number(selectedInvoice.totalAmount).toFixed(2)}</p>
+                  <p className="text-sm font-bold text-gray-900">{format(selectedInvoice.totalAmount)}</p>
                 </div>
               </div>
 
@@ -182,8 +185,8 @@ export const InvoiceList: React.FC = () => {
                       <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-4 py-3 text-sm text-gray-900">{item.product?.name || item.productId}</td>
                         <td className="px-4 py-3 text-sm text-gray-600 text-right">{item.quantity}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 text-right">${Number(item.unitPrice).toFixed(2)}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">${Number(item.totalPrice).toFixed(2)}</td>
+                        <td className="px-4 py-3 text-sm text-gray-600 text-right">{format(item.unitPrice)}</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">{format(item.totalPrice)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -196,7 +199,7 @@ export const InvoiceList: React.FC = () => {
                 variant="outlined"
                 color="primary"
                 startIcon={<Printer className="w-4 h-4" />}
-                onClick={() => selectedInvoice && printInvoice(selectedInvoice)}
+                onClick={() => selectedInvoice && printInvoice(selectedInvoice, currency)}
                 sx={{ px: 2.5, py: 1 }}
               >
                 Print
@@ -205,7 +208,7 @@ export const InvoiceList: React.FC = () => {
                 variant="contained"
                 color="primary"
                 startIcon={<Download className="w-4 h-4" />}
-                onClick={() => selectedInvoice && downloadInvoicePdf(selectedInvoice)}
+                onClick={() => selectedInvoice && downloadInvoicePdf(selectedInvoice, currency)}
                 sx={{ px: 3, py: 1 }}
               >
                 Download PDF
