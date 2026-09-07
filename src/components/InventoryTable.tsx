@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { fetchInventory, deleteProduct, createProduct, updateProduct, type Product } from '../services/api';
+import { fetchInventory, deleteProduct, createProduct, updateProduct, bulkUploadInventory, type Product } from '../services/api';
 import { ProductForm } from './ProductForm';
-import { Leaf, Package, Pencil, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Leaf, Package, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 export const InventoryTable: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -13,6 +13,11 @@ export const InventoryTable: React.FC = () => {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Bulk Upload state
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
+  const [bulkUploadFile, setBulkUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const loadData = async () => {
     try {
@@ -64,6 +69,36 @@ export const InventoryTable: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleBulkUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkUploadFile) return;
+    setIsUploading(true);
+    try {
+      const response = await bulkUploadInventory(bulkUploadFile);
+      alert(response.message || 'Upload successful');
+      setIsBulkUploadModalOpen(false);
+      setBulkUploadFile(null);
+      loadData();
+    } catch (error) {
+      console.error('Bulk upload error', error);
+      alert('Failed to upload file');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDownloadSample = () => {
+    const csvContent = "data:text/csv;charset=utf-8,sku,name,quantity,cost_price,selling_price,min_stock,categoryName,supplierName,unitName\n" +
+      "MAT-001,Example Material,100,10.50,15.00,20,Raw Materials,Example Supplier,kg\n";
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "inventory_sample.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Pagination Logic
   const totalPages = Math.ceil(products.length / itemsPerPage);
   const currentProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -84,10 +119,16 @@ export const InventoryTable: React.FC = () => {
       </div>
 
       <div className="bg-white shadow-sm border border-gray-100 rounded-2xl p-6">
-        <div className="flex justify-end items-center mb-6">
+        <div className="flex justify-end items-center mb-6 gap-3">
           {/* <h2 className="text-xl font-bold text-gray-900">
             {activeTab === 'raw' ? 'Raw Material Stock' : 'Finished Goods Stock'}
           </h2> */}
+          <button 
+            onClick={() => setIsBulkUploadModalOpen(true)}
+            className="border-2 border-gray-300 text-gray-700 px-5 py-2 rounded-full font-medium hover:bg-gray-50 transition-colors text-sm cursor-pointer"
+          >
+            Bulk Upload
+          </button>
           <button 
             onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
             className="border-2 border-[#0f8b5a] text-[#0f8b5a] px-5 py-2 rounded-full font-medium hover:bg-[#0f8b5a] hover:text-white transition-colors text-sm cursor-pointer"
@@ -249,6 +290,52 @@ export const InventoryTable: React.FC = () => {
           onSubmit={handleFormSubmit} 
           onCancel={() => setIsModalOpen(false)} 
         />
+      )}
+
+      {isBulkUploadModalOpen && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">Bulk Upload Materials</h2>
+              <button onClick={() => setIsBulkUploadModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-4">
+                Upload an Excel or CSV file to bulk import materials. 
+                <button onClick={handleDownloadSample} className="text-[#0f8b5a] ml-1 hover:underline font-medium">Download sample template.</button>
+              </p>
+              <input
+                type="file"
+                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                onChange={(e) => setBulkUploadFile(e.target.files ? e.target.files[0] : null)}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-medium
+                  file:bg-green-50 file:text-[#0f8b5a]
+                  hover:file:bg-green-100 cursor-pointer"
+              />
+            </div>
+            <div className="flex justify-end gap-3 mt-8">
+              <button
+                type="button"
+                onClick={() => setIsBulkUploadModalOpen(false)}
+                className="px-5 py-2 border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkUpload}
+                disabled={!bulkUploadFile || isUploading}
+                className="px-5 py-2 bg-[#0f8b5a] text-white text-sm font-medium rounded-full hover:bg-[#0c764c] disabled:opacity-50 transition-colors"
+              >
+                {isUploading ? 'Uploading...' : 'Upload'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

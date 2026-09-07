@@ -156,3 +156,14 @@ export const createInvoice = async (data: any): Promise<any> => {
   const response = await dataService.post('/invoices', data);
   return response.data;
 };
+
+export const bulkUploadInventory = async (file: File): Promise<any> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await dataService.post('/inventory/bulk-upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};
