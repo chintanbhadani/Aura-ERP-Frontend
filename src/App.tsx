@@ -12,6 +12,10 @@ import { MasterData } from './components/MasterData';
 import { InvoiceList } from './components/InvoiceList';
 import { InvoiceForm } from './components/InvoiceForm';
 import WithAuth from './components/WithAuth';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { ThemeProvider } from '@mui/material/styles';
+import { auraTheme } from './theme/muiTheme';
 
 const ProtectedDashboard = WithAuth(Dashboard);
 const ProtectedInventoryTable = WithAuth(InventoryTable);
@@ -49,7 +53,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: ()
         {isOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
       </button>
       
-      <div className={`p-6 flex items-center ${isOpen ? 'gap-3' : 'justify-center'} text-[#0f8b5a] font-bold text-xl mb-6 mt-2`}>
+      <div className={`p-6 flex items-center ${isOpen ? 'gap-3' : 'justify-center'} text-primary font-bold text-xl mb-6 mt-2`}>
         <Factory className="w-6 h-6 shrink-0" />
         {isOpen && <span>Aura ERP</span>}
       </div>
@@ -80,7 +84,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: ()
                   title={!isOpen ? link.name : undefined}
                   className={`flex items-center ${isOpen ? 'gap-3 px-4' : 'justify-center px-0'} py-2.5 rounded-lg font-medium transition-colors text-sm ${
                     isActive 
-                      ? 'bg-[#0f8b5a] text-white' 
+                      ? 'bg-primary text-white' 
                       : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
@@ -96,7 +100,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: ()
                       to={subItem.path}
                       className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
                         location.pathname === subItem.path
-                          ? 'bg-green-50 text-[#0f8b5a] font-medium'
+                          ? 'bg-primary-bg text-primary font-medium'
                           : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                       }`}
                     >
@@ -131,7 +135,7 @@ const TopBar = () => {
         onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
         className="flex items-center gap-2 bg-white rounded-full p-1 pr-3 shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors relative z-50 cursor-pointer"
       >
-        <div className="bg-[#0f8b5a] text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase">
+        <div className="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase">
           {user?.name ? user.name.substring(0, 2) : 'U'}
         </div>
         <ChevronDown className="w-4 h-4 text-gray-500" />
@@ -145,7 +149,7 @@ const TopBar = () => {
           ></div>
           <div className="absolute top-20 right-6 w-64 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden py-2">
             <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-50">
-              <div className="bg-[#0f8b5a] text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 uppercase">
+              <div className="bg-primary text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 uppercase">
                 {user?.username ? user?.username.substring(0, 2) : 'U'}
               </div>
               <div className="overflow-hidden">
@@ -203,20 +207,23 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
   return (
-    <Router>
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<ProtectedDashboard />} />
-          <Route path="/inventory" element={<ProtectedInventoryTable />} />
-          <Route path="/invoices" element={<ProtectedInvoiceList />} />
-          <Route path="/invoices/new" element={<ProtectedInvoiceForm />} />
-          <Route path="/master-data/:type" element={<ProtectedMasterData />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </AppLayout>
-    </Router>
+    <ThemeProvider theme={auraTheme}>
+      <Router>
+        <ToastContainer position="top-right" autoClose={4000} />
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<ProtectedDashboard />} />
+            <Route path="/inventory" element={<ProtectedInventoryTable />} />
+            <Route path="/invoices" element={<ProtectedInvoiceList />} />
+            <Route path="/invoices/new" element={<ProtectedInvoiceForm />} />
+            <Route path="/master-data/:type" element={<ProtectedMasterData />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </AppLayout>
+      </Router>
+    </ThemeProvider>
   );
 }
 

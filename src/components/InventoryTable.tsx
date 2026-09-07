@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { fetchInventory, deleteProduct, createProduct, updateProduct, bulkUploadInventory, type Product } from '../services/api';
 import { ProductForm } from './ProductForm';
 import { Leaf, Package, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Button, IconButton, Tooltip } from '@mui/material';
+import { successToast, errorToast } from '../helper/toast';
 
 export const InventoryTable: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -41,9 +43,11 @@ export const InventoryTable: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         await deleteProduct(id);
+        successToast('Material deleted successfully');
         loadData();
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting product', error);
+        errorToast(error?.response?.data?.error || 'Failed to delete product');
       }
     }
   };
@@ -52,15 +56,17 @@ export const InventoryTable: React.FC = () => {
     try {
       if (editingProduct && editingProduct.id) {
         await updateProduct(editingProduct.id, data);
+        successToast('Material updated successfully');
       } else {
         await createProduct(data);
+        successToast('Material created successfully');
       }
       setIsModalOpen(false);
       setEditingProduct(null);
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving product', error);
-      alert('Failed to save product. Check if SKU is unique.');
+      errorToast(error?.response?.data?.error || 'Failed to save product. Check if SKU is unique.');
     }
   };
 
@@ -75,13 +81,13 @@ export const InventoryTable: React.FC = () => {
     setIsUploading(true);
     try {
       const response = await bulkUploadInventory(bulkUploadFile);
-      alert(response.message || 'Upload successful');
+      successToast(response.message || 'Upload successful');
       setIsBulkUploadModalOpen(false);
       setBulkUploadFile(null);
       loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Bulk upload error', error);
-      alert('Failed to upload file');
+      errorToast(error?.response?.data?.error || 'Failed to upload file');
     } finally {
       setIsUploading(false);
     }
@@ -120,21 +126,22 @@ export const InventoryTable: React.FC = () => {
 
       <div className="bg-white shadow-sm border border-gray-100 rounded-2xl p-6">
         <div className="flex justify-end items-center mb-6 gap-3">
-          {/* <h2 className="text-xl font-bold text-gray-900">
-            {activeTab === 'raw' ? 'Raw Material Stock' : 'Finished Goods Stock'}
-          </h2> */}
-          <button 
+          <Button 
+            variant="outlined"
+            color="primary"
             onClick={() => setIsBulkUploadModalOpen(true)}
-            className="border-2 border-gray-300 text-gray-700 px-5 py-2 rounded-full font-medium hover:bg-gray-50 transition-colors text-sm cursor-pointer"
+            sx={{ px: 3, py: 1 }}
           >
             Bulk Upload
-          </button>
-          <button 
+          </Button>
+          <Button 
+            variant="contained"
+            color="primary"
             onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
-            className="border-2 border-[#0f8b5a] text-[#0f8b5a] px-5 py-2 rounded-full font-medium hover:bg-[#0f8b5a] hover:text-white transition-colors text-sm cursor-pointer"
+            sx={{ px: 3, py: 1 }}
           >
             Add Stock
-          </button>
+          </Button>
         </div>
 
         <div className="overflow-x-auto">
@@ -176,7 +183,7 @@ export const InventoryTable: React.FC = () => {
                       <p>${Number(product.cost_price || 0).toFixed(2)}</p>
                     </td>
                     <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
-                      <p className="font-medium text-[#0f8b5a]">${(Number(product.quantity || 0) * Number(product.cost_price || 0)).toFixed(2)}</p>
+                      <p className="font-medium text-primary">${(Number(product.quantity || 0) * Number(product.cost_price || 0)).toFixed(2)}</p>
                     </td>
                     <td className="px-2 py-5 whitespace-nowrap">
                       {isLowStock ? (
@@ -184,27 +191,31 @@ export const InventoryTable: React.FC = () => {
                           Low Stock
                         </span>
                       ) : (
-                        <span className="px-3 py-1 bg-green-50 text-[#0f8b5a] font-medium text-xs rounded-full">
+                        <span className="px-3 py-1 bg-primary-bg text-primary font-medium text-xs rounded-full">
                           Healthy
                         </span>
                       )}
                     </td>
                     <td className="px-2 py-5 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <button 
-                          onClick={() => openEditModal(product)} 
-                          className="p-2 text-gray-400 hover:text-[#0f8b5a] hover:bg-green-50 rounded-lg transition-colors cursor-pointer"
-                          title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button 
-                          onClick={() => product.id && handleDelete(product.id)} 
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Tooltip title="Edit">
+                          <IconButton 
+                            size="small"
+                            color="primary"
+                            onClick={() => openEditModal(product)} 
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton 
+                            size="small"
+                            color="error"
+                            onClick={() => product.id && handleDelete(product.id)} 
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </IconButton>
+                        </Tooltip>
                       </div>
                     </td>
                   </tr>
@@ -235,7 +246,7 @@ export const InventoryTable: React.FC = () => {
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="border border-gray-200 rounded-lg p-1 text-sm bg-white focus:outline-none focus:border-[#0f8b5a] text-gray-700 cursor-pointer"
+                className="border border-gray-200 rounded-lg p-1 text-sm bg-white focus:outline-none focus:border-primary text-gray-700 cursor-pointer"
               >
                 {/* <option value={5}>5</option> */}
                 <option value={10}>10</option>
@@ -259,14 +270,14 @@ export const InventoryTable: React.FC = () => {
                     onClick={() => setCurrentPage(index + 1)}
                     className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                       currentPage === index + 1 
-                        ? 'bg-[#0f8b5a] text-white' 
+                        ? 'bg-primary text-white' 
                         : 'text-gray-500 hover:bg-gray-50'
                     }`}
                   >
                     {index + 1}
                   </button>
                 )) : (
-                  <button className="w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors bg-[#0f8b5a] text-white cursor-pointer">
+                  <button className="w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors bg-primary text-white cursor-pointer">
                     1
                   </button>
                 )}
@@ -304,7 +315,7 @@ export const InventoryTable: React.FC = () => {
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-4">
                 Upload an Excel or CSV file to bulk import materials. 
-                <button onClick={handleDownloadSample} className="text-[#0f8b5a] ml-1 hover:underline font-medium">Download sample template.</button>
+                <button onClick={handleDownloadSample} className="text-primary ml-1 hover:underline font-medium">Download sample template.</button>
               </p>
               <input
                 type="file"
@@ -314,25 +325,29 @@ export const InventoryTable: React.FC = () => {
                   file:mr-4 file:py-2 file:px-4
                   file:rounded-full file:border-0
                   file:text-sm file:font-medium
-                  file:bg-green-50 file:text-[#0f8b5a]
-                  hover:file:bg-green-100 cursor-pointer"
+                  file:bg-primary-bg file:text-primary
+                  hover:file:opacity-90 cursor-pointer"
               />
             </div>
             <div className="flex justify-end gap-3 mt-8">
-              <button
+              <Button
                 type="button"
+                variant="text"
+                color="inherit"
                 onClick={() => setIsBulkUploadModalOpen(false)}
-                className="px-5 py-2 border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                sx={{ px: 2.5, py: 1, color: 'text.secondary', fontWeight: 600 }}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
                 onClick={handleBulkUpload}
                 disabled={!bulkUploadFile || isUploading}
-                className="px-5 py-2 bg-[#0f8b5a] text-white text-sm font-medium rounded-full hover:bg-[#0c764c] disabled:opacity-50 transition-colors"
+                sx={{ px: 3.5, py: 1, fontWeight: 600 }}
               >
                 {isUploading ? 'Uploading...' : 'Upload'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

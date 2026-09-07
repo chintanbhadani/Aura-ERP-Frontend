@@ -21,8 +21,8 @@ const WithAuth = <P extends {}>(WrappedComponent: React.ComponentType<P>, module
 
     if (isCheckingAuth) {
       return (
-        <div className="flex h-screen w-full items-center justify-center bg-[#ebf7f0]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#0f8b5a]"></div>
+        <div className="flex h-screen w-full items-center justify-center bg-primary-bg">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       );
     }

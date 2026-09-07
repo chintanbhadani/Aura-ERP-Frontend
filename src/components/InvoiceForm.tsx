@@ -1,31 +1,51 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ExternalLink } from 'lucide-react';
+import { Formik, Form, FieldArray } from 'formik';
+import * as Yup from 'yup';
+import { Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
 import { fetchInventory, fetchCustomers, fetchSuppliers, createInvoice, createCustomer, createSupplier } from '../services/api';
 import type { Product, Customer, Supplier } from '../types';
+import { successToast, errorToast } from '../helper/toast';
+import { TextFieldComponent, SelectOutlinedField, DatePickerComponent } from './input/index';
+
+const invoiceValidationSchema = Yup.object({
+  type: Yup.string().required(),
+  date: Yup.string().required('Date is required'),
+  customerId: Yup.string().when('type', {
+    is: 'SALES',
+    then: (schema) => schema.required('Customer is required'),
+    otherwise: (schema) => schema.notRequired(),
+  }),
+  supplierId: Yup.string().when('type', {
+    is: 'PURCHASE',
+    then: (schema) => schema.required('Supplier is required'),
+    otherwise: (schema) => schema.notRequired(),
+  }),
+  items: Yup.array().of(
+    Yup.object({
+      productId: Yup.string().required('Product is required'),
+      quantity: Yup.number().typeError('Must be a number').min(1, 'Min 1').required('Required'),
+      unitPrice: Yup.number().typeError('Must be a number').min(0, 'Min 0').required('Required'),
+    })
+  ).min(1, 'Please add at least one item')
+});
+
+const subModalValidationSchema = Yup.object({
+  name: Yup.string().trim().required('Name is required'),
+  contact: Yup.string().trim(),
+});
 
 export const InvoiceForm: React.FC = () => {
   const navigate = useNavigate();
-  const [type, setType] = useState<'PURCHASE' | 'SALES'>('SALES');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [customerId, setCustomerId] = useState('');
-  const [supplierId, setSupplierId] = useState('');
-  
-  const [items, setItems] = useState<{ productId: string; quantity: number; unitPrice: number }[]>([
-    { productId: '', quantity: 1, unitPrice: 0 }
-  ]);
-
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
-  const [newCustomerName, setNewCustomerName] = useState('');
-  const [newCustomerContact, setNewCustomerContact] = useState('');
-  
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
-  const [newSupplierName, setNewSupplierName] = useState('');
-  const [newSupplierContact, setNewSupplierContact] = useState('');
+
+  const mainSetFieldValueRef = React.useRef<((field: string, value: any) => void) | null>(null);
 
   const loadData = async () => {
     try {
@@ -46,359 +66,461 @@ export const InvoiceForm: React.FC = () => {
     loadData();
   }, []);
 
-  const handleCreateCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await createCustomer({ name: newCustomerName, contact: newCustomerContact });
-      await loadData();
-      setCustomerId(res.id);
-      setIsCustomerModalOpen(false);
-      setNewCustomerName('');
-      setNewCustomerContact('');
-    } catch (error) {
-      console.error('Failed to create customer', error);
-      alert('Failed to create customer');
-    }
-  };
-
-  const handleCreateSupplier = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await createSupplier({ name: newSupplierName, contact: newSupplierContact });
-      await loadData();
-      setSupplierId(res.id);
-      setIsSupplierModalOpen(false);
-      setNewSupplierName('');
-      setNewSupplierContact('');
-    } catch (error) {
-      console.error('Failed to create supplier', error);
-      alert('Failed to create supplier');
-    }
-  };
-
-  const handleItemChange = (index: number, field: string, value: any) => {
-    const newItems = [...items];
-    (newItems[index] as any)[field] = value;
-
-    if (field === 'productId') {
-      const product = products.find(p => p.id === value);
-      if (product) {
-        newItems[index].unitPrice = type === 'SALES' ? product.selling_price : product.cost_price;
-      }
-    }
-
-    setItems(newItems);
-  };
-
-  const addItem = () => {
-    setItems([...items, { productId: '', quantity: 1, unitPrice: 0 }]);
-  };
-
-  const removeItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
-
-  const calculateTotal = () => {
-    return items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const validItems = items.filter(i => i.productId && i.quantity > 0);
-      if (validItems.length === 0) {
-        alert('Please add at least one valid item');
-        return;
-      }
-
-      const payload = {
-        type,
-        date,
-        customerId: type === 'SALES' ? customerId : undefined,
-        supplierId: type === 'PURCHASE' ? supplierId : undefined,
-        items: validItems
-      };
-
-      await createInvoice(payload);
-      navigate('/invoices');
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Failed to create invoice');
-      console.error(error);
-    }
+  const initialValues = {
+    type: 'SALES' as 'SALES' | 'PURCHASE',
+    date: new Date().toISOString().split('T')[0],
+    customerId: '',
+    supplierId: '',
+    items: [
+      { productId: '', quantity: 1, unitPrice: 0 }
+    ]
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
+    <div className="w-full max-w-4xl mx-auto pb-12">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Create Invoice</h1>
-        <p className="text-gray-500 mt-1">Generate a new {type.toLowerCase()} invoice.</p>
+        <p className="text-gray-500 mt-1">Generate a new sales or purchase invoice with real-time totals.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white shadow-sm border border-gray-100 rounded-2xl p-8 space-y-8">
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Invoice Type</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as any)}
-              className="block w-full rounded-2xl border-gray-200 border text-gray-900 py-2.5 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors"
-            >
-              <option value="SALES">Sales Invoice</option>
-              <option value="PURCHASE">Purchase Invoice</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Date</label>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="block w-full rounded-2xl border-gray-200 border text-gray-900 py-2.5 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors"
-              required
-            />
-          </div>
+      <Formik
+        initialValues={initialValues}
+        validationSchema={invoiceValidationSchema}
+        onSubmit={async (values, { setSubmitting }) => {
+          try {
+            setSubmitting(true);
+            const validItems = values.items.filter(i => i.productId && Number(i.quantity) > 0);
+            if (validItems.length === 0) {
+              errorToast('Please add at least one valid item');
+              return;
+            }
 
-          {type === 'SALES' && (
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <label className="block text-sm font-medium text-gray-700">Customer</label>
-                <button
-                  type="button"
-                  onClick={() => setIsCustomerModalOpen(true)}
-                  className="text-[#0f8b5a] hover:text-[#0c744b] transition-colors"
-                  title="Add new Customer"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-              <select
-                value={customerId}
-                onChange={(e) => setCustomerId(e.target.value)}
-                className="block w-full rounded-2xl border-gray-200 border text-gray-900 py-2.5 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors"
-                required
-              >
-                <option value="">Select Customer...</option>
-                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-          )}
+            const payload = {
+              type: values.type,
+              date: values.date,
+              customerId: values.type === 'SALES' ? values.customerId : undefined,
+              supplierId: values.type === 'PURCHASE' ? values.supplierId : undefined,
+              items: validItems.map(i => ({
+                productId: i.productId,
+                quantity: Number(i.quantity),
+                unitPrice: Number(i.unitPrice)
+              }))
+            };
 
-          {type === 'PURCHASE' && (
-            <div>
-              <div className="flex items-center gap-2 mb-1.5">
-                <label className="block text-sm font-medium text-gray-700">Supplier</label>
-                <button
-                  type="button"
-                  onClick={() => setIsSupplierModalOpen(true)}
-                  className="text-[#0f8b5a] hover:text-[#0c744b] transition-colors"
-                  title="Add new Supplier"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-              <select
-                value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-                className="block w-full rounded-2xl border-gray-200 border text-gray-900 py-2.5 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors"
-                required
-              >
-                <option value="">Select Supplier...</option>
-                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-          )}
-        </div>
+            await createInvoice(payload);
+            successToast('Invoice created successfully');
+            navigate('/invoices');
+          } catch (error: any) {
+            errorToast(error.response?.data?.error || 'Failed to create invoice');
+            console.error(error);
+          } finally {
+            setSubmitting(false);
+          }
+        }}
+      >
+        {({ values, setFieldValue, isSubmitting }) => {
+          mainSetFieldValueRef.current = setFieldValue;
 
-        <div className="border-t border-gray-100 pt-8">
-          <h3 className="text-lg font-bold text-gray-900 mb-4">Invoice Items</h3>
-          
-          <div className="space-y-4">
-            {items.map((item, index) => (
-              <div key={index} className="flex items-start gap-4">
-                <div className="flex-1">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Product / SKU</label>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={item.productId}
-                      onChange={(e) => handleItemChange(index, 'productId', e.target.value)}
-                      className="block w-full rounded-xl border-gray-200 border text-gray-900 py-2 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors"
-                      required
-                    >
-                      <option value="">Select Product...</option>
-                      {products.map(p => <option key={p.id} value={p.id}>{p.sku} - {p.name}</option>)}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/inventory')}
-                      className="p-2 text-[#0f8b5a] bg-green-50 rounded-xl hover:bg-[#0f8b5a] hover:text-white transition-colors"
-                      title="Add new SKU"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-                <div className="w-32">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => handleItemChange(index, 'quantity', Number(e.target.value))}
-                    className="block w-full rounded-xl border-gray-200 border text-gray-900 py-2 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors"
-                    required
+          const calculateTotal = () => {
+            return values.items.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)), 0);
+          };
+
+          return (
+            <Form noValidate className="bg-white shadow-sm border border-gray-100 rounded-3xl p-8 space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <SelectOutlinedField
+                    name="type"
+                    label="Invoice Type"
+                    options={[
+                      { label: 'Sales Invoice', value: 'SALES' },
+                      { label: 'Purchase Invoice', value: 'PURCHASE' }
+                    ]}
+                    onChange={(newVal) => {
+                      setFieldValue('type', newVal);
+                      // Update unit prices for existing items based on sales vs purchase
+                      values.items.forEach((item, idx) => {
+                        if (item.productId) {
+                          const prod = products.find(p => p.id === item.productId);
+                          if (prod) {
+                            setFieldValue(`items.${idx}.unitPrice`, newVal === 'SALES' ? prod.selling_price : prod.cost_price);
+                          }
+                        }
+                      });
+                    }}
                   />
                 </div>
-                <div className="w-32">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Unit Price</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={item.unitPrice}
-                    onChange={(e) => handleItemChange(index, 'unitPrice', Number(e.target.value))}
-                    className="block w-full rounded-xl border-gray-200 border text-gray-900 py-2 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors"
-                    required
+                <div>
+                  <DatePickerComponent
+                    name="date"
+                    label="Invoice Date"
                   />
                 </div>
-                <div className="w-32">
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Total</label>
-                  <div className="py-2 px-3 text-sm font-medium text-gray-900 bg-gray-50 rounded-xl border border-transparent">
-                    ${(item.quantity * item.unitPrice).toFixed(2)}
-                  </div>
-                </div>
-                <div className="pt-6">
-                  <button
-                    type="button"
-                    onClick={() => removeItem(index)}
-                    disabled={items.length === 1}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
 
-          <div className="mt-4 flex justify-between items-center border-t border-gray-100 pt-4">
-            <button
-              type="button"
-              onClick={addItem}
-              className="flex items-center gap-2 text-[#0f8b5a] font-medium hover:text-[#0c744b] text-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Add Another Line
-            </button>
-            <div className="text-xl font-bold text-gray-900">
-              Total: ${calculateTotal().toFixed(2)}
-            </div>
-          </div>
-        </div>
+                {values.type === 'SALES' && (
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: '100%' }}>
+                    <Box sx={{ flex: 1 }}>
+                      <SelectOutlinedField
+                        name="customerId"
+                        label="Customer"
+                        placeholder="Select Customer..."
+                        options={customers.map(c => ({ label: c.name, value: c.id }))}
+                      />
+                    </Box>
+                    <Tooltip title="Add new customer">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        tabIndex={-1}
+                        onClick={() => setIsCustomerModalOpen(true)}
+                        sx={{
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: '12px',
+                          width: '40px',
+                          height: '40px',
+                          flexShrink: 0,
+                          '&:hover': {
+                            backgroundColor: 'action.hover',
+                            borderColor: 'primary.main'
+                          }
+                        }}
+                      >
+                        <Plus size={18} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                )}
 
-        <div className="flex items-center gap-3 justify-end pt-4 border-t border-gray-100">
-          <button 
-            type="button"
-            onClick={() => navigate('/invoices')}
-            className="px-6 py-3 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit" 
-            className="bg-[#0f8b5a] text-white px-8 py-3 rounded-xl font-medium hover:bg-[#0c744b] transition-colors shadow-lg shadow-[#0f8b5a]/30 cursor-pointer"
-          >
-            Create Invoice
-          </button>
-        </div>
-      </form>
+                {values.type === 'PURCHASE' && (
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: '100%' }}>
+                    <Box sx={{ flex: 1 }}>
+                      <SelectOutlinedField
+                        name="supplierId"
+                        label="Supplier"
+                        placeholder="Select Supplier..."
+                        options={suppliers.map(s => ({ label: s.name, value: s.id }))}
+                      />
+                    </Box>
+                    <Tooltip title="Add new supplier">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        tabIndex={-1}
+                        onClick={() => setIsSupplierModalOpen(true)}
+                        sx={{
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: '12px',
+                          width: '40px',
+                          height: '40px',
+                          flexShrink: 0,
+                          '&:hover': {
+                            backgroundColor: 'action.hover',
+                            borderColor: 'primary.main'
+                          }
+                        }}
+                      >
+                        <Plus size={18} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                )}
+              </div>
 
-      {isCustomerModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in duration-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Customer</h2>
-            <form onSubmit={handleCreateCustomer} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Customer Name</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newCustomerName}
-                  onChange={(e) => setNewCustomerName(e.target.value)}
-                  className="block w-full rounded-2xl border-gray-200 border text-gray-900 py-2.5 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors" 
-                />
+              <div className="border-t border-gray-100 pt-8">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">Invoice Items</h3>
+
+                <FieldArray name="items">
+                  {({ push, remove }) => (
+                    <div className="space-y-4">
+                      {values.items.map((item, index) => (
+                        <div key={index} className="flex flex-col md:flex-row items-start gap-3">
+                          <div className="flex-1 w-full flex items-center gap-2">
+                            <Box sx={{ flex: 1 }}>
+                              <SelectOutlinedField
+                                name={`items.${index}.productId`}
+                                label="Product / SKU"
+                                placeholder="Select Product..."
+                                options={products.map(p => ({ label: `${p.sku} - ${p.name}`, value: p.id || '' }))}
+                                onChange={(prodId) => {
+                                  setFieldValue(`items.${index}.productId`, prodId);
+                                  const prod = products.find(p => p.id === prodId);
+                                  if (prod) {
+                                    setFieldValue(`items.${index}.unitPrice`, values.type === 'SALES' ? prod.selling_price : prod.cost_price);
+                                  }
+                                }}
+                              />
+                            </Box>
+                            <Tooltip title="Manage Products">
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                tabIndex={-1}
+                                onClick={() => navigate('/inventory')}
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  borderRadius: '12px',
+                                  width: '40px',
+                                  height: '40px',
+                                  flexShrink: 0,
+                                  '&:hover': {
+                                    backgroundColor: 'action.hover',
+                                    borderColor: 'primary.main'
+                                  }
+                                }}
+                              >
+                                <ExternalLink size={18} />
+                              </IconButton>
+                            </Tooltip>
+                          </div>
+
+                          <div className="w-full md:w-32">
+                            <TextFieldComponent
+                              name={`items.${index}.quantity`}
+                              label="Quantity"
+                              type="number"
+                              placeholder="1"
+                            />
+                          </div>
+
+                          <div className="w-full md:w-36">
+                            <TextFieldComponent
+                              name={`items.${index}.unitPrice`}
+                              label="Unit Price ($)"
+                              type="number"
+                              placeholder="0.00"
+                            />
+                          </div>
+
+                          <div className="w-full md:w-32">
+                            <Box
+                              sx={{
+                                height: 40,
+                                display: 'flex',
+                                alignItems: 'center',
+                                px: 2,
+                                bgcolor: '#f9fafb',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '14px',
+                                fontWeight: 600,
+                                color: 'text.primary',
+                                fontSize: '0.9rem'
+                              }}
+                            >
+                              ${((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)).toFixed(2)}
+                            </Box>
+                          </div>
+
+                          <div>
+                            <Tooltip title="Remove item">
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  disabled={values.items.length === 1}
+                                  onClick={() => remove(index)}
+                                  sx={{
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    borderRadius: '12px',
+                                    width: '40px',
+                                    height: '40px',
+                                    flexShrink: 0,
+                                    '&:hover': {
+                                      backgroundColor: 'error.lighter',
+                                      borderColor: 'error.main'
+                                    }
+                                  }}
+                                >
+                                  <Trash2 size={18} />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
+                          </div>
+                        </div>
+                      ))}
+
+                      <div className="mt-6 flex justify-between items-center border-t border-gray-100 pt-4">
+                        <Button
+                          type="button"
+                          variant="text"
+                          color="primary"
+                          startIcon={<Plus size={18} />}
+                          onClick={() => push({ productId: '', quantity: 1, unitPrice: 0 })}
+                          sx={{ fontWeight: 600 }}
+                        >
+                          Add Another Line
+                        </Button>
+                        <div className="text-xl font-bold text-gray-900">
+                          Total: ${calculateTotal().toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </FieldArray>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Contact Number</label>
-                <input 
-                  type="text" 
-                  value={newCustomerContact}
-                  onChange={(e) => setNewCustomerContact(e.target.value)}
-                  className="block w-full rounded-2xl border-gray-200 border text-gray-900 py-2.5 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors" 
-                />
-              </div>
-              <div className="flex items-center gap-3 justify-end pt-4 mt-6 border-t border-gray-100">
-                <button 
-                  type="button" 
-                  onClick={() => setIsCustomerModalOpen(false)} 
-                  className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors cursor-pointer text-sm"
+
+              <div className="flex items-center gap-4 justify-end pt-6 border-t border-gray-100">
+                <Button 
+                  type="button"
+                  variant="text"
+                  color="primary"
+                  onClick={() => navigate('/invoices')}
+                  sx={{ px: 3.5, py: 1.2, fontWeight: 600, fontSize: '0.95rem' }}
                 >
                   Cancel
-                </button>
-                <button 
+                </Button>
+                <Button 
                   type="submit" 
-                  className="bg-[#0f8b5a] text-white px-6 py-2.5 rounded-xl font-medium hover:bg-[#0c744b] transition-colors shadow-lg shadow-[#0f8b5a]/30 cursor-pointer text-sm"
+                  variant="contained"
+                  color="primary"
+                  disabled={isSubmitting}
+                  sx={{ px: 4.5, py: 1.2, fontWeight: 600, fontSize: '0.95rem' }}
                 >
-                  Save Details
-                </button>
+                  {isSubmitting ? 'Creating...' : 'Create Invoice'}
+                </Button>
               </div>
-            </form>
+            </Form>
+          );
+        }}
+      </Formik>
+
+      {/* Customer Sub-Modal */}
+      {isCustomerModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
+            <h2 className="text-lg font-bold text-gray-900 mb-5">Add New Customer</h2>
+            <Formik
+              initialValues={{ name: '', contact: '' }}
+              validationSchema={subModalValidationSchema}
+              onSubmit={async (val, { resetForm, setSubmitting }) => {
+                try {
+                  setSubmitting(true);
+                  const res = await createCustomer({ name: val.name.trim(), contact: val.contact.trim() });
+                  await loadData();
+                  mainSetFieldValueRef.current?.('customerId', res.id);
+                  setIsCustomerModalOpen(false);
+                  resetForm();
+                  successToast('Customer created successfully');
+                } catch (error: any) {
+                  console.error('Failed to create customer', error);
+                  errorToast(error?.response?.data?.error || 'Failed to create customer');
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              {({ isSubmitting }) => (
+                <Form noValidate>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                    <TextFieldComponent 
+                      name="name" 
+                      label="Customer Name" 
+                      placeholder="e.g. Global Tech Ltd" 
+                      autoFocus 
+                    />
+                    <TextFieldComponent 
+                      name="contact" 
+                      label="Contact Number" 
+                      placeholder="e.g. +1 555-0199" 
+                    />
+                  </Box>
+                  <div className="flex justify-end gap-3 pt-6">
+                    <Button 
+                      type="button" 
+                      variant="text"
+                      color="inherit"
+                      onClick={() => setIsCustomerModalOpen(false)} 
+                      sx={{ px: 2.5, py: 1, color: 'text.secondary', fontWeight: 600 }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      variant="contained" 
+                      color="primary"
+                      disabled={isSubmitting} 
+                      sx={{ px: 3.5, py: 1, fontWeight: 600 }}
+                    >
+                      {isSubmitting ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                </Form>
+              )}
+            </Formik>
           </div>
         </div>
       )}
 
+      {/* Supplier Sub-Modal */}
       {isSupplierModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in duration-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Supplier</h2>
-            <form onSubmit={handleCreateSupplier} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Supplier Name</label>
-                <input 
-                  type="text" 
-                  required
-                  value={newSupplierName}
-                  onChange={(e) => setNewSupplierName(e.target.value)}
-                  className="block w-full rounded-2xl border-gray-200 border text-gray-900 py-2.5 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Contact Number</label>
-                <input 
-                  type="text" 
-                  value={newSupplierContact}
-                  onChange={(e) => setNewSupplierContact(e.target.value)}
-                  className="block w-full rounded-2xl border-gray-200 border text-gray-900 py-2.5 px-3 text-sm focus:ring-[#0f8b5a] focus:border-[#0f8b5a] outline-none transition-colors" 
-                />
-              </div>
-              <div className="flex items-center gap-3 justify-end pt-4 mt-6 border-t border-gray-100">
-                <button 
-                  type="button" 
-                  onClick={() => setIsSupplierModalOpen(false)} 
-                  className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors cursor-pointer text-sm"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="bg-[#0f8b5a] text-white px-6 py-2.5 rounded-xl font-medium hover:bg-[#0c744b] transition-colors shadow-lg shadow-[#0f8b5a]/30 cursor-pointer text-sm"
-                >
-                  Save Details
-                </button>
-              </div>
-            </form>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
+            <h2 className="text-lg font-bold text-gray-900 mb-5">Add New Supplier</h2>
+            <Formik
+              initialValues={{ name: '', contact: '' }}
+              validationSchema={subModalValidationSchema}
+              onSubmit={async (val, { resetForm, setSubmitting }) => {
+                try {
+                  setSubmitting(true);
+                  const res = await createSupplier({ name: val.name.trim(), contact: val.contact.trim() });
+                  await loadData();
+                  mainSetFieldValueRef.current?.('supplierId', res.id);
+                  setIsSupplierModalOpen(false);
+                  resetForm();
+                  successToast('Supplier created successfully');
+                } catch (error: any) {
+                  console.error('Failed to create supplier', error);
+                  errorToast(error?.response?.data?.error || 'Failed to create supplier');
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              {({ isSubmitting }) => (
+                <Form noValidate>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                    <TextFieldComponent 
+                      name="name" 
+                      label="Supplier Name" 
+                      placeholder="e.g. Acme Supplies" 
+                      autoFocus 
+                    />
+                    <TextFieldComponent 
+                      name="contact" 
+                      label="Contact Number" 
+                      placeholder="e.g. +1 555-0199" 
+                    />
+                  </Box>
+                  <div className="flex justify-end gap-3 pt-6">
+                    <Button 
+                      type="button" 
+                      variant="text"
+                      color="inherit"
+                      onClick={() => setIsSupplierModalOpen(false)} 
+                      sx={{ px: 2.5, py: 1, color: 'text.secondary', fontWeight: 600 }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      variant="contained" 
+                      color="primary"
+                      disabled={isSubmitting} 
+                      sx={{ px: 3.5, py: 1, fontWeight: 600 }}
+                    >
+                      {isSubmitting ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                </Form>
+              )}
+            </Formik>
           </div>
         </div>
       )}
     </div>
   );
 };
+export default InvoiceForm;
