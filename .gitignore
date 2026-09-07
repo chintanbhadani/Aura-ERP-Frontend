@@ -1,5 +1,11 @@
 # .env
 # /.env
+dist
+/dist
+uploads
+/dist/
+/dist/*
+/dist/*.js
 build
 /build
 uploads
