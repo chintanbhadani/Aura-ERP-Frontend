@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, Eye, X } from 'lucide-react';
+import { FileText, Plus, Eye, X, Printer, Download } from 'lucide-react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { fetchInvoices } from '../services/api';
 import type { Invoice } from '../types';
+import { printInvoice, downloadInvoicePdf } from '../helper/invoicePrinter';
 
 export const InvoiceList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -80,15 +81,35 @@ export const InvoiceList: React.FC = () => {
                     ${Number(invoice.totalAmount).toFixed(2)}
                   </td>
                   <td className="px-3 py-4 whitespace-nowrap text-right">
-                    <Tooltip title="View Details">
-                      <IconButton 
-                        size="small"
-                        color="primary"
-                        onClick={() => setSelectedInvoice(invoice)} 
-                      >
-                        <Eye className="w-4 h-4" />
-                      </IconButton>
-                    </Tooltip>
+                    <div className="flex items-center justify-end gap-1">
+                      <Tooltip title="View Details">
+                        <IconButton 
+                          size="small"
+                          color="primary"
+                          onClick={() => setSelectedInvoice(invoice)} 
+                        >
+                          <Eye className="w-4 h-4" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Print Invoice">
+                        <IconButton 
+                          size="small"
+                          color="primary"
+                          onClick={() => printInvoice(invoice)} 
+                        >
+                          <Printer className="w-4 h-4" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Download PDF">
+                        <IconButton 
+                          size="small"
+                          color="primary"
+                          onClick={() => downloadInvoicePdf(invoice)} 
+                        >
+                          <Download className="w-4 h-4" />
+                        </IconButton>
+                      </Tooltip>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -170,12 +191,30 @@ export const InvoiceList: React.FC = () => {
               </div>
             </div>
             
-            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end">
+            <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-end items-center gap-3">
+              <Button 
+                variant="outlined"
+                color="primary"
+                startIcon={<Printer className="w-4 h-4" />}
+                onClick={() => selectedInvoice && printInvoice(selectedInvoice)}
+                sx={{ px: 2.5, py: 1 }}
+              >
+                Print
+              </Button>
               <Button 
                 variant="contained"
                 color="primary"
-                onClick={() => setSelectedInvoice(null)}
+                startIcon={<Download className="w-4 h-4" />}
+                onClick={() => selectedInvoice && downloadInvoicePdf(selectedInvoice)}
                 sx={{ px: 3, py: 1 }}
+              >
+                Download PDF
+              </Button>
+              <Button 
+                variant="text"
+                color="inherit"
+                onClick={() => setSelectedInvoice(null)}
+                sx={{ px: 2.5, py: 1, color: 'text.secondary' }}
               >
                 Close
               </Button>

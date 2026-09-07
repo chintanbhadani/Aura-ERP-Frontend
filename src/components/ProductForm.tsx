@@ -6,7 +6,7 @@ import { Box, Button, IconButton, Tooltip } from '@mui/material';
 import type { Product, Category, Supplier, Unit } from '../services/api';
 import { fetchCategories, fetchSuppliers, fetchUnits, createCategory, createSupplier, createUnit } from '../services/api';
 import { successToast, errorToast } from '../helper/toast';
-import { TextFieldComponent, SelectOutlinedField } from './input/index';
+import { TextFieldComponent, SelectOutlinedField, ReusableAutocomplete } from './input/index';
 
 interface ProductFormProps {
   initialData?: Product | null;
@@ -167,69 +167,49 @@ export const ProductForm: React.FC<ProductFormProps> = ({ initialData, onSubmit,
                 </div>
 
                 <div className="grid grid-cols-2 gap-6">
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: '100%' }}>
-                    <Box sx={{ flex: 1 }}>
-                      <SelectOutlinedField
-                        name="categoryId"
-                        label="Category Type"
-                        options={categories.map(c => ({ label: c.name, value: c.id }))}
-                      />
-                    </Box>
-                    <Tooltip title="Add new category">
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        tabIndex={-1}
-                        onClick={() => setShowCategoryModal(true)}
-                        sx={{
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderRadius: '12px',
-                          width: '40px',
-                          height: '40px',
-                          flexShrink: 0,
-                          '&:hover': {
-                            backgroundColor: 'action.hover',
-                            borderColor: 'primary.main'
-                          }
-                        }}
-                      >
-                        <Plus size={18} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
+                  <div>
+                    <ReusableAutocomplete
+                      keyName="categoryId"
+                      label="Category Type"
+                      placeholder="Search or type to add category..."
+                      options={categories}
+                      getOptionLabel={(cat) => cat?.name || ''}
+                      creatable
+                      onCreate={async (newCategoryName) => {
+                        try {
+                          const newCat = await createCategory({ name: newCategoryName });
+                          setCategories((prev) => [...prev, newCat]);
+                          successToast(`Category "${newCat.name}" created successfully`);
+                          return newCat;
+                        } catch (error: any) {
+                          console.error('Error creating category:', error);
+                          errorToast(error?.response?.data?.error || 'Failed to create category');
+                        }
+                      }}
+                    />
+                  </div>
 
-                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: '100%' }}>
-                    <Box sx={{ flex: 1 }}>
-                      <SelectOutlinedField
-                        name="supplierId"
-                        label="Supplier"
-                        options={suppliers.map(s => ({ label: s.name, value: s.id }))}
-                      />
-                    </Box>
-                    <Tooltip title="Add new supplier">
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        tabIndex={-1}
-                        onClick={() => setShowSupplierModal(true)}
-                        sx={{
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderRadius: '12px',
-                          width: '40px',
-                          height: '40px',
-                          flexShrink: 0,
-                          '&:hover': {
-                            backgroundColor: 'action.hover',
-                            borderColor: 'primary.main'
-                          }
-                        }}
-                      >
-                        <Plus size={18} />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
+                  <div>
+                    <ReusableAutocomplete
+                      keyName="supplierId"
+                      label="Supplier"
+                      placeholder="Search or type to add supplier..."
+                      options={suppliers}
+                      getOptionLabel={(sup) => sup?.name || ''}
+                      creatable
+                      onCreate={async (newSupplierName) => {
+                        try {
+                          const newSup = await createSupplier({ name: newSupplierName, contact: '', email: '' });
+                          setSuppliers((prev) => [...prev, newSup]);
+                          successToast(`Supplier "${newSup.name}" created successfully`);
+                          return newSup;
+                        } catch (error: any) {
+                          console.error('Error creating supplier:', error);
+                          errorToast(error?.response?.data?.error || 'Failed to create supplier');
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-6">
