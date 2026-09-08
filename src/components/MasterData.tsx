@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Pencil, Trash2, Plus, Database } from 'lucide-react';
 import { Formik, Form } from 'formik';
@@ -8,18 +8,24 @@ import {
   fetchCategories, createCategory, updateCategory, deleteCategory,
   fetchSuppliers, createSupplier, updateSupplier, deleteSupplier,
   fetchUnits, createUnit, updateUnit, deleteUnit,
-  fetchCustomers, createCustomer, updateCustomer, deleteCustomer
+  fetchCustomers, createCustomer, updateCustomer, deleteCustomer,
+  fetchSkus, createSku, updateSku, deleteSku
 } from '../services/api';
 import { successToast, errorToast } from '../helper/toast';
-import { TextFieldComponent } from './input/index';
+import { TextFieldComponent, SelectOutlinedField, ReusableAutocomplete } from './input/index';
 import { DataTable } from './Table/DataTable';
 
-type MasterDataType = 'categories' | 'suppliers' | 'units' | 'customers';
+type MasterDataType = 'categories' | 'suppliers' | 'units' | 'customers' | 'skus';
 
 const masterValidationSchema = Yup.object({
   name: Yup.string().trim().required('Name is required'),
   contact: Yup.string().trim(),
   email: Yup.string().trim().email('Must be a valid email'),
+  sku: Yup.string().trim() // For SKUs
+});
+
+const categoryModalValidationSchema = Yup.object({
+  name: Yup.string().trim().required('Category name is required'),
 });
 
 export const MasterData: React.FC = () => {
@@ -27,10 +33,15 @@ export const MasterData: React.FC = () => {
   const navigate = useNavigate();
 
   const [data, setData] = useState<any[]>([]);
+  const [categoriesForSku, setCategoriesForSku] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
 
-  const isValidType = type === 'categories' || type === 'suppliers' || type === 'units' || type === 'customers';
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [pendingCategoryName, setPendingCategoryName] = useState('');
+  const categoryResolveRef = useRef<((cat: any) => void) | null>(null);
+
+  const isValidType = type === 'categories' || type === 'suppliers' || type === 'units' || type === 'customers' || type === 'skus';
 
   useEffect(() => {
     if (!isValidType) {
@@ -54,6 +65,12 @@ export const MasterData: React.FC = () => {
       } else if (type === 'customers') {
         const res = await fetchCustomers();
         setData(res);
+      } else if (type === 'skus') {
+        const res = await fetchSkus();
+        setData(res);
+        if (categoriesForSku.length === 0) {
+          fetchCategories().then(setCategoriesForSku).catch(console.error);
+        }
       }
     } catch (error) {
       console.error('Failed to load data', error);
@@ -66,6 +83,7 @@ export const MasterData: React.FC = () => {
       case 'suppliers': return 'Supplier Master';
       case 'units': return 'Unit Master';
       case 'customers': return 'Customer Master';
+      case 'skus': return 'SKU Master';
       default: return 'Master Data';
     }
   };
@@ -87,6 +105,7 @@ export const MasterData: React.FC = () => {
       else if (type === 'suppliers') await deleteSupplier(id);
       else if (type === 'units') await deleteUnit(id);
       else if (type === 'customers') await deleteCustomer(id);
+      else if (type === 'skus') await deleteSku(id);
       successToast('Deleted successfully');
       loadData();
     } catch (error: any) {
@@ -142,6 +161,18 @@ export const MasterData: React.FC = () => {
                 cell: ({ row }: { row: any }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.email || '-'}</span>
               }
             ] : []),
+            ...(type === 'skus' ? [
+              {
+                header: 'SKU Code',
+                id: 'sku',
+                cell: ({ row }: { row: any }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.sku}</span>
+              },
+              {
+                header: 'Category',
+                id: 'category',
+                cell: ({ row }: { row: any }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.category?.name || '-'}</span>
+              }
+            ] : []),
             {
               header: 'Actions',
               id: 'actions',
@@ -169,7 +200,7 @@ export const MasterData: React.FC = () => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
             <h2 className="text-lg font-bold text-gray-900 mb-5">
-              {editingItem ? 'Edit' : 'Add New'} {type === 'categories' ? 'Category' : type === 'suppliers' ? 'Supplier' : type === 'customers' ? 'Customer' : 'Unit'}
+              {editingItem ? 'Edit' : 'Add New'} {type === 'categories' ? 'Category' : type === 'suppliers' ? 'Supplier' : type === 'customers' ? 'Customer' : type === 'skus' ? 'SKU' : 'Unit'}
             </h2>
             
             <Formik
@@ -177,6 +208,8 @@ export const MasterData: React.FC = () => {
                 name: editingItem?.name || '',
                 contact: editingItem?.contact || '',
                 email: editingItem?.email || '',
+                sku: editingItem?.sku || '',
+                categoryId: editingItem?.categoryId || '',
               }}
               validationSchema={masterValidationSchema}
               onSubmit={async (values, { setSubmitting }) => {
@@ -194,6 +227,9 @@ export const MasterData: React.FC = () => {
                   } else if (type === 'customers') {
                     if (editingItem) await updateCustomer(editingItem.id, { name: values.name.trim(), contact: values.contact.trim(), email: values.email.trim() });
                     else await createCustomer({ name: values.name.trim(), contact: values.contact.trim(), email: values.email.trim() });
+                  } else if (type === 'skus') {
+                    if (editingItem) await updateSku(editingItem.id, { name: values.name.trim(), sku: values.sku.trim(), categoryId: values.categoryId });
+                    else await createSku({ name: values.name.trim(), sku: values.sku.trim(), categoryId: values.categoryId });
                   }
                   closeModal();
                   loadData();
@@ -231,6 +267,31 @@ export const MasterData: React.FC = () => {
                         />
                       </>
                     )}
+
+                    {type === 'skus' && (
+                      <>
+                        <TextFieldComponent 
+                          name="sku" 
+                          label="SKU Code" 
+                          placeholder="e.g. MAT-1001" 
+                        />
+                        <ReusableAutocomplete
+                          keyName="categoryId"
+                          label="Category Type (Optional)"
+                          placeholder="Search or add category..."
+                          options={categoriesForSku}
+                          getOptionLabel={(cat) => cat?.name || ''}
+                          creatable
+                          onCreate={(newCategoryName) => {
+                            return new Promise((resolve) => {
+                              setPendingCategoryName(newCategoryName);
+                              categoryResolveRef.current = resolve;
+                              setShowCategoryModal(true);
+                            });
+                          }}
+                        />
+                      </>
+                    )}
                   </Box>
 
                   <div className="flex justify-end gap-3 pt-6">
@@ -251,6 +312,57 @@ export const MasterData: React.FC = () => {
                       sx={{ px: 3.5, py: 1, fontWeight: 600 }}
                     >
                       {isSubmitting ? 'Saving...' : 'Save Details'}
+                    </Button>
+                  </div>
+                </Form>
+              )}
+            </Formik>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Category Modal (z-[70] to appear above the main modal) */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-[70]">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
+            <h3 className="text-lg font-bold text-gray-900 mb-5">Add New Category</h3>
+            <Formik
+              initialValues={{ name: pendingCategoryName }}
+              validationSchema={categoryModalValidationSchema}
+              onSubmit={async (val, { setSubmitting }) => {
+                try {
+                  setSubmitting(true);
+                  const newCat = await createCategory({ name: val.name.trim() });
+                  setCategoriesForSku((prev) => [...prev, newCat]);
+                  categoryResolveRef.current?.(newCat);
+                  categoryResolveRef.current = null;
+                  setShowCategoryModal(false);
+                  successToast(`Category "${newCat.name}" created successfully`);
+                } catch (error: any) {
+                  errorToast('Failed to create category');
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              {({ isSubmitting, submitForm }) => (
+                <Form noValidate>
+                  <TextFieldComponent name="name" label="Category Name" placeholder="e.g. Engine Parts" autoFocus />
+                  <div className="flex justify-end gap-3 pt-6 mt-4">
+                    <Button
+                      type="button"
+                      variant="text"
+                      color="inherit"
+                      onClick={() => {
+                        categoryResolveRef.current?.(undefined);
+                        categoryResolveRef.current = null;
+                        setShowCategoryModal(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="button" variant="contained" color="primary" disabled={isSubmitting} onClick={submitForm}>
+                      {isSubmitting ? 'Saving...' : 'Save Category'}
                     </Button>
                   </div>
                 </Form>

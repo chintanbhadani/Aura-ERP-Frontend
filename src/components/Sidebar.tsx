@@ -12,7 +12,9 @@ import {
   Factory,
   Briefcase,
   Database,
-  ChevronDown
+  ChevronDown,
+  Receipt,
+  FileText
 } from 'lucide-react';
 import { cn } from './Button';
 
@@ -26,13 +28,16 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Inventory', href: '/inventory', icon: Package },
+  { name: 'Invoices', href: '/invoices', icon: FileText },
+  { name: 'Expenses', href: '/expenses', icon: Receipt },
   { 
     name: 'Master Data', 
     icon: Database,
     subItems: [
       { name: 'Categories', href: '/master-data/categories' },
       { name: 'Suppliers', href: '/master-data/suppliers' },
-      { name: 'Units', href: '/master-data/units' }
+      { name: 'Units', href: '/master-data/units' },
+      { name: 'SKUs', href: '/master-data/skus' }
     ]
   },
 ];

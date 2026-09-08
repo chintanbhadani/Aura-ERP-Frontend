@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, us
 import { useDispatch, useSelector } from 'react-redux';
 import { setToken, setLoggedUser } from './slices/Base';
 import type { RootState } from './store';
-import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database, FileText, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database, FileText, Menu, X, Receipt } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { InventoryTable } from './components/InventoryTable';
 import { Login } from './components/Login';
@@ -12,6 +12,7 @@ import { MasterData } from './components/MasterData';
 import { InvoiceList } from './components/InvoiceList';
 import { InvoiceFormPage } from './pages/Sales/InvoiceFormPage';
 import { ProductFormPage } from './pages/Inventory/ProductFormPage';
+import { ExpenseList } from './components/ExpenseList';
 import { Settings as SettingsComponent } from './components/Settings';
 import WithAuth from './components/WithAuth';
 import { ToastContainer } from 'react-toastify';
@@ -25,6 +26,7 @@ const ProtectedMasterData = WithAuth(MasterData);
 const ProtectedInvoiceList = WithAuth(InvoiceList);
 const ProtectedInvoiceForm = WithAuth(InvoiceFormPage);
 const ProtectedProductFormPage = WithAuth(ProductFormPage);
+const ProtectedExpenseList = WithAuth(ExpenseList);
 const ProtectedSettings = WithAuth(SettingsComponent);
 
 const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, toggleSidebar: () => void, closeMobile?: () => void }) => {
@@ -34,6 +36,7 @@ const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, togg
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Inventory', path: '/inventory', icon: Package },
     { name: 'Invoices', path: '/invoices', icon: FileText },
+    { name: 'Expenses', path: '/expenses', icon: Receipt },
     { 
       name: 'Master Data', 
       icon: Database,
@@ -41,7 +44,8 @@ const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, togg
         { name: 'Categories', path: '/master-data/categories' },
         { name: 'Suppliers', path: '/master-data/suppliers' },
         { name: 'Customers', path: '/master-data/customers' },
-        { name: 'Units', path: '/master-data/units' }
+        { name: 'Units', path: '/master-data/units' },
+        { name: 'SKUs', path: '/master-data/skus' }
       ]
     },
     { name: 'Settings', path: '/settings', icon: Settings }
@@ -255,9 +259,10 @@ function App() {
             <Route path="/" element={<ProtectedDashboard />} />
             <Route path="/inventory" element={<ProtectedInventoryTable />} />
             <Route path="/inventory/new" element={<ProtectedProductFormPage />} />
-            <Route path="/inventory/edit/:id" element={<ProtectedProductFormPage />} />
+            <Route path="/inventory/edit" element={<ProtectedProductFormPage />} />
             <Route path="/invoices" element={<ProtectedInvoiceList />} />
             <Route path="/invoices/new" element={<ProtectedInvoiceForm />} />
+            <Route path="/expenses" element={<ProtectedExpenseList />} />
             <Route path="/master-data/:type" element={<ProtectedMasterData />} />
             <Route path="/settings" element={<ProtectedSettings />} />
             <Route path="/login" element={<Login />} />

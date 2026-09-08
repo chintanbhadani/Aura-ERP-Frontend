@@ -26,36 +26,15 @@ export interface FormPageLayoutProps {
 export const FormPageLayout: React.FC<FormPageLayoutProps> = ({
   title,
   breadcrumbs,
-  metadata,
   children,
   onSave,
   onCancel,
   isSubmitting = false
 }) => {
   return (
-    <div className="w-full pb-12 flex flex-col md:flex-row gap-8">
-      {/* Left Sidebar - Metadata */}
-      {metadata && (
-        <div className="w-full md:w-64 shrink-0 flex flex-col gap-6 pt-2 md:pt-16 order-2 md:order-1">
-          <div className="text-sm text-gray-500 space-y-4">
-            {metadata.lastEditedBy && (
-              <div>
-                <p className="font-medium text-gray-700">{metadata.lastEditedBy} last edited this</p>
-                <p className="text-xs">{metadata.lastEditedAt || 'Recently'}</p>
-              </div>
-            )}
-            {metadata.createdBy && (
-              <div>
-                <p className="font-medium text-gray-700">{metadata.createdBy} created this</p>
-                <p className="text-xs">{metadata.createdAt || 'Recently'}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
+    <div className="w-full pb-12 flex justify-center">
       {/* Main Content Area */}
-      <div className="flex-1 min-w-0 order-1 md:order-2">
+      <div className="w-full max-w-5xl min-w-0">
         {/* Top Header & Breadcrumbs */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
           <div>

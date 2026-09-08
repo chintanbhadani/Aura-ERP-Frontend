@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fetchInventory, deleteProduct, bulkUploadInventory, type Product } from '../services/api';
-import { Leaf, Package, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Leaf, Package, Pencil, Trash2, X } from 'lucide-react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { successToast, errorToast } from '../helper/toast';
 import { useCurrency } from '../helper/currency';
@@ -14,9 +14,36 @@ export const InventoryTable: React.FC = () => {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'raw' | 'finished'>('raw');
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const isAllSelected = products.length > 0 && products.every(p => p.id && selectedIds.has(p.id));
+  const isIndeterminate = !isAllSelected && products.some(p => p.id && selectedIds.has(p.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        products.forEach(p => p.id && next.delete(p.id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        products.forEach(p => p.id && next.add(p.id));
+        return next;
+      });
+    }
+  };
 
   // Bulk Upload state
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
@@ -35,11 +62,6 @@ export const InventoryTable: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [search]);
-
-  // Reset to first page when products change (e.g. searching or deleting)
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [products.length, search]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
@@ -84,17 +106,6 @@ export const InventoryTable: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  // Pagination Logic
-  const totalPages = Math.ceil(products.length / itemsPerPage);
-  const currentProducts = products.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
 
   return (
     <div className="w-full">
@@ -124,14 +135,41 @@ export const InventoryTable: React.FC = () => {
         </div>
 
         <DataTable 
-          data={currentProducts}
+          data={products}
+          paginate
           columns={[
+            {
+              header: '__checkbox__',
+              renderHeader: () => (
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  ref={el => { if (el) el.indeterminate = isIndeterminate; }}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 accent-primary cursor-pointer"
+                />
+              ),
+              id: 'select',
+              className: 'w-10',
+              cell: ({ row }) => (
+                <input
+                  type="checkbox"
+                  checked={!!(row.id && selectedIds.has(row.id))}
+                  onChange={() => row.id && toggleSelect(row.id)}
+                  onClick={e => e.stopPropagation()}
+                  className="w-4 h-4 accent-primary cursor-pointer"
+                />
+              )
+            },
             {
               header: 'Material Name',
               id: 'name',
               cell: ({ row }) => (
-                <div className="whitespace-nowrap">
-                  <p className="font-bold text-gray-900">{row.name}</p>
+                <div
+                  className="whitespace-nowrap cursor-pointer group"
+                  onClick={() => navigate(`/inventory/edit?id=${row.id}`)}
+                >
+                  <p className="font-bold text-gray-900 group-hover:text-primary group-hover:underline transition-colors">{row.name}</p>
                   <p className="text-xs text-gray-400">SKU: {row.sku}</p>
                 </div>
               )
@@ -189,7 +227,7 @@ export const InventoryTable: React.FC = () => {
               cell: ({ row }) => (
                 <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                   <Tooltip title="Edit">
-                    <IconButton size="small" color="primary" onClick={() => navigate(`/inventory/edit/${row.id}`)}>
+                    <IconButton size="small" color="primary" onClick={() => navigate(`/inventory/edit?id=${row.id}`)}>
                       <Pencil className="w-4 h-4" />
                     </IconButton>
                   </Tooltip>
@@ -203,67 +241,6 @@ export const InventoryTable: React.FC = () => {
             }
           ]}
         />
-
-        {/* Pagination Controls */}
-        <div className="flex flex-col md:flex-row items-center justify-between border-t border-gray-100 pt-6 mt-4 gap-4">
-          <span className="text-sm text-gray-500 text-center md:text-left">
-            Showing {products.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, products.length)} of {products.length} entries
-          </span>
-          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span>Rows per page:</span>
-              <select 
-                value={itemsPerPage}
-                onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="border border-gray-200 rounded-lg p-1 text-sm bg-white focus:outline-none focus:border-primary text-gray-700 cursor-pointer"
-              >
-                {/* <option value={5}>5</option> */}
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={handlePrevPage}
-                disabled={currentPage === 1 || totalPages === 0}
-                className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-1">
-                {totalPages > 0 ? Array.from({ length: totalPages }).map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentPage(index + 1)}
-                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                      currentPage === index + 1 
-                        ? 'bg-primary text-white' 
-                        : 'text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                )) : (
-                  <button className="w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors bg-primary text-white cursor-pointer">
-                    1
-                  </button>
-                )}
-              </div>
-              <button 
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages || totalPages === 0}
-                className="p-2 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
 
       {isBulkUploadModalOpen && (

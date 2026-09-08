@@ -57,6 +57,11 @@ export const fetchInventory = async (search?: string): Promise<Product[]> => {
   return response.data;
 };
 
+export const fetchInventoryById = async (id: string): Promise<Product> => {
+  const response = await dataService.get(`/inventory/${id}`);
+  return response.data;
+};
+
 export const fetchCategories = async (): Promise<Category[]> => {
   const response = await dataService.get('/categories');
   return response.data;
@@ -167,3 +172,78 @@ export const bulkUploadInventory = async (file: File): Promise<any> => {
   });
   return response.data;
 };
+
+export interface SkuMaster {
+  id: string;
+  name: string;
+  sku: string;
+  categoryId?: string | null;
+  category?: Category | null;
+}
+
+export const fetchSkus = async (): Promise<SkuMaster[]> => {
+  const response = await dataService.get("/skus");
+  return response.data;
+};
+
+export const createSku = async (data: Partial<SkuMaster>): Promise<SkuMaster> => {
+  const response = await dataService.post("/skus", data);
+  return response.data;
+};
+
+export const updateSku = async (id: string, data: Partial<SkuMaster>): Promise<SkuMaster> => {
+  const response = await dataService.put(`/skus/${id}`, data);
+  return response.data;
+};
+
+export const deleteSku = async (id: string): Promise<void> => {
+  await dataService.delete(`/skus/${id}`);
+};
+
+export interface Expense {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  notes?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ExpenseDescriptionOption {
+  id: string;
+  description: string;
+  name: string;
+}
+
+export const fetchExpenses = async (search?: string): Promise<Expense[]> => {
+  const url = search ? `/expenses?search=${encodeURIComponent(search)}` : '/expenses';
+  const response = await dataService.get(url);
+  return response.data;
+};
+
+export const fetchExpenseDescriptions = async (): Promise<ExpenseDescriptionOption[]> => {
+  const response = await dataService.get('/expenses/descriptions');
+  return response.data;
+};
+
+export const createExpenseDescription = async (description: string): Promise<ExpenseDescriptionOption> => {
+  const response = await dataService.post('/expenses/descriptions', { description });
+  return response.data;
+};
+
+export const createExpense = async (data: { date?: string; description: string; amount: number; notes?: string }): Promise<Expense> => {
+  const response = await dataService.post('/expenses', data);
+  return response.data;
+};
+
+export const updateExpense = async (id: string, data: { date?: string; description: string; amount: number; notes?: string }): Promise<Expense> => {
+  const response = await dataService.put(`/expenses/${id}`, data);
+  return response.data;
+};
+
+export const deleteExpense = async (id: string): Promise<void> => {
+  await dataService.delete(`/expenses/${id}`);
+};
+
+

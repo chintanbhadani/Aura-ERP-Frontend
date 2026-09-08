@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Formik, Form, FieldArray } from 'formik';
 import * as Yup from 'yup';
@@ -6,7 +6,7 @@ import { FormPageLayout } from '../../layouts/FormPageLayout';
 import { fetchInventory, fetchCustomers, fetchSuppliers, createInvoice, createCustomer, createSupplier } from '../../services/api';
 import type { Product, Customer, Supplier } from '../../types';
 import { successToast, errorToast } from '../../helper/toast';
-import { TextFieldComponent, SelectOutlinedField, DatePickerComponent } from '../../components/input/index';
+import { TextFieldComponent, SelectOutlinedField, DatePickerComponent, ReusableAutocomplete } from '../../components/input/index';
 import { Box, Button, IconButton, Tooltip } from '@mui/material';
 import { Plus, Trash2, ExternalLink } from 'lucide-react';
 import { useCurrency } from '../../helper/currency';
@@ -33,9 +33,16 @@ const invoiceValidationSchema = Yup.object({
   ).min(1, 'Please add at least one item')
 });
 
-const subModalValidationSchema = Yup.object({
+const customerModalValidationSchema = Yup.object({
   name: Yup.string().trim().required('Name is required'),
-  contact: Yup.string().trim(),
+  contact: Yup.string().trim().required('Contact number is required'),
+  email: Yup.string().trim().email('Must be a valid email').required('Email address is required'),
+});
+
+const supplierModalValidationSchema = Yup.object({
+  name: Yup.string().trim().required('Name is required'),
+  contact: Yup.string().trim().required('Contact number is required'),
+  email: Yup.string().trim().email('Must be a valid email').required('Email address is required'),
 });
 
 export const InvoiceFormPage: React.FC = () => {
@@ -50,6 +57,10 @@ export const InvoiceFormPage: React.FC = () => {
 
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [pendingCustomerName, setPendingCustomerName] = useState('');
+  const [pendingSupplierName, setPendingSupplierName] = useState('');
+  const customerResolveRef = useRef<((customer: Customer) => void) | null>(null);
+  const supplierResolveRef = useRef<((supplier: Supplier) => void) | null>(null);
   const formikRef = React.useRef<any>(null);
 
   const loadData = async () => {
@@ -126,10 +137,6 @@ export const InvoiceFormPage: React.FC = () => {
         return (
           <FormPageLayout
             title={isEditMode ? 'Edit Invoice' : 'New Invoice'}
-            breadcrumbs={[
-              { label: 'Invoices', path: '/invoices' },
-              { label: isEditMode ? `Invoice #${id}` : 'New Invoice' }
-            ]}
             metadata={isEditMode ? {
               createdBy: 'Admin',
               createdAt: '2 days ago',
@@ -164,49 +171,41 @@ export const InvoiceFormPage: React.FC = () => {
                   <DatePickerComponent name="date" label="Invoice Date" />
 
                   {values.type === 'SALES' && (
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: '100%' }}>
-                      <Box sx={{ flex: 1 }}>
-                        <SelectOutlinedField
-                          name="customerId"
-                          label="Customer"
-                          placeholder="Select Customer..."
-                          options={customers.map(c => ({ label: c.name, value: c.id }))}
-                        />
-                      </Box>
-                      <Tooltip title="Add new customer">
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => setIsCustomerModalOpen(true)}
-                          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', width: '40px', height: '40px' }}
-                        >
-                          <Plus size={18} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
+                    <ReusableAutocomplete
+                      keyName="customerId"
+                      label="Customer"
+                      placeholder="Search customer..."
+                      options={customers}
+                      getOptionLabel={(c) => c.name}
+                      compareKey="id"
+                      creatable
+                      onCreate={(inputValue) => {
+                        setPendingCustomerName(inputValue);
+                        setIsCustomerModalOpen(true);
+                        return new Promise<Customer>((resolve) => {
+                          customerResolveRef.current = resolve;
+                        });
+                      }}
+                    />
                   )}
 
                   {values.type === 'PURCHASE' && (
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', width: '100%' }}>
-                      <Box sx={{ flex: 1 }}>
-                        <SelectOutlinedField
-                          name="supplierId"
-                          label="Supplier"
-                          placeholder="Select Supplier..."
-                          options={suppliers.map(s => ({ label: s.name, value: s.id }))}
-                        />
-                      </Box>
-                      <Tooltip title="Add new supplier">
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => setIsSupplierModalOpen(true)}
-                          sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', width: '40px', height: '40px' }}
-                        >
-                          <Plus size={18} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
+                    <ReusableAutocomplete
+                      keyName="supplierId"
+                      label="Supplier"
+                      placeholder="Search supplier..."
+                      options={suppliers}
+                      getOptionLabel={(s) => s.name}
+                      compareKey="id"
+                      creatable
+                      onCreate={(inputValue) => {
+                        setPendingSupplierName(inputValue);
+                        setIsSupplierModalOpen(true);
+                        return new Promise<Supplier>((resolve) => {
+                          supplierResolveRef.current = resolve;
+                        });
+                      }}
+                    />
                   )}
               </div>
 
@@ -303,14 +302,20 @@ export const InvoiceFormPage: React.FC = () => {
                 <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
                   <h2 className="text-lg font-bold text-gray-900 mb-5">Add New Customer</h2>
                   <Formik
-                    initialValues={{ name: '', contact: '' }}
-                    validationSchema={subModalValidationSchema}
+                    initialValues={{ name: pendingCustomerName, contact: '', email: '' }}
+                    enableReinitialize
+                    validationSchema={customerModalValidationSchema}
                     onSubmit={async (val, { resetForm, setSubmitting }) => {
                       try {
                         setSubmitting(true);
-                        const res = await createCustomer({ name: val.name.trim(), contact: val.contact.trim() });
+                        const res = await createCustomer({ name: val.name.trim(), contact: val.contact.trim(), email: val.email.trim() });
                         await loadData();
-                        formikRef.current?.setFieldValue('customerId', res.id);
+                        if (customerResolveRef.current) {
+                          customerResolveRef.current(res);
+                          customerResolveRef.current = null;
+                        } else {
+                          formikRef.current?.setFieldValue('customerId', res.id);
+                        }
                         setIsCustomerModalOpen(false);
                         resetForm();
                         successToast('Customer created');
@@ -323,12 +328,15 @@ export const InvoiceFormPage: React.FC = () => {
                   >
                     {({ isSubmitting, submitForm }) => (
                       <Form noValidate>
-                        <TextFieldComponent name="name" label="Customer Name" placeholder="e.g. Global Tech Ltd" autoFocus />
+                        <TextFieldComponent name="name" label="Customer Name *" placeholder="e.g. Global Tech Ltd" autoFocus />
                         <div className="mt-4">
-                          <TextFieldComponent name="contact" label="Contact Number" placeholder="e.g. +1 555-0199" />
+                          <TextFieldComponent name="contact" label="Contact Number *" placeholder="e.g. +1 555-0199" />
+                        </div>
+                        <div className="mt-4">
+                          <TextFieldComponent name="email" label="Email Address *" placeholder="e.g. customer@example.com" />
                         </div>
                         <div className="flex justify-end gap-3 pt-6 mt-4">
-                          <Button type="button" variant="text" color="inherit" onClick={() => setIsCustomerModalOpen(false)}>Cancel</Button>
+                          <Button type="button" variant="text" color="inherit" onClick={() => { setIsCustomerModalOpen(false); customerResolveRef.current = null; }}>Cancel</Button>
                           <Button type="button" variant="contained" color="primary" disabled={isSubmitting} onClick={submitForm}>
                             {isSubmitting ? 'Saving...' : 'Save'}
                           </Button>
@@ -345,14 +353,20 @@ export const InvoiceFormPage: React.FC = () => {
                 <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
                   <h2 className="text-lg font-bold text-gray-900 mb-5">Add New Supplier</h2>
                   <Formik
-                    initialValues={{ name: '', contact: '' }}
-                    validationSchema={subModalValidationSchema}
+                    initialValues={{ name: pendingSupplierName, contact: '', email: '' }}
+                    enableReinitialize
+                    validationSchema={supplierModalValidationSchema}
                     onSubmit={async (val, { resetForm, setSubmitting }) => {
                       try {
                         setSubmitting(true);
-                        const res = await createSupplier({ name: val.name.trim(), contact: val.contact.trim() });
+                        const res = await createSupplier({ name: val.name.trim(), contact: val.contact.trim(), email: val.email.trim() });
                         await loadData();
-                        formikRef.current?.setFieldValue('supplierId', res.id);
+                        if (supplierResolveRef.current) {
+                          supplierResolveRef.current(res);
+                          supplierResolveRef.current = null;
+                        } else {
+                          formikRef.current?.setFieldValue('supplierId', res.id);
+                        }
                         setIsSupplierModalOpen(false);
                         resetForm();
                         successToast('Supplier created');
@@ -365,12 +379,15 @@ export const InvoiceFormPage: React.FC = () => {
                   >
                     {({ isSubmitting, submitForm }) => (
                       <Form noValidate>
-                        <TextFieldComponent name="name" label="Supplier Name" placeholder="e.g. Acme Supplies" autoFocus />
+                        <TextFieldComponent name="name" label="Supplier Name *" placeholder="e.g. Acme Supplies" autoFocus />
                         <div className="mt-4">
-                          <TextFieldComponent name="contact" label="Contact Number" placeholder="e.g. +1 555-0199" />
+                          <TextFieldComponent name="contact" label="Contact Number *" placeholder="e.g. +1 555-0199" />
+                        </div>
+                        <div className="mt-4">
+                          <TextFieldComponent name="email" label="Email Address *" placeholder="e.g. supplier@example.com" />
                         </div>
                         <div className="flex justify-end gap-3 pt-6 mt-4">
-                          <Button type="button" variant="text" color="inherit" onClick={() => setIsSupplierModalOpen(false)}>Cancel</Button>
+                          <Button type="button" variant="text" color="inherit" onClick={() => { setIsSupplierModalOpen(false); supplierResolveRef.current = null; }}>Cancel</Button>
                           <Button type="button" variant="contained" color="primary" disabled={isSubmitting} onClick={submitForm}>
                             {isSubmitting ? 'Saving...' : 'Save'}
                           </Button>

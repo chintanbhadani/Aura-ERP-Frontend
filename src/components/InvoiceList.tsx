@@ -15,6 +15,37 @@ export const InvoiceList: React.FC = () => {
   const navigate = useNavigate();
   const { format, currency } = useCurrency();
 
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const isAllSelected = invoices.length > 0 && invoices.every(inv => selectedIds.has(inv.id));
+  const isIndeterminate = !isAllSelected && invoices.some(inv => selectedIds.has(inv.id));
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        invoices.forEach(inv => next.delete(inv.id));
+        return next;
+      });
+    } else {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        invoices.forEach(inv => next.add(inv.id));
+        return next;
+      });
+    }
+  };
+
   useEffect(() => {
     loadInvoices();
   }, []);
@@ -54,7 +85,31 @@ export const InvoiceList: React.FC = () => {
 
         <DataTable 
           data={invoices}
+          paginate
           columns={[
+            {
+              header: '__checkbox__',
+              renderHeader: () => (
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  ref={el => { if (el) el.indeterminate = isIndeterminate; }}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 accent-primary cursor-pointer"
+                />
+              ),
+              id: 'select',
+              className: 'w-10',
+              cell: ({ row }) => (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(row.id)}
+                  onChange={() => toggleSelect(row.id)}
+                  onClick={e => e.stopPropagation()}
+                  className="w-4 h-4 accent-primary cursor-pointer"
+                />
+              )
+            },
             {
               header: 'Invoice #',
               id: 'invoiceNumber',
