@@ -12,6 +12,7 @@ import {
 } from '../services/api';
 import { successToast, errorToast } from '../helper/toast';
 import { TextFieldComponent } from './input/index';
+import { DataTable } from './Table/DataTable';
 
 type MasterDataType = 'categories' | 'suppliers' | 'units' | 'customers';
 
@@ -120,64 +121,48 @@ export const MasterData: React.FC = () => {
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="px-3 py-4 text-left text-sm font-semibold text-gray-500 w-1/3">Name</th>
-                {(type === 'suppliers' || type === 'customers') && (
-                  <>
-                    <th className="px-3 py-4 text-left text-sm font-semibold text-gray-500">Contact</th>
-                    <th className="px-3 py-4 text-left text-sm font-semibold text-gray-500">Email</th>
-                  </>
-                )}
-                <th className="px-3 py-4 text-right text-sm font-semibold text-gray-500">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {data.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50/50">
-                  <td className="px-3 py-4 whitespace-nowrap text-gray-900 font-medium">{item.name}</td>
-                  {(type === 'suppliers' || type === 'customers') && (
-                    <>
-                      <td className="px-3 py-4 whitespace-nowrap text-gray-600 text-sm">{item.contact || '-'}</td>
-                      <td className="px-3 py-4 whitespace-nowrap text-gray-600 text-sm">{item.email || '-'}</td>
-                    </>
-                  )}
-                  <td className="px-3 py-4 whitespace-nowrap text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Tooltip title="Edit">
-                        <IconButton 
-                          size="small"
-                          color="primary"
-                          onClick={() => openModal(item)} 
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton 
-                          size="small"
-                          color="error"
-                          onClick={() => handleDelete(item.id)} 
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </IconButton>
-                      </Tooltip>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {data.length === 0 && (
-                <tr>
-                  <td colSpan={(type === 'suppliers' || type === 'customers') ? 4 : 2} className="py-12 text-center text-gray-500">
-                    No records found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          data={data}
+          columns={[
+            {
+              header: 'Name',
+              id: 'name',
+              className: 'w-1/3',
+              cell: ({ row }) => <span className="whitespace-nowrap text-gray-900 font-medium">{row.name}</span>
+            },
+            ...((type === 'suppliers' || type === 'customers') ? [
+              {
+                header: 'Contact',
+                id: 'contact',
+                cell: ({ row }: { row: any }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.contact || '-'}</span>
+              },
+              {
+                header: 'Email',
+                id: 'email',
+                cell: ({ row }: { row: any }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.email || '-'}</span>
+              }
+            ] : []),
+            {
+              header: 'Actions',
+              id: 'actions',
+              className: 'text-right',
+              cell: ({ row }) => (
+                <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                  <Tooltip title="Edit">
+                    <IconButton size="small" color="primary" onClick={() => openModal(row)}>
+                      <Pencil className="w-4 h-4" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton size="small" color="error" onClick={() => handleDelete(row.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </IconButton>
+                  </Tooltip>
+                </div>
+              )
+            }
+          ]}
+        />
       </div>
 
       {isModalOpen && (

@@ -37,18 +37,27 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ isOpen = false, onClose = () => {} }: { isOpen?: boolean, onClose?: () => void }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
   const location = useLocation();
 
   return (
-    <div 
-      className={cn(
-        "flex flex-col bg-white border-r border-gray-200 h-screen transition-all duration-300 relative",
-        isCollapsed ? "w-20" : "w-64"
+    <>
+      {/* Mobile Backdrop */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden"
+          onClick={onClose}
+        />
       )}
-    >
+      <div 
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 md:relative flex flex-col bg-white border-r border-gray-200 h-screen transition-transform duration-300 md:translate-x-0",
+          isCollapsed ? "w-20" : "w-64",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
       {/* Header / Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
         {!isCollapsed && (
@@ -135,5 +144,6 @@ export function Sidebar() {
         })}
       </div>
     </div>
+    </>
   );
 }

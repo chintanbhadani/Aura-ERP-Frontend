@@ -6,6 +6,7 @@ import { fetchInvoices } from '../services/api';
 import type { Invoice } from '../types';
 import { printInvoice, downloadInvoicePdf } from '../helper/invoicePrinter';
 import { useCurrency } from '../helper/currency';
+import { DataTable } from './Table/DataTable';
 
 export const InvoiceList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -51,81 +52,65 @@ export const InvoiceList: React.FC = () => {
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="px-3 py-4 text-left text-sm font-semibold text-gray-500">Invoice #</th>
-                <th className="px-3 py-4 text-left text-sm font-semibold text-gray-500">Type</th>
-                <th className="px-3 py-4 text-left text-sm font-semibold text-gray-500">Date</th>
-                <th className="px-3 py-4 text-left text-sm font-semibold text-gray-500">Entity</th>
-                <th className="px-3 py-4 text-right text-sm font-semibold text-gray-500">Total Amount</th>
-                <th className="px-3 py-4 text-right text-sm font-semibold text-gray-500">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {invoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-gray-50/50">
-                  <td className="px-3 py-4 whitespace-nowrap text-gray-900 font-medium">{invoice.invoiceNumber}</td>
-                  <td className="px-3 py-4 whitespace-nowrap">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      invoice.type === 'SALES' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'
-                    }`}>
-                      {invoice.type}
-                    </span>
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-gray-600 text-sm">
-                    {new Date(invoice.date).toLocaleDateString()}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-gray-600 text-sm">
-                    {invoice.type === 'SALES' ? invoice.customer?.name : invoice.supplier?.name}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-right text-gray-900 font-medium">
-                    {format(invoice.totalAmount)}
-                  </td>
-                  <td className="px-3 py-4 whitespace-nowrap text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Tooltip title="View Details">
-                        <IconButton 
-                          size="small"
-                          color="primary"
-                          onClick={() => setSelectedInvoice(invoice)} 
-                        >
-                          <Eye className="w-4 h-4" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Print Invoice">
-                        <IconButton 
-                          size="small"
-                          color="primary"
-                          onClick={() => printInvoice(invoice, currency)} 
-                        >
-                          <Printer className="w-4 h-4" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Download PDF">
-                        <IconButton 
-                          size="small"
-                          color="primary"
-                          onClick={() => downloadInvoicePdf(invoice, currency)} 
-                        >
-                          <Download className="w-4 h-4" />
-                        </IconButton>
-                      </Tooltip>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {invoices.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-gray-500">
-                    No invoices found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable 
+          data={invoices}
+          columns={[
+            {
+              header: 'Invoice #',
+              id: 'invoiceNumber',
+              cell: ({ row }) => <span className="whitespace-nowrap text-gray-900 font-medium">{row.invoiceNumber}</span>
+            },
+            {
+              header: 'Type',
+              id: 'type',
+              cell: ({ row }) => (
+                <span className={`whitespace-nowrap px-2.5 py-1 rounded-full text-xs font-semibold ${row.type === 'SALES' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
+                  {row.type}
+                </span>
+              )
+            },
+            {
+              header: 'Date',
+              id: 'date',
+              cell: ({ row }) => <span className="whitespace-nowrap text-gray-600 text-sm">{new Date(row.date).toLocaleDateString()}</span>
+            },
+            {
+              header: 'Entity',
+              id: 'entity',
+              cell: ({ row }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.type === 'SALES' ? row.customer?.name : row.supplier?.name}</span>
+            },
+            {
+              header: 'Total Amount',
+              id: 'totalAmount',
+              className: 'text-right',
+              cell: ({ row }) => <span className="whitespace-nowrap text-gray-900 font-medium">{format(row.totalAmount)}</span>
+            },
+            {
+              header: 'Actions',
+              id: 'actions',
+              className: 'text-right',
+              cell: ({ row }) => (
+                <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                  <Tooltip title="View Details">
+                    <IconButton size="small" color="primary" onClick={() => setSelectedInvoice(row)}>
+                      <Eye className="w-4 h-4" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Print Invoice">
+                    <IconButton size="small" color="primary" onClick={() => printInvoice(row, currency)}>
+                      <Printer className="w-4 h-4" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Download PDF">
+                    <IconButton size="small" color="primary" onClick={() => downloadInvoicePdf(row, currency)}>
+                      <Download className="w-4 h-4" />
+                    </IconButton>
+                  </Tooltip>
+                </div>
+              )
+            }
+          ]}
+        />
       </div>
 
       {selectedInvoice && (

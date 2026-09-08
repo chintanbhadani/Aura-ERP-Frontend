@@ -41,7 +41,11 @@ export const formatCurrency = (
 ): string => {
   const activeCurrency = currency || DEFAULT_CURRENCY;
   const num = Number(amount || 0);
-  const formattedNumber = num.toLocaleString('en-US', {
+  
+  // Use 'en-IN' universally to get the Lakhs/Crores comma formatting (e.g., 2,20,204.81) for all currencies
+  const locale = 'en-IN';
+  
+  const formattedNumber = num.toLocaleString(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });

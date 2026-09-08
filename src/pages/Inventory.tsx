@@ -6,6 +6,7 @@ import { cn } from '../components/Button';
 import { Input } from '../components/Input';
 import { PackageOpen, PackageCheck, X } from 'lucide-react';
 import dataService from '../axios/dataService';
+import { DataTable } from '../components/Table/DataTable';
 
 export default function Inventory() {
   const [activeTab, setActiveTab] = useState<'raw' | 'production'>('raw');
@@ -104,34 +105,38 @@ export default function Inventory() {
                   <Button variant="outline" size="sm" onClick={() => setShowAddStock(true)}>Add Stock</Button>
                 </div>
                 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-100 text-sm text-gray-500">
-                        <th className="py-3 font-medium">Material Name</th>
-                        <th className="py-3 font-medium">Current Stock (kg)</th>
-                        <th className="py-3 font-medium">Status</th>
-                        <th className="py-3 font-medium">Last Updated</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rawMaterials.map((material) => (
-                        <tr key={material.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
-                          <td className="py-4 font-medium text-gray-900">{material.materialName}</td>
-                          <td className="py-4 text-gray-600">{material.quantityKg.toLocaleString()} kg</td>
-                          <td className="py-4">
-                            {material.quantityKg < 500 ? (
-                              <span className="px-2.5 py-1 bg-red-50 text-red-700 text-xs font-medium rounded-full">Low Stock</span>
-                            ) : (
-                              <span className="px-2.5 py-1 bg-primary-50 text-primary-700 text-xs font-medium rounded-full">Healthy</span>
-                            )}
-                          </td>
-                          <td className="py-4 text-sm text-gray-500">{new Date(material.lastUpdated).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  data={rawMaterials}
+                  columns={[
+                    {
+                      header: 'Material Name',
+                      id: 'materialName',
+                      cell: ({ row }) => <span className="whitespace-nowrap font-medium text-gray-900">{row.materialName}</span>
+                    },
+                    {
+                      header: 'Current Stock (kg)',
+                      id: 'quantityKg',
+                      cell: ({ row }) => <span className="whitespace-nowrap text-gray-600">{row.quantityKg.toLocaleString()} kg</span>
+                    },
+                    {
+                      header: 'Status',
+                      id: 'status',
+                      cell: ({ row }) => {
+                        const isLow = row.quantityKg < 500;
+                        return (
+                          <span className={`whitespace-nowrap px-2.5 py-1 text-xs font-medium rounded-full ${isLow ? 'bg-red-50 text-red-700' : 'bg-primary-50 text-primary-700'}`}>
+                            {isLow ? 'Low Stock' : 'Healthy'}
+                          </span>
+                        );
+                      }
+                    },
+                    {
+                      header: 'Last Updated',
+                      id: 'lastUpdated',
+                      cell: ({ row }) => <span className="whitespace-nowrap text-sm text-gray-500">{new Date(row.lastUpdated).toLocaleString()}</span>
+                    }
+                  ]}
+                />
               </div>
             )}
 
@@ -153,32 +158,37 @@ export default function Inventory() {
                   <Button variant="outline" size="sm">Export CSV</Button>
                 </div>
                 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-gray-100 text-sm text-gray-500">
-                        <th className="py-3 font-medium">Barcode</th>
-                        <th className="py-3 font-medium">Machine</th>
-                        <th className="py-3 font-medium">Net Weight (kg)</th>
-                        <th className="py-3 font-medium">Time Completed</th>
-                        <th className="py-3 font-medium text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {finishedRolls.map((roll) => (
-                        <tr key={roll.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors">
-                          <td className="py-4 font-medium text-gray-900">{roll.barcode}</td>
-                          <td className="py-4 text-gray-600">Machine {roll.machine}</td>
-                          <td className="py-4 text-gray-600">{roll.netWeight}</td>
-                          <td className="py-4 text-sm text-gray-500">{new Date(roll.updatedAt).toLocaleTimeString()}</td>
-                          <td className="py-4 text-right">
-                            <button className="text-primary-600 font-medium text-sm hover:text-primary-700">Ship</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable
+                  data={finishedRolls}
+                  columns={[
+                    {
+                      header: 'Barcode',
+                      id: 'barcode',
+                      cell: ({ row }) => <span className="whitespace-nowrap font-medium text-gray-900">{row.barcode}</span>
+                    },
+                    {
+                      header: 'Machine',
+                      id: 'machine',
+                      cell: ({ row }) => <span className="whitespace-nowrap text-gray-600">Machine {row.machine}</span>
+                    },
+                    {
+                      header: 'Net Weight (kg)',
+                      id: 'netWeight',
+                      cell: ({ row }) => <span className="whitespace-nowrap text-gray-600">{row.netWeight}</span>
+                    },
+                    {
+                      header: 'Time Completed',
+                      id: 'updatedAt',
+                      cell: ({ row }) => <span className="whitespace-nowrap text-sm text-gray-500">{new Date(row.updatedAt).toLocaleTimeString()}</span>
+                    },
+                    {
+                      header: 'Actions',
+                      id: 'actions',
+                      className: 'text-right',
+                      cell: ({ row }) => <button className="whitespace-nowrap text-primary-600 font-medium text-sm hover:text-primary-700">Ship</button>
+                    }
+                  ]}
+                />
               </div>
             )}
           </section>

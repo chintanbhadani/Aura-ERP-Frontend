@@ -3,16 +3,14 @@ import { Sidebar } from '../components/Sidebar';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { setToken, setLoggedUser } from '../lib/slice/Base';
-import { LogOut, User, Settings, ChevronDown } from 'lucide-react';
+import { LogOut, User, Settings, ChevronDown, Menu } from 'lucide-react';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user } = useSelector((state: any) => state.base);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
-
-  console.log(" user :: ",user);
-  
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     dispatch(setToken(null));
@@ -28,10 +26,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto flex flex-col relative">
-        {/* Transparent Header just for positioning the menu */}
-        <header className="flex items-center justify-end p-4 sticky top-0 z-20 shrink-0">
+      <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+      <main className="flex-1 overflow-y-auto flex flex-col relative w-full">
+        {/* Header */}
+        <header className="flex items-center justify-between md:justify-end p-4 sticky top-0 z-20 shrink-0 bg-background md:bg-transparent">
+          <button 
+            className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu size={24} />
+          </button>
           <div className="relative">
             {/* User Button */}
             <button 

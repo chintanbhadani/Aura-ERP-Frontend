@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { fetchInventory, deleteProduct, createProduct, updateProduct, bulkUploadInventory, type Product } from '../services/api';
-import { ProductForm } from './ProductForm';
+import { fetchInventory, deleteProduct, bulkUploadInventory, type Product } from '../services/api';
 import { Leaf, Package, Pencil, Trash2, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { successToast, errorToast } from '../helper/toast';
 import { useCurrency } from '../helper/currency';
+import { useNavigate } from 'react-router-dom';
+import { DataTable } from './Table/DataTable';
 
 export const InventoryTable: React.FC = () => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const { format } = useCurrency();
   const [search, setSearch] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [activeTab, setActiveTab] = useState<'raw' | 'finished'>('raw');
 
   // Pagination state
@@ -52,29 +52,6 @@ export const InventoryTable: React.FC = () => {
         errorToast(error?.response?.data?.error || 'Failed to delete product');
       }
     }
-  };
-
-  const handleFormSubmit = async (data: Product) => {
-    try {
-      if (editingProduct && editingProduct.id) {
-        await updateProduct(editingProduct.id, data);
-        successToast('Material updated successfully');
-      } else {
-        await createProduct(data);
-        successToast('Material created successfully');
-      }
-      setIsModalOpen(false);
-      setEditingProduct(null);
-      loadData();
-    } catch (error: any) {
-      console.error('Error saving product', error);
-      errorToast(error?.response?.data?.error || 'Failed to save product. Check if SKU is unique.');
-    }
-  };
-
-  const openEditModal = (product: Product) => {
-    setEditingProduct(product);
-    setIsModalOpen(true);
   };
 
   const handleBulkUpload = async (e: React.FormEvent) => {
@@ -126,120 +103,113 @@ export const InventoryTable: React.FC = () => {
         <p className="text-gray-500 mt-1">Track raw materials and finished goods.</p>
       </div>
 
-      <div className="bg-white shadow-sm border border-gray-100 rounded-2xl p-6">
-        <div className="flex justify-end items-center mb-6 gap-3">
+      <div className="bg-white shadow-sm border border-gray-100 rounded-2xl p-3 sm:p-6">
+        <div className="flex flex-row justify-end items-center mb-6 gap-2 sm:gap-3">
           <Button 
             variant="outlined"
             color="primary"
             onClick={() => setIsBulkUploadModalOpen(true)}
-            sx={{ px: 3, py: 1 }}
+            sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
           >
             Bulk Upload
           </Button>
           <Button 
             variant="contained"
             color="primary"
-            onClick={() => { setEditingProduct(null); setIsModalOpen(true); }}
-            sx={{ px: 3, py: 1 }}
+            onClick={() => navigate('/inventory/new')}
+            sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
           >
             Add Stock
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Material Name</th>
-                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Category</th>
-                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Supplier</th>
-                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Quantity</th>
-                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Price / Unit</th>
-                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Total Value</th>
-                <th className="px-2 py-4 text-left text-sm font-semibold text-gray-500">Status</th>
-                <th className="px-2 py-4 text-right text-sm font-semibold text-gray-500">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {currentProducts.map((product) => {
-                const threshold = (product as any).min_stock ?? (product as any).reorderPoint ?? 0;
-                const isLowStock = product.quantity <= threshold;
-                
+        <DataTable 
+          data={currentProducts}
+          columns={[
+            {
+              header: 'Material Name',
+              id: 'name',
+              cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                  <p className="font-bold text-gray-900">{row.name}</p>
+                  <p className="text-xs text-gray-400">SKU: {row.sku}</p>
+                </div>
+              )
+            },
+            {
+              header: 'Category',
+              id: 'category',
+              cell: ({ row }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.category?.name || '-'}</span>
+            },
+            {
+              header: 'Supplier',
+              id: 'supplier',
+              cell: ({ row }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.supplier?.name || '-'}</span>
+            },
+            {
+              header: 'Quantity',
+              id: 'quantity',
+              cell: ({ row }) => {
+                const threshold = (row as any).min_stock ?? (row as any).reorderPoint ?? 0;
                 return (
-                  <tr key={product.id} className="hover:bg-gray-50/50">
-                    <td className="px-2 py-5 whitespace-nowrap">
-                      <p className="font-bold text-gray-900">{product.name}</p>
-                      <p className="text-xs text-gray-400">SKU: {product.sku}</p>
-                    </td>
-                    <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
-                      {product.category?.name || '-'}
-                    </td>
-                    <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
-                      {product.supplier?.name || '-'}
-                    </td>
-                    <td className="px-2 py-5 whitespace-nowrap text-gray-600">
-                      <p className="font-medium text-gray-900">{product.quantity} {product.unit?.name || 'units'}</p>
-                      <p className="text-xs text-gray-400">Min: {threshold} {product.unit?.name || 'units'}</p>
-                    </td>
-                    <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
-                      <p>{format(product.cost_price)}</p>
-                    </td>
-                    <td className="px-2 py-5 whitespace-nowrap text-gray-600 text-sm">
-                      <p className="font-medium text-primary">{format(Number(product.quantity || 0) * Number(product.cost_price || 0))}</p>
-                    </td>
-                    <td className="px-2 py-5 whitespace-nowrap">
-                      {isLowStock ? (
-                        <span className="px-3 py-1 bg-red-50 text-red-600 font-medium text-xs rounded-full">
-                          Low Stock
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 bg-primary-bg text-primary font-medium text-xs rounded-full">
-                          Healthy
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-2 py-5 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Tooltip title="Edit">
-                          <IconButton 
-                            size="small"
-                            color="primary"
-                            onClick={() => openEditModal(product)} 
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton 
-                            size="small"
-                            color="error"
-                            onClick={() => product.id && handleDelete(product.id)} 
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </IconButton>
-                        </Tooltip>
-                      </div>
-                    </td>
-                  </tr>
+                  <div className="whitespace-nowrap text-gray-600">
+                    <p className="font-medium text-gray-900">{row.quantity} {row.unit?.name || 'units'}</p>
+                    <p className="text-xs text-gray-400">Min: {threshold} {row.unit?.name || 'units'}</p>
+                  </div>
                 );
-              })}
-              {products.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-gray-500">
-                    No items found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              }
+            },
+            {
+              header: 'Price / Unit',
+              id: 'price',
+              cell: ({ row }) => <span className="whitespace-nowrap text-gray-600 text-sm">{format(row.cost_price)}</span>
+            },
+            {
+              header: 'Total Value',
+              id: 'total',
+              cell: ({ row }) => <span className="whitespace-nowrap font-medium text-primary text-sm">{format(Number(row.quantity || 0) * Number(row.cost_price || 0))}</span>
+            },
+            {
+              header: 'Status',
+              id: 'status',
+              cell: ({ row }) => {
+                const threshold = (row as any).min_stock ?? (row as any).reorderPoint ?? 0;
+                const isLowStock = row.quantity <= threshold;
+                return (
+                  <span className={`whitespace-nowrap px-3 py-1 font-medium text-xs rounded-full ${isLowStock ? 'bg-red-50 text-red-600' : 'bg-primary-50 text-primary-600'}`}>
+                    {isLowStock ? 'Low Stock' : 'Healthy'}
+                  </span>
+                );
+              }
+            },
+            {
+              header: 'Actions',
+              id: 'actions',
+              className: 'text-right',
+              cell: ({ row }) => (
+                <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                  <Tooltip title="Edit">
+                    <IconButton size="small" color="primary" onClick={() => navigate(`/inventory/edit/${row.id}`)}>
+                      <Pencil className="w-4 h-4" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Delete">
+                    <IconButton size="small" color="error" onClick={() => row.id && handleDelete(row.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </IconButton>
+                  </Tooltip>
+                </div>
+              )
+            }
+          ]}
+        />
 
         {/* Pagination Controls */}
-        <div className="flex items-center justify-between border-t border-gray-100 pt-6 mt-4">
-          <span className="text-sm text-gray-500">
+        <div className="flex flex-col md:flex-row items-center justify-between border-t border-gray-100 pt-6 mt-4 gap-4">
+          <span className="text-sm text-gray-500 text-center md:text-left">
             Showing {products.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, products.length)} of {products.length} entries
           </span>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6">
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <span>Rows per page:</span>
               <select 
@@ -295,15 +265,6 @@ export const InventoryTable: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {isModalOpen && (
-        <ProductForm 
-          initialData={editingProduct} 
-          products={products}
-          onSubmit={handleFormSubmit} 
-          onCancel={() => setIsModalOpen(false)} 
-        />
-      )}
 
       {isBulkUploadModalOpen && (
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center p-4">

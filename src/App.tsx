@@ -3,14 +3,15 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, us
 import { useDispatch, useSelector } from 'react-redux';
 import { setToken, setLoggedUser } from './slices/Base';
 import type { RootState } from './store';
-import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database, FileText } from 'lucide-react';
+import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database, FileText, Menu, X } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { InventoryTable } from './components/InventoryTable';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
 import { MasterData } from './components/MasterData';
 import { InvoiceList } from './components/InvoiceList';
-import { InvoiceForm } from './components/InvoiceForm';
+import { InvoiceFormPage } from './pages/Sales/InvoiceFormPage';
+import { ProductFormPage } from './pages/Inventory/ProductFormPage';
 import { Settings as SettingsComponent } from './components/Settings';
 import WithAuth from './components/WithAuth';
 import { ToastContainer } from 'react-toastify';
@@ -22,10 +23,11 @@ const ProtectedDashboard = WithAuth(Dashboard);
 const ProtectedInventoryTable = WithAuth(InventoryTable);
 const ProtectedMasterData = WithAuth(MasterData);
 const ProtectedInvoiceList = WithAuth(InvoiceList);
-const ProtectedInvoiceForm = WithAuth(InvoiceForm);
+const ProtectedInvoiceForm = WithAuth(InvoiceFormPage);
+const ProtectedProductFormPage = WithAuth(ProductFormPage);
 const ProtectedSettings = WithAuth(SettingsComponent);
 
-const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: () => void }) => {
+const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, toggleSidebar: () => void, closeMobile?: () => void }) => {
   const location = useLocation();
 
   const links = [
@@ -48,12 +50,18 @@ const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: ()
   const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
 
   return (
-    <div className={`${isOpen ? 'w-60' : 'w-20'} bg-white border-r border-gray-100 flex flex-col h-screen fixed left-0 top-0 z-20 transition-all duration-300`}>
+    <div className={`${isOpen ? 'w-60' : 'w-20'} bg-white border-r border-gray-100 flex flex-col h-full z-50 transition-all duration-300 relative`}>
       <button 
         onClick={toggleSidebar}
-        className="absolute -right-3 top-6 bg-white border border-gray-200 rounded-md p-1 shadow-sm text-gray-500 hover:text-gray-700 z-30"
+        className="hidden md:flex absolute -right-3 top-6 bg-white border border-gray-200 rounded-md p-1 shadow-sm text-gray-500 hover:text-gray-700 z-30"
       >
         {isOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+      </button>
+      <button 
+        onClick={closeMobile}
+        className="md:hidden absolute right-4 top-6 text-gray-500 hover:text-gray-700 p-2"
+      >
+        <X className="w-5 h-5" />
       </button>
       
       <div className={`p-6 flex items-center ${isOpen ? 'gap-3' : 'justify-center'} text-primary font-bold text-xl mb-6 mt-2`}>
@@ -120,7 +128,7 @@ const Sidebar = ({ isOpen, toggleSidebar }: { isOpen: boolean, toggleSidebar: ()
   );
 };
 
-const TopBar = () => {
+const TopBar = ({ toggleMobileMenu }: { toggleMobileMenu?: () => void }) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -133,7 +141,13 @@ const TopBar = () => {
   };
 
   return (
-    <div className="flex justify-end p-6 relative z-10 w-full max-w-7xl mx-auto">
+    <div className="flex justify-between md:justify-end items-center p-4 md:p-6 relative z-10 w-full max-w-7xl mx-auto">
+      <button 
+        onClick={toggleMobileMenu}
+        className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+      >
+        <Menu className="w-6 h-6" />
+      </button>
       <button 
         onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
         className="flex items-center gap-2 bg-white rounded-full p-1 pr-3 shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors relative z-50 cursor-pointer"
@@ -196,17 +210,34 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   if (isAuthPage) {
     return <div className="min-h-screen bg-[#ebf7f0]">{children}</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#ebf7f0] flex">
-      <Sidebar isOpen={isSidebarOpen} toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? 'ml-60' : 'ml-20'}`}>
-        <TopBar />
-        <main className="flex-1 w-full max-w-7xl mx-auto px-8 pb-8">
+    <div className="min-h-screen bg-[#ebf7f0] flex overflow-hidden">
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden backdrop-blur-sm"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Desktop and Mobile */}
+      <div className={`fixed inset-y-0 left-0 z-50 md:z-20 transition-transform duration-300 md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
+          closeMobile={() => setIsMobileMenuOpen(false)} 
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto transition-all duration-300">
+        <TopBar toggleMobileMenu={() => setIsMobileMenuOpen(true)} />
+        <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-8 pb-8">
           {children}
         </main>
       </div>
@@ -223,6 +254,8 @@ function App() {
           <Routes>
             <Route path="/" element={<ProtectedDashboard />} />
             <Route path="/inventory" element={<ProtectedInventoryTable />} />
+            <Route path="/inventory/new" element={<ProtectedProductFormPage />} />
+            <Route path="/inventory/edit/:id" element={<ProtectedProductFormPage />} />
             <Route path="/invoices" element={<ProtectedInvoiceList />} />
             <Route path="/invoices/new" element={<ProtectedInvoiceForm />} />
             <Route path="/master-data/:type" element={<ProtectedMasterData />} />
