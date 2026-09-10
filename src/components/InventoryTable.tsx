@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { fetchInventory, deleteProduct, bulkUploadInventory, type Product } from '../services/api';
-import { Leaf, Package, Pencil, Trash2, X } from 'lucide-react';
+import { Leaf, Package, Pencil, Trash2, X, Search, Filter } from 'lucide-react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { successToast, errorToast } from '../helper/toast';
 import { useCurrency } from '../helper/currency';
@@ -50,9 +50,11 @@ export const InventoryTable: React.FC = () => {
   const [bulkUploadFile, setBulkUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
+  const [stockFilter, setStockFilter] = useState<'all' | 'low_stock' | 'healthy'>('all');
+
   const loadData = async () => {
     try {
-      const data = await fetchInventory(search);
+      const data = await fetchInventory(search, stockFilter);
       setProducts(data);
     } catch (error) {
       console.error('Error fetching data', error);
@@ -61,7 +63,7 @@ export const InventoryTable: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [search]);
+  }, [search, stockFilter]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
@@ -115,23 +117,52 @@ export const InventoryTable: React.FC = () => {
       </div>
 
       <div className="bg-white shadow-sm border border-gray-100 rounded-2xl p-3 sm:p-6">
-        <div className="flex flex-row justify-end items-center mb-6 gap-2 sm:gap-3">
-          <Button 
-            variant="outlined"
-            color="primary"
-            onClick={() => setIsBulkUploadModalOpen(true)}
-            sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
-          >
-            Bulk Upload
-          </Button>
-          <Button 
-            variant="contained"
-            color="primary"
-            onClick={() => navigate('/inventory/new')}
-            sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
-          >
-            Add Stock
-          </Button>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search by name or SKU..." 
+                className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-full sm:w-64"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="relative flex-shrink-0">
+              <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select
+                className="pl-9 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer text-gray-700"
+                value={stockFilter}
+                onChange={(e) => setStockFilter(e.target.value as any)}
+              >
+                <option value="all">All Stock Status</option>
+                <option value="low_stock">Low Stock</option>
+                <option value="healthy">Healthy Stock</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-row justify-end items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <Button 
+              variant="outlined"
+              color="primary"
+              onClick={() => setIsBulkUploadModalOpen(true)}
+              sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
+            >
+              Bulk Upload
+            </Button>
+            <Button 
+              variant="contained"
+              color="primary"
+              onClick={() => navigate('/inventory/new')}
+              sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
+            >
+              Add Stock
+            </Button>
+          </div>
         </div>
 
         <DataTable 

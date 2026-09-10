@@ -55,8 +55,12 @@ export interface Product {
   fifoValue?: number;
 }
 
-export const fetchInventory = async (search?: string): Promise<Product[]> => {
-  const url = search ? `/inventory?search=${encodeURIComponent(search)}` : '/inventory';
+export const fetchInventory = async (search?: string, stockFilter?: string): Promise<Product[]> => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (stockFilter && stockFilter !== 'all') params.append('stockFilter', stockFilter);
+  
+  const url = `/inventory${params.toString() ? `?${params.toString()}` : ''}`;
   const response = await dataService.get(url);
   return response.data;
 };
