@@ -5,11 +5,11 @@ import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { Box, Button, IconButton, Tooltip } from '@mui/material';
 import { 
-  fetchCategories, createCategory, updateCategory, deleteCategory,
-  fetchSuppliers, createSupplier, updateSupplier, deleteSupplier,
-  fetchUnits, createUnit, updateUnit, deleteUnit,
-  fetchCustomers, createCustomer, updateCustomer, deleteCustomer,
-  fetchSkus, createSku, updateSku, deleteSku
+  fetchCategories, createCategory, updateCategory, bulkUploadCategories,
+  fetchSuppliers, createSupplier, updateSupplier, bulkUploadSuppliers,
+  fetchUnits, createUnit, updateUnit, bulkUploadUnits,
+  fetchCustomers, createCustomer, updateCustomer, bulkUploadCustomers,
+  fetchSkus, createSku, updateSku, bulkUploadSkus
 } from '../services/api';
 import { successToast, errorToast } from '../helper/toast';
 import { TextFieldComponent, SelectOutlinedField, ReusableAutocomplete } from './input/index';
@@ -40,6 +40,10 @@ export const MasterData: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [pendingCategoryName, setPendingCategoryName] = useState('');
   const categoryResolveRef = useRef<((cat: any) => void) | null>(null);
+
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
+  const [uploadingBulk, setUploadingBulk] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isValidType = type === 'categories' || type === 'suppliers' || type === 'units' || type === 'customers' || type === 'skus';
 
@@ -98,19 +102,43 @@ export const MasterData: React.FC = () => {
     setEditingItem(null);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this item?')) return;
+  const handleToggleStatus = async (item: any) => {
+    const newStatus = item.status === 'Inactive' ? 'Active' : 'Inactive';
     try {
-      if (type === 'categories') await deleteCategory(id);
-      else if (type === 'suppliers') await deleteSupplier(id);
-      else if (type === 'units') await deleteUnit(id);
-      else if (type === 'customers') await deleteCustomer(id);
-      else if (type === 'skus') await deleteSku(id);
-      successToast('Deleted successfully');
+      if (type === 'categories') await updateCategory(item.id, { status: newStatus });
+      else if (type === 'suppliers') await updateSupplier(item.id, { status: newStatus });
+      else if (type === 'units') await updateUnit(item.id, { status: newStatus });
+      else if (type === 'customers') await updateCustomer(item.id, { status: newStatus });
+      else if (type === 'skus') await updateSku(item.id, { status: newStatus });
+      successToast(`Status updated to ${newStatus}`);
       loadData();
     } catch (error: any) {
-      console.error('Error deleting data', error);
-      errorToast(error?.response?.data?.error || 'Failed to delete. It might be in use.');
+      console.error('Error updating status', error);
+      errorToast(error?.response?.data?.error || 'Failed to update status.');
+    }
+  };
+
+  const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingBulk(true);
+      if (type === 'categories') await bulkUploadCategories(file);
+      else if (type === 'suppliers') await bulkUploadSuppliers(file);
+      else if (type === 'units') await bulkUploadUnits(file);
+      else if (type === 'customers') await bulkUploadCustomers(file);
+      else if (type === 'skus') await bulkUploadSkus(file);
+      
+      successToast('Bulk upload successful');
+      setIsBulkUploadModalOpen(false);
+      loadData();
+    } catch (error: any) {
+      console.error('Bulk upload error', error);
+      errorToast(error?.response?.data?.error || 'Bulk upload failed');
+    } finally {
+      setUploadingBulk(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -129,15 +157,25 @@ export const MasterData: React.FC = () => {
             <Database className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-bold text-gray-900 capitalize">{type} List</h2>
           </div>
-          <Button 
-            variant="contained"
-            color="primary"
-            startIcon={<Plus className="w-4 h-4" />}
-            onClick={() => openModal()}
-            sx={{ px: 3, py: 1, fontWeight: 600 }}
-          >
-            Add New
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={() => setIsBulkUploadModalOpen(true)}
+              sx={{ px: 3, py: 1, fontWeight: 600, borderRadius: '9999px' }}
+            >
+              Bulk Upload
+            </Button>
+            <Button 
+              variant="contained"
+              color="primary"
+              startIcon={<Plus className="w-4 h-4" />}
+              onClick={() => openModal()}
+              sx={{ px: 3, py: 1, fontWeight: 600, borderRadius: '9999px' }}
+            >
+              Add New
+            </Button>
+          </div>
         </div>
 
         <DataTable
@@ -174,6 +212,15 @@ export const MasterData: React.FC = () => {
               }
             ] : []),
             {
+              header: 'Active Status',
+              id: 'active_status',
+              cell: ({ row }) => (
+                <span className={`whitespace-nowrap px-3 py-1 font-medium text-xs rounded-full ${row.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
+                  {row.status || 'Active'}
+                </span>
+              )
+            },
+            {
               header: 'Actions',
               id: 'actions',
               className: 'text-right',
@@ -184,10 +231,15 @@ export const MasterData: React.FC = () => {
                       <Pencil className="w-4 h-4" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title="Delete">
-                    <IconButton size="small" color="error" onClick={() => handleDelete(row.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </IconButton>
+                  <Tooltip title={row.status === 'Inactive' ? "Enable" : "Disable"}>
+                    <Button 
+                      size="small" 
+                      color={row.status === 'Inactive' ? "success" : "error"} 
+                      onClick={() => handleToggleStatus(row)}
+                      sx={{ minWidth: 'auto', textTransform: 'none', fontSize: '12px' }}
+                    >
+                      {row.status === 'Inactive' ? "Enable" : "Disable"}
+                    </Button>
                   </Tooltip>
                 </div>
               )
@@ -368,6 +420,69 @@ export const MasterData: React.FC = () => {
                 </Form>
               )}
             </Formik>
+          </div>
+        </div>
+      )}
+      {/* Bulk Upload Modal */}
+      {isBulkUploadModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Bulk Upload {type}</h2>
+            <p className="text-sm text-gray-500">Upload an Excel (.xlsx, .xls) file containing your data. Missing standard required fields like 'name' will be skipped.</p>
+            <button 
+              type="button"
+              className="text-primary font-bold text-sm mb-6 hover:underline"
+              onClick={() => {
+                let headers = 'name';
+                if (type === 'suppliers' || type === 'customers') headers = 'name,contact,email';
+                if (type === 'skus') headers = 'name,sku';
+                
+                const csvContent = "data:text/csv;charset=utf-8," + headers + "\n";
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `${type}_sample.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+            >
+              Download sample template.
+            </button>
+            
+            <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 flex flex-col items-center justify-center bg-gray-50 mb-6">
+              <Database className="w-10 h-10 text-gray-400 mb-3" />
+              <p className="text-sm text-gray-600 text-center mb-4">Select an Excel file from your computer</p>
+              
+              <input 
+                type="file"
+                accept=".xlsx, .xls, .csv"
+                className="hidden"
+                ref={fileInputRef}
+                onChange={handleBulkUpload}
+              />
+              
+              <Button 
+                variant="contained" 
+                color="primary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingBulk}
+                sx={{ borderRadius: '9999px', textTransform: 'none', px: 4 }}
+              >
+                {uploadingBulk ? 'Uploading...' : 'Choose file'}
+              </Button>
+            </div>
+            
+            <div className="flex justify-end pt-2">
+              <Button 
+                variant="text" 
+                color="inherit" 
+                onClick={() => setIsBulkUploadModalOpen(false)}
+                disabled={uploadingBulk}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}

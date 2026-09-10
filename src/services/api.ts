@@ -82,13 +82,22 @@ export const createCategory = async (data: { name: string }): Promise<Category> 
   return response.data;
 };
 
-export const updateCategory = async (id: string, data: { name: string }): Promise<Category> => {
+export const updateCategory = async (id: string, data: { name?: string; status?: string }): Promise<Category> => {
   const response = await dataService.put(`/categories/${id}`, data);
   return response.data;
 };
 
 export const deleteCategory = async (id: string): Promise<void> => {
   await dataService.delete(`/categories/${id}`);
+};
+
+export const bulkUploadCategories = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await dataService.post('/categories/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
 };
 
 export const fetchUnits = async (): Promise<Unit[]> => {
@@ -101,13 +110,22 @@ export const createUnit = async (data: { name: string }): Promise<Unit> => {
   return response.data;
 };
 
-export const updateUnit = async (id: string, data: { name: string }): Promise<Unit> => {
+export const updateUnit = async (id: string, data: { name?: string; status?: string }): Promise<Unit> => {
   const response = await dataService.put(`/units/${id}`, data);
   return response.data;
 };
 
 export const deleteUnit = async (id: string): Promise<void> => {
   await dataService.delete(`/units/${id}`);
+};
+
+export const bulkUploadUnits = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await dataService.post('/units/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
 };
 
 export const fetchSuppliers = async (): Promise<Supplier[]> => {
@@ -120,13 +138,22 @@ export const createSupplier = async (data: { name: string; contact?: string; ema
   return response.data;
 };
 
-export const updateSupplier = async (id: string, data: { name: string; contact?: string; email?: string }): Promise<Supplier> => {
+export const updateSupplier = async (id: string, data: { name?: string; contact?: string; email?: string; status?: string }): Promise<Supplier> => {
   const response = await dataService.put(`/suppliers/${id}`, data);
   return response.data;
 };
 
 export const deleteSupplier = async (id: string): Promise<void> => {
   await dataService.delete(`/suppliers/${id}`);
+};
+
+export const bulkUploadSuppliers = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await dataService.post('/suppliers/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
 };
 
 export const createProduct = async (product: Product): Promise<Product> => {
@@ -153,13 +180,22 @@ export const createCustomer = async (data: { name: string; contact?: string; ema
   return response.data;
 };
 
-export const updateCustomer = async (id: string, data: { name: string; contact?: string; email?: string }): Promise<any> => {
+export const updateCustomer = async (id: string, data: { name?: string; contact?: string; email?: string; status?: string }): Promise<any> => {
   const response = await dataService.put(`/customers/${id}`, data);
   return response.data;
 };
 
 export const deleteCustomer = async (id: string): Promise<void> => {
   await dataService.delete(`/customers/${id}`);
+};
+
+export const bulkUploadCustomers = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await dataService.post('/customers/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
 };
 
 export const fetchInvoices = async (): Promise<any[]> => {
@@ -189,6 +225,7 @@ export interface SkuMaster {
   sku: string;
   categoryId?: string | null;
   category?: Category | null;
+  status?: string;
 }
 
 export const fetchSkus = async (): Promise<SkuMaster[]> => {
@@ -208,6 +245,15 @@ export const updateSku = async (id: string, data: Partial<SkuMaster>): Promise<S
 
 export const deleteSku = async (id: string): Promise<void> => {
   await dataService.delete(`/skus/${id}`);
+};
+
+export const bulkUploadSkus = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await dataService.post('/skus/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
 };
 
 export interface Expense {
