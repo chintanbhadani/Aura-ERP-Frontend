@@ -49,10 +49,20 @@ export interface Product {
   unit?: Unit;
   location: string;
   status: 'Active' | 'Inactive';
+  wacPrice?: number;
+  wacValue?: number;
+  fifoPrice?: number;
+  fifoValue?: number;
 }
 
 export const fetchInventory = async (search?: string): Promise<Product[]> => {
   const url = search ? `/inventory?search=${encodeURIComponent(search)}` : '/inventory';
+  const response = await dataService.get(url);
+  return response.data;
+};
+
+export const fetchProducts = async (search?: string): Promise<Product[]> => {
+  const url = search ? `/products?search=${encodeURIComponent(search)}` : '/products';
   const response = await dataService.get(url);
   return response.data;
 };

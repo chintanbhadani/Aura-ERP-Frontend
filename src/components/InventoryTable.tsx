@@ -198,17 +198,36 @@ export const InventoryTable: React.FC = () => {
               }
             },
             {
-              header: 'Price / Unit',
-              id: 'price',
-              cell: ({ row }) => <span className="whitespace-nowrap text-gray-600 text-sm">{format(row.cost_price)}</span>
+              header: 'WAC Valuation',
+              id: 'wac',
+              cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                  <p className="text-gray-600 text-sm">Price: {format(row.wacPrice || row.cost_price || 0)}</p>
+                  <p className="font-medium text-primary text-sm">Total: {format(row.wacValue || (Number(row.quantity || 0) * Number(row.cost_price || 0)))}</p>
+                </div>
+              )
             },
             {
-              header: 'Total Value',
-              id: 'total',
-              cell: ({ row }) => <span className="whitespace-nowrap font-medium text-primary text-sm">{format(Number(row.quantity || 0) * Number(row.cost_price || 0))}</span>
+              header: 'FIFO Valuation',
+              id: 'fifo',
+              cell: ({ row }) => (
+                <div className="whitespace-nowrap">
+                  <p className="text-gray-600 text-sm">Price: {format(row.fifoPrice || row.cost_price || 0)}</p>
+                  <p className="font-medium text-primary text-sm">Total: {format(row.fifoValue || (Number(row.quantity || 0) * Number(row.cost_price || 0)))}</p>
+                </div>
+              )
             },
             {
-              header: 'Status',
+              header: 'Active Status',
+              id: 'active_status',
+              cell: ({ row }) => (
+                <span className={`whitespace-nowrap px-3 py-1 font-medium text-xs rounded-full ${row.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
+                  {row.status || 'Active'}
+                </span>
+              )
+            },
+            {
+              header: 'Stock Status',
               id: 'status',
               cell: ({ row }) => {
                 const threshold = (row as any).min_stock ?? (row as any).reorderPoint ?? 0;

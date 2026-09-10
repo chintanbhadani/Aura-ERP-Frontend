@@ -83,7 +83,7 @@ export const MasterData: React.FC = () => {
       case 'suppliers': return 'Supplier Master';
       case 'units': return 'Unit Master';
       case 'customers': return 'Customer Master';
-      case 'skus': return 'SKU Master';
+      case 'skus': return 'Product Master';
       default: return 'Master Data';
     }
   };
@@ -200,7 +200,7 @@ export const MasterData: React.FC = () => {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
             <h2 className="text-lg font-bold text-gray-900 mb-5">
-              {editingItem ? 'Edit' : 'Add New'} {type === 'categories' ? 'Category' : type === 'suppliers' ? 'Supplier' : type === 'customers' ? 'Customer' : type === 'skus' ? 'SKU' : 'Unit'}
+              {editingItem ? 'Edit' : 'Add New'} {type === 'categories' ? 'Category' : type === 'suppliers' ? 'Supplier' : type === 'customers' ? 'Customer' : type === 'skus' ? 'Product Master' : 'Unit'}
             </h2>
             
             <Formik

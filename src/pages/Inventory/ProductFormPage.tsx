@@ -14,11 +14,6 @@ const materialValidationSchema = Yup.object({
   sku: Yup.string().trim().required('SKU is required'),
   categoryId: Yup.string().required('Category is required'),
   supplierId: Yup.string().required('Supplier is required'),
-  invoiceDate: Yup.string().required('Invoice date & time is required'),
-  quantity: Yup.number()
-    .typeError('Quantity must be a valid number')
-    .min(0, 'Quantity cannot be negative')
-    .required('Quantity is required'),
   unitId: Yup.string().required('Quantity unit is required'),
   minStock: Yup.number()
     .typeError('Min stock alert must be a valid number')
@@ -100,16 +95,15 @@ export const ProductFormPage: React.FC = () => {
         id: initialData?.id,
         sku: values.sku.trim(),
         name: values.name.trim(),
-        quantity: Number(values.quantity),
         cost_price: Number(values.costPrice),
         selling_price: Number(values.sellingPrice),
         min_stock: Number(values.minStock),
         categoryId: values.categoryId,
         supplierId: values.supplierId,
-        invoiceDate: values.invoiceDate,
         unitId: values.unitId,
         location: initialData?.location || '',
-        status: initialData?.status || 'Active'
+        status: values.status,
+        quantity: initialData?.quantity || 0,
       };
 
       if (isEditMode && id) {
@@ -136,14 +130,13 @@ export const ProductFormPage: React.FC = () => {
       initialValues={{
         sku: initialData?.sku || `MAT-${Math.floor(Math.random() * 10000)}`,
         name: initialData?.name || '',
-        quantity: initialData?.quantity !== undefined ? String(initialData.quantity) : '',
         costPrice: initialData?.cost_price !== undefined ? String(initialData.cost_price) : '',
         sellingPrice: initialData?.selling_price !== undefined ? String(initialData.selling_price) : '',
         minStock: initialData?.min_stock !== undefined ? String(initialData.min_stock) : '50',
         categoryId: initialData?.categoryId || '',
         supplierId: initialData?.supplierId || '',
-        invoiceDate: formatDateTimeLocal(initialData?.invoiceDate),
         unitId: initialData?.unitId || '',
+        status: initialData?.status || 'Active',
       }}
       enableReinitialize
       validationSchema={materialValidationSchema}
@@ -164,32 +157,21 @@ export const ProductFormPage: React.FC = () => {
         >
           <Form noValidate className="max-w-3xl mx-auto space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-2 relative">
-                <ReusableAutocomplete
-                  keyName="name"
-                  compareKey="name"
-                  label="Material Name"
-                  placeholder="Search or add SKU..."
-                  options={skus}
-                  getOptionLabel={(sku) => sku ? `${sku.name} (${sku.sku})` : ''}
-                  creatable
-                  onChange={(selectedSku: any) => {
-                    if (selectedSku) {
-                      if (selectedSku.sku) setFieldValue('sku', selectedSku.sku);
-                      if (selectedSku.categoryId) setFieldValue('categoryId', selectedSku.categoryId);
-                    }
-                  }}
-                  onCreate={(newSkuName) => {
-                    return new Promise((resolve) => {
-                      setPendingSkuName(newSkuName);
-                      skuResolveRef.current = resolve;
-                      setShowSkuModal(true);
-                    });
-                  }}
-                />
+              <div className="md:col-span-1">
+                <TextFieldComponent name="name" label="Material Name" placeholder="e.g. Engine Oil" />
               </div>
               <div className="md:col-span-1">
                 <TextFieldComponent name="sku" label="SKU (Auto-Generated)" />
+              </div>
+              <div className="md:col-span-1">
+                <SelectOutlinedField
+                  name="status"
+                  label="Status"
+                  options={[
+                    { label: 'Active', value: 'Active' },
+                    { label: 'Inactive', value: 'Inactive' }
+                  ]}
+                />
               </div>
             </div>
 
@@ -224,16 +206,6 @@ export const ProductFormPage: React.FC = () => {
                   });
                 }}
               />
-              <TextFieldComponent 
-                name="invoiceDate" 
-                label="Invoice Date & Time" 
-                type="datetime-local" 
-                InputLabelProps={{ shrink: true }}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <TextFieldComponent name="quantity" label="Quantity" type="number" placeholder="e.g. 500" />
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
                 <Box sx={{ flex: 1 }}>
                   <SelectOutlinedField
@@ -247,25 +219,17 @@ export const ProductFormPage: React.FC = () => {
                     size="small"
                     color="primary"
                     onClick={() => setShowUnitModal(true)}
-                    sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', width: '40px', height: '40px' }}
+                    sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px', width: '40px', height: '40px', mt: 3.5 }}
                   >
                     <Plus size={18} />
                   </IconButton>
                 </Tooltip>
               </Box>
-              <TextFieldComponent name="minStock" label="Min Stock Alert" type="number" placeholder="e.g. 50" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <TextFieldComponent name="minStock" label="Min Stock Alert" type="number" placeholder="e.g. 50" />
               <TextFieldComponent name="costPrice" label="Price per unit ($)" type="number" placeholder="e.g. 12.50" />
-              <TextFieldComponent 
-                name="total" 
-                label="Total ($)" 
-                disabled
-                value={(Number(values.quantity || 0) * Number(values.costPrice || 0)).toFixed(2)}
-                inputProps={{ readOnly: true, tabIndex: -1 }}
-                sx={{ bgcolor: '#f9fafb' }}
-              />
               <TextFieldComponent name="sellingPrice" label="Selling Price ($)" type="number" placeholder="e.g. 25.00" />
             </div>
           </Form>

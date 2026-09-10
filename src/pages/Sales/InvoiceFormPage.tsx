@@ -3,8 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Formik, Form, FieldArray } from 'formik';
 import * as Yup from 'yup';
 import { FormPageLayout } from '../../layouts/FormPageLayout';
-import { fetchInventory, fetchCustomers, fetchSuppliers, createInvoice, createCustomer, createSupplier } from '../../services/api';
-import type { Product, Customer, Supplier } from '../../types';
+import { fetchProducts, fetchCustomers, fetchSuppliers, fetchCategories, createInvoice, createCustomer, createSupplier, createProduct, createCategory } from '../../services/api';
+import type { Product, Customer, Supplier, Category } from '../../types';
 import { successToast, errorToast } from '../../helper/toast';
 import { TextFieldComponent, SelectOutlinedField, DatePickerComponent, ReusableAutocomplete } from '../../components/input/index';
 import { Box, Button, IconButton, Tooltip } from '@mui/material';
@@ -45,6 +45,15 @@ const supplierModalValidationSchema = Yup.object({
   email: Yup.string().trim().email('Must be a valid email').required('Email address is required'),
 });
 
+const productModalValidationSchema = Yup.object({
+  name: Yup.string().trim().required('Name is required'),
+  sku: Yup.string().trim().required('SKU Code is required'),
+});
+
+const categoryModalValidationSchema = Yup.object({
+  name: Yup.string().trim().required('Category name is required'),
+});
+
 export const InvoiceFormPage: React.FC = () => {
   const { id } = useParams();
   const isEditMode = Boolean(id);
@@ -54,25 +63,37 @@ export const InvoiceFormPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  
   const [pendingCustomerName, setPendingCustomerName] = useState('');
   const [pendingSupplierName, setPendingSupplierName] = useState('');
+  const [pendingProductName, setPendingProductName] = useState('');
+  const [pendingCategoryName, setPendingCategoryName] = useState('');
+
   const customerResolveRef = useRef<((customer: Customer) => void) | null>(null);
   const supplierResolveRef = useRef<((supplier: Supplier) => void) | null>(null);
+  const productResolveRef = useRef<((product: Product) => void) | null>(null);
+  const categoryResolveRef = useRef<((category: Category) => void) | null>(null);
+  
   const formikRef = React.useRef<any>(null);
 
   const loadData = async () => {
     try {
-      const [prodRes, custRes, suppRes] = await Promise.all([
-        fetchInventory(),
+      const [prodRes, custRes, suppRes, catRes] = await Promise.all([
+        fetchProducts(),
         fetchCustomers(),
-        fetchSuppliers()
+        fetchSuppliers(),
+        fetchCategories()
       ]);
-      setProducts(prodRes);
+      setProducts(prodRes.filter((p: Product) => p.status === 'Active' || !p.status));
       setCustomers(custRes);
       setSuppliers(suppRes);
+      setCategories(catRes);
     } catch (error) {
       console.error('Failed to fetch data', error);
     }
@@ -216,21 +237,33 @@ export const InvoiceFormPage: React.FC = () => {
                         {values.items.map((item, index) => (
                           <div key={index} className="flex flex-col md:flex-row items-start gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
                             <div className="flex-1 w-full flex items-center gap-2">
-                              <Box sx={{ flex: 1 }}>
-                                <SelectOutlinedField
-                                  name={`items.${index}.productId`}
-                                  label="Product / SKU"
-                                  placeholder="Select Product..."
-                                  options={products.map(p => ({ label: `${p.sku} - ${p.name}`, value: p.id || '' }))}
-                                  onChange={(prodId) => {
-                                    setFieldValue(`items.${index}.productId`, prodId);
-                                    const prod = products.find(p => p.id === prodId);
-                                    if (prod) {
-                                      setFieldValue(`items.${index}.unitPrice`, values.type === 'SALES' ? prod.selling_price : prod.cost_price);
-                                    }
-                                  }}
-                                />
-                              </Box>
+                                <Box sx={{ flex: 1 }}>
+                                  <ReusableAutocomplete
+                                    keyName={`items.${index}.productId`}
+                                    label="Product / SKU"
+                                    placeholder="Select Product..."
+                                    options={products}
+                                    getOptionLabel={(p: Product) => p ? `${p.sku} - ${p.name} (Stock: ${p.quantity})` : ''}
+                                    compareKey="id"
+                                    creatable
+                                    onCreate={(inputValue) => {
+                                      setPendingProductName(inputValue);
+                                      setIsProductModalOpen(true);
+                                      return new Promise<Product>((resolve) => {
+                                        productResolveRef.current = resolve;
+                                      });
+                                    }}
+                                    onChange={(prod: any) => {
+                                      if (prod) {
+                                        setFieldValue(`items.${index}.productId`, prod.id);
+                                        setFieldValue(`items.${index}.unitPrice`, values.type === 'SALES' ? prod.selling_price : prod.cost_price);
+                                      } else {
+                                        setFieldValue(`items.${index}.productId`, '');
+                                        setFieldValue(`items.${index}.unitPrice`, 0);
+                                      }
+                                    }}
+                                  />
+                                </Box>
                               <Tooltip title="Manage Products">
                                 <IconButton
                                   size="small"
@@ -388,6 +421,132 @@ export const InvoiceFormPage: React.FC = () => {
                         </div>
                         <div className="flex justify-end gap-3 pt-6 mt-4">
                           <Button type="button" variant="text" color="inherit" onClick={() => { setIsSupplierModalOpen(false); supplierResolveRef.current = null; }}>Cancel</Button>
+                          <Button type="button" variant="contained" color="primary" disabled={isSubmitting} onClick={submitForm}>
+                            {isSubmitting ? 'Saving...' : 'Save'}
+                          </Button>
+                        </div>
+                      </Form>
+                    )}
+                  </Formik>
+                </div>
+              </div>
+            )}
+
+            {/* Product Modal */}
+            {isProductModalOpen && (
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
+                  <h2 className="text-lg font-bold text-gray-900 mb-5">Add New Product Master</h2>
+                  <Formik
+                    initialValues={{ name: pendingProductName, sku: '', categoryId: '' }}
+                    enableReinitialize
+                    validationSchema={productModalValidationSchema}
+                    onSubmit={async (val, { resetForm, setSubmitting }) => {
+                      try {
+                        setSubmitting(true);
+                        const newProductPayload: any = {
+                          name: val.name.trim(),
+                          sku: val.sku.trim(),
+                          categoryId: val.categoryId || categories[0]?.id || '', // fallback
+                          supplierId: suppliers[0]?.id || '', // dummy fallback
+                          cost_price: 0,
+                          selling_price: 0,
+                          min_stock: 0,
+                          quantity: 0,
+                          status: 'Active',
+                          location: ''
+                        };
+
+                        if (!newProductPayload.categoryId || !newProductPayload.supplierId) {
+                           errorToast('Please ensure you have at least one Category and Supplier created first.');
+                           setSubmitting(false);
+                           return;
+                        }
+
+                        const res = await createProduct(newProductPayload);
+                        await loadData();
+                        if (productResolveRef.current) {
+                          productResolveRef.current(res);
+                          productResolveRef.current = null;
+                        }
+                        setIsProductModalOpen(false);
+                        resetForm();
+                        successToast('Product Master created');
+                      } catch (error) {
+                        errorToast('Failed to create Product Master');
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                  >
+                    {({ isSubmitting, submitForm }) => (
+                      <Form noValidate>
+                        <TextFieldComponent name="name" label="Name" placeholder="Enter name..." autoFocus />
+                        <div className="mt-4">
+                          <TextFieldComponent name="sku" label="SKU Code" placeholder="e.g. MAT-1001" />
+                        </div>
+                        <div className="mt-4">
+                          <ReusableAutocomplete
+                            keyName="categoryId"
+                            label="Category Type (Optional)"
+                            placeholder="Search or add category..."
+                            options={categories}
+                            getOptionLabel={(cat: Category) => cat?.name || ''}
+                            compareKey="id"
+                            creatable
+                            onCreate={(inputValue) => {
+                              return new Promise((resolve) => {
+                                setPendingCategoryName(inputValue);
+                                categoryResolveRef.current = resolve;
+                                setShowCategoryModal(true);
+                              });
+                            }}
+                          />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-6 mt-4">
+                          <Button type="button" variant="text" color="inherit" onClick={() => { setIsProductModalOpen(false); productResolveRef.current = null; }}>Cancel</Button>
+                          <Button type="button" variant="contained" color="primary" disabled={isSubmitting} onClick={submitForm}>
+                            {isSubmitting ? 'Saving...' : 'Save'}
+                          </Button>
+                        </div>
+                      </Form>
+                    )}
+                  </Formik>
+                </div>
+              </div>
+            )}
+
+            {/* Category Modal (for nested creation) */}
+            {showCategoryModal && (
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-[60]">
+                <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
+                  <h3 className="text-lg font-bold text-gray-900 mb-5">Add New Category</h3>
+                  <Formik
+                    initialValues={{ name: pendingCategoryName }}
+                    validationSchema={categoryModalValidationSchema}
+                    onSubmit={async (val, { setSubmitting }) => {
+                      try {
+                        setSubmitting(true);
+                        const newCat = await createCategory({ name: val.name.trim() });
+                        setCategories((prev) => [...prev, newCat]);
+                        if (categoryResolveRef.current) {
+                          categoryResolveRef.current(newCat);
+                          categoryResolveRef.current = null;
+                        }
+                        setShowCategoryModal(false);
+                        successToast(`Category "${newCat.name}" created`);
+                      } catch (error: any) {
+                        errorToast('Failed to create category');
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                  >
+                    {({ isSubmitting, submitForm }) => (
+                      <Form noValidate>
+                        <TextFieldComponent name="name" label="Category Name" placeholder="e.g. Engine Parts" autoFocus />
+                        <div className="flex justify-end gap-3 pt-6 mt-4">
+                          <Button type="button" variant="text" color="inherit" onClick={() => { setShowCategoryModal(false); categoryResolveRef.current = null; }}>Cancel</Button>
                           <Button type="button" variant="contained" color="primary" disabled={isSubmitting} onClick={submitForm}>
                             {isSubmitting ? 'Saving...' : 'Save'}
                           </Button>

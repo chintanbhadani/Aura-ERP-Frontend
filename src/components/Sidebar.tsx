@@ -37,7 +37,7 @@ const navItems: NavItem[] = [
       { name: 'Categories', href: '/master-data/categories' },
       { name: 'Suppliers', href: '/master-data/suppliers' },
       { name: 'Units', href: '/master-data/units' },
-      { name: 'SKUs', href: '/master-data/skus' }
+      { name: 'Product Master', href: '/master-data/skus' }
     ]
   },
 ];

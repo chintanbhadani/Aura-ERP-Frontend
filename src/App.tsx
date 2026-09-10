@@ -45,7 +45,7 @@ const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, togg
         { name: 'Suppliers', path: '/master-data/suppliers' },
         { name: 'Customers', path: '/master-data/customers' },
         { name: 'Units', path: '/master-data/units' },
-        { name: 'SKUs', path: '/master-data/skus' }
+        { name: 'Product Master', path: '/master-data/skus' }
       ]
     },
     { name: 'Settings', path: '/settings', icon: Settings }
