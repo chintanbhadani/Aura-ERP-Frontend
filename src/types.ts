@@ -60,12 +60,18 @@ export interface InvoiceItem {
   product?: any; // To hold related product info
 }
 
+export type PaymentType = 'CASH' | 'BANK' | 'CREDIT' | 'PARTIAL';
+
 export interface Invoice {
   id: string;
   invoiceNumber: string;
   type: 'PURCHASE' | 'SALES';
   date: string;
   totalAmount: number;
+  paymentType?: PaymentType;
+  cashAmount?: number;
+  bankAmount?: number;
+  creditAmount?: number;
   customerId?: string | null;
   supplierId?: string | null;
   items?: InvoiceItem[];

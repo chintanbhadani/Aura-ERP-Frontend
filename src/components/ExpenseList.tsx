@@ -36,12 +36,13 @@ import {
 } from '../services/api';
 import { useCurrency } from '../helper/currency';
 import { DataTable } from './Table/DataTable';
-import { ReusableAutocomplete, TextFieldComponent } from './input/index';
+import { ReusableAutocomplete, TextFieldComponent, SelectOutlinedField } from './input/index';
 
 const ExpenseSchema = Yup.object().shape({
   date: Yup.string().required('Date is required'),
   description: Yup.string().required('Description is required'),
   amount: Yup.number().typeError('Amount must be a number').positive('Amount must be positive').required('Amount is required'),
+  paymentType: Yup.string().required('Payment Type is required'),
   notes: Yup.string().nullable(),
 });
 
@@ -107,6 +108,7 @@ export const ExpenseList: React.FC = () => {
           date: values.date,
           description: values.description,
           amount: Number(values.amount),
+          paymentType: values.paymentType,
           notes: values.notes,
         });
         toast.success('Expense updated successfully!');
@@ -115,6 +117,7 @@ export const ExpenseList: React.FC = () => {
           date: values.date,
           description: values.description,
           amount: Number(values.amount),
+          paymentType: values.paymentType,
           notes: values.notes,
         });
         toast.success('Expense added successfully!');
@@ -305,6 +308,15 @@ export const ExpenseList: React.FC = () => {
               ),
             },
             {
+              header: 'Payment Type',
+              id: 'paymentType',
+              cell: ({ row: expense }) => (
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${expense.paymentType === 'BANK' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>
+                  {expense.paymentType || 'CASH'}
+                </span>
+              ),
+            },
+            {
               header: 'Amount',
               id: 'amount',
               cell: ({ row: expense }) => (
@@ -381,6 +393,7 @@ export const ExpenseList: React.FC = () => {
               : new Date().toISOString().split('T')[0],
             description: editingExpense ? editingExpense.description : '',
             amount: editingExpense ? editingExpense.amount : '',
+            paymentType: editingExpense?.paymentType || 'CASH',
             notes: editingExpense?.notes || '',
           }}
           validationSchema={ExpenseSchema}
@@ -438,6 +451,19 @@ export const ExpenseList: React.FC = () => {
                     label="Amount"
                     placeholder="e.g. 5000"
                     type="number"
+                  />
+                </div>
+
+                <div>
+                  <SelectOutlinedField
+                    name="paymentType"
+                    label="Payment Method"
+                    options={[
+                      { label: 'Cash', value: 'CASH' },
+                      { label: 'Bank', value: 'BANK' },
+                      { label: 'Credit (Unpaid)', value: 'CREDIT' },
+                      { label: 'Partial (Cash + Bank)', value: 'PARTIAL' }
+                    ]}
                   />
                 </div>
 

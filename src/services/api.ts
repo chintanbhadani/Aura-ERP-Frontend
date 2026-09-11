@@ -278,6 +278,7 @@ export interface Expense {
   date: string;
   description: string;
   amount: number;
+  paymentType?: 'CASH' | 'BANK' | 'CREDIT' | 'PARTIAL';
   notes?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -319,4 +320,13 @@ export const deleteExpense = async (id: string): Promise<void> => {
   await dataService.delete(`/expenses/${id}`);
 };
 
+export const fetchDailyCashFlow = async (startDate?: string, endDate?: string): Promise<any[]> => {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate);
+  if (endDate) params.append('endDate', endDate);
+  
+  const url = `/reports/daily-cash-flow${params.toString() ? `?${params.toString()}` : ''}`;
+  const response = await dataService.get(url);
+  return response.data;
+};
 

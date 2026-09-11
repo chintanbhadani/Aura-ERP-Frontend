@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, us
 import { useDispatch, useSelector } from 'react-redux';
 import { setToken, setLoggedUser } from './slices/Base';
 import type { RootState } from './store';
-import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database, FileText, Menu, X, Receipt } from 'lucide-react';
+import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database, FileText, Menu, X, Receipt, DollarSign } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { InventoryTable } from './components/InventoryTable';
 import { Login } from './components/Login';
@@ -13,6 +13,7 @@ import { InvoiceList } from './components/InvoiceList';
 import { InvoiceFormPage } from './pages/Sales/InvoiceFormPage';
 import { ProductFormPage } from './pages/Inventory/ProductFormPage';
 import { ExpenseList } from './components/ExpenseList';
+import { DailyCashPage } from './components/DailyCashPage';
 import { Settings as SettingsComponent } from './components/Settings';
 import WithAuth from './components/WithAuth';
 import { ToastContainer } from 'react-toastify';
@@ -27,6 +28,7 @@ const ProtectedInvoiceList = WithAuth(InvoiceList);
 const ProtectedInvoiceForm = WithAuth(InvoiceFormPage);
 const ProtectedProductFormPage = WithAuth(ProductFormPage);
 const ProtectedExpenseList = WithAuth(ExpenseList);
+const ProtectedDailyCashPage = WithAuth(DailyCashPage);
 const ProtectedSettings = WithAuth(SettingsComponent);
 
 const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, toggleSidebar: () => void, closeMobile?: () => void }) => {
@@ -37,6 +39,7 @@ const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, togg
     { name: 'Inventory', path: '/inventory', icon: Package },
     { name: 'Invoices', path: '/invoices', icon: FileText },
     { name: 'Expenses', path: '/expenses', icon: Receipt },
+    { name: 'Daily Cash', path: '/daily-cash', icon: DollarSign },
     { 
       name: 'Master Data', 
       icon: Database,
@@ -68,10 +71,10 @@ const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, togg
         <X className="w-5 h-5" />
       </button>
       
-      <div className={`p-6 flex items-center ${isOpen ? 'gap-3' : 'justify-center'} text-primary font-bold text-xl mb-6 mt-2`}>
+      <Link to="/" className={`p-6 flex items-center ${isOpen ? 'gap-3' : 'justify-center'} text-primary font-bold text-xl mb-6 mt-2 hover:opacity-80 transition-opacity`}>
         <Factory className="w-6 h-6 shrink-0" />
         {isOpen && <span>Aura ERP</span>}
-      </div>
+      </Link>
       
       <nav className="flex-1 px-4 space-y-1">
         {links.map((link) => {
@@ -263,6 +266,7 @@ function App() {
             <Route path="/invoices" element={<ProtectedInvoiceList />} />
             <Route path="/invoices/new" element={<ProtectedInvoiceForm />} />
             <Route path="/expenses" element={<ProtectedExpenseList />} />
+            <Route path="/daily-cash" element={<ProtectedDailyCashPage />} />
             <Route path="/master-data/:type" element={<ProtectedMasterData />} />
             <Route path="/settings" element={<ProtectedSettings />} />
             <Route path="/login" element={<Login />} />

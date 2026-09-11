@@ -178,6 +178,15 @@ export const InvoiceList: React.FC = () => {
               cell: ({ row }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.type === 'SALES' ? row.customer?.name : row.supplier?.name}</span>
             },
             {
+              header: 'Payment Method',
+              id: 'paymentType',
+              cell: ({ row }) => (
+                <span className={`whitespace-nowrap px-2.5 py-1 rounded text-xs font-semibold ${row.paymentType === 'CASH' ? 'bg-green-50 text-green-700' : row.paymentType === 'BANK' ? 'bg-blue-50 text-blue-700' : row.paymentType === 'CREDIT' ? 'bg-orange-50 text-orange-700' : 'bg-gray-100 text-gray-800'}`}>
+                  {row.paymentType || 'CASH'}
+                </span>
+              )
+            },
+            {
               header: 'Total Amount',
               id: 'totalAmount',
               className: 'text-right',
@@ -249,6 +258,16 @@ export const InvoiceList: React.FC = () => {
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Total Amount</p>
                   <p className="text-sm font-bold text-gray-900">{format(selectedInvoice.totalAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Payment Method</p>
+                  <p className="text-sm font-bold text-gray-900">{selectedInvoice.paymentType || 'CASH'}</p>
+                  {selectedInvoice.paymentType === 'PARTIAL' && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Cash: {format(selectedInvoice.cashAmount || 0)} <br />
+                      Bank: {format(selectedInvoice.bankAmount || 0)}
+                    </p>
+                  )}
                 </div>
               </div>
 

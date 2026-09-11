@@ -24,6 +24,17 @@ const invoiceValidationSchema = Yup.object({
     then: (schema) => schema.required('Supplier is required'),
     otherwise: (schema) => schema.notRequired(),
   }),
+  paymentType: Yup.string().required(),
+  cashAmount: Yup.number().when('paymentType', {
+    is: 'PARTIAL',
+    then: (schema) => schema.min(0).required('Required for partial'),
+    otherwise: (schema) => schema.notRequired(),
+  }),
+  bankAmount: Yup.number().when('paymentType', {
+    is: 'PARTIAL',
+    then: (schema) => schema.min(0).required('Required for partial'),
+    otherwise: (schema) => schema.notRequired(),
+  }),
   items: Yup.array().of(
     Yup.object({
       productId: Yup.string().required('Product is required'),
@@ -108,6 +119,9 @@ export const InvoiceFormPage: React.FC = () => {
     date: new Date().toISOString().split('T')[0],
     customerId: '',
     supplierId: '',
+    paymentType: 'CASH',
+    cashAmount: 0,
+    bankAmount: 0,
     items: [
       { productId: '', quantity: 1, unitPrice: 0 }
     ]
@@ -132,6 +146,9 @@ export const InvoiceFormPage: React.FC = () => {
             date: values.date,
             customerId: values.type === 'SALES' ? values.customerId : undefined,
             supplierId: values.type === 'PURCHASE' ? values.supplierId : undefined,
+            paymentType: values.paymentType,
+            cashAmount: values.paymentType === 'PARTIAL' ? values.cashAmount : undefined,
+            bankAmount: values.paymentType === 'PARTIAL' ? values.bankAmount : undefined,
             items: validItems.map(i => ({
               productId: i.productId,
               quantity: Number(i.quantity),
@@ -229,6 +246,26 @@ export const InvoiceFormPage: React.FC = () => {
                     />
                   )}
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <SelectOutlinedField
+                  name="paymentType"
+                  label="Payment Method"
+                  options={[
+                    { label: 'Cash', value: 'CASH' },
+                    { label: 'Bank', value: 'BANK' },
+                    { label: 'Credit (Unpaid)', value: 'CREDIT' },
+                    { label: 'Partial (Cash + Bank)', value: 'PARTIAL' }
+                  ]}
+                />
+              </div>
+
+              {values.paymentType === 'PARTIAL' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                  <TextFieldComponent name="cashAmount" label="Cash Amount Paid" type="number" />
+                  <TextFieldComponent name="bankAmount" label="Bank Amount Paid" type="number" />
+                </div>
+              )}
 
               <div>
                 <FieldArray name="items">
