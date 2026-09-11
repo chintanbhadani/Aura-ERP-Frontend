@@ -306,12 +306,12 @@ export const createExpenseDescription = async (description: string): Promise<Exp
   return response.data;
 };
 
-export const createExpense = async (data: { date?: string; description: string; amount: number; notes?: string }): Promise<Expense> => {
+export const createExpense = async (data: { date?: string; description: string; amount: number; paymentType?: string; notes?: string }): Promise<Expense> => {
   const response = await dataService.post('/expenses', data);
   return response.data;
 };
 
-export const updateExpense = async (id: string, data: { date?: string; description: string; amount: number; notes?: string }): Promise<Expense> => {
+export const updateExpense = async (id: string, data: { date?: string; description: string; amount: number; paymentType?: string; notes?: string }): Promise<Expense> => {
   const response = await dataService.put(`/expenses/${id}`, data);
   return response.data;
 };

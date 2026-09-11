@@ -129,7 +129,6 @@ export const DailyCashPage: React.FC = () => {
         <DataTable 
           data={data}
           paginate
-          loading={loading}
           columns={[
             {
               header: 'Date',
