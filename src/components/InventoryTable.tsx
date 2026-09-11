@@ -117,9 +117,34 @@ export const InventoryTable: React.FC = () => {
       </div>
 
       <div className="bg-white shadow-sm border border-gray-100 rounded-2xl p-3 sm:p-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <div className="relative">
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-bold text-gray-900">Inventory List</h2>
+            </div>
+            <div className="flex flex-row justify-end items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              <Button 
+                variant="outlined"
+                color="primary"
+                onClick={() => setIsBulkUploadModalOpen(true)}
+                sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' }, fontWeight: 600, borderRadius: '9999px' }}
+              >
+                Bulk Upload
+              </Button>
+              <Button 
+                variant="contained"
+                color="primary"
+                onClick={() => navigate('/inventory/new')}
+                sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' }, fontWeight: 600, borderRadius: '9999px' }}
+              >
+                Add Stock
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto items-center">
+            <div className="relative w-full sm:w-auto">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input 
                 type="text" 
@@ -129,10 +154,10 @@ export const InventoryTable: React.FC = () => {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="relative flex-shrink-0">
+            <div className="relative flex-shrink-0 w-full sm:w-auto">
               <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <select
-                className="pl-9 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer text-gray-700"
+                className="pl-9 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer text-gray-700 w-full sm:w-auto"
                 value={stockFilter}
                 onChange={(e) => setStockFilter(e.target.value as any)}
               >
@@ -144,24 +169,15 @@ export const InventoryTable: React.FC = () => {
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
               </div>
             </div>
-          </div>
-          <div className="flex flex-row justify-end items-center gap-2 sm:gap-3 w-full sm:w-auto">
-            <Button 
-              variant="outlined"
-              color="primary"
-              onClick={() => setIsBulkUploadModalOpen(true)}
-              sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
-            >
-              Bulk Upload
-            </Button>
-            <Button 
-              variant="contained"
-              color="primary"
-              onClick={() => navigate('/inventory/new')}
-              sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
-            >
-              Add Stock
-            </Button>
+            {(search || stockFilter !== 'all') && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setStockFilter('all'); }}
+                className="text-sm text-gray-500 hover:text-red-500 font-medium px-2 transition-colors whitespace-nowrap"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
 
@@ -249,15 +265,6 @@ export const InventoryTable: React.FC = () => {
               )
             },
             {
-              header: 'Active Status',
-              id: 'active_status',
-              cell: ({ row }) => (
-                <span className={`whitespace-nowrap px-3 py-1 font-medium text-xs rounded-full ${row.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
-                  {row.status || 'Active'}
-                </span>
-              )
-            },
-            {
               header: 'Stock Status',
               id: 'status',
               cell: ({ row }) => {
@@ -278,7 +285,8 @@ export const InventoryTable: React.FC = () => {
                 <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                   <Tooltip title="Edit">
                     <IconButton size="small" color="primary" onClick={() => navigate(`/inventory/edit?id=${row.id}`)}>
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-4 h-4" 
+                      />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Delete">

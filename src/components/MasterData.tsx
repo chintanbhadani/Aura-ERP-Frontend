@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Pencil, Trash2, Plus, Database } from 'lucide-react';
+import { Pencil, Trash2, Plus, Database, Search, Filter } from 'lucide-react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { Box, Button, IconButton, Tooltip } from '@mui/material';
@@ -34,6 +34,8 @@ export const MasterData: React.FC = () => {
 
   const [data, setData] = useState<any[]>([]);
   const [categoriesForSku, setCategoriesForSku] = useState<any[]>([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'Active' | 'Inactive'>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
 
@@ -53,24 +55,24 @@ export const MasterData: React.FC = () => {
     } else {
       loadData();
     }
-  }, [type]);
+  }, [type, search, statusFilter]);
 
   const loadData = async () => {
     try {
       if (type === 'categories') {
-        const res = await fetchCategories();
+        const res = await fetchCategories(search, statusFilter);
         setData(res);
       } else if (type === 'suppliers') {
-        const res = await fetchSuppliers();
+        const res = await fetchSuppliers(search, statusFilter);
         setData(res);
       } else if (type === 'units') {
-        const res = await fetchUnits();
+        const res = await fetchUnits(search, statusFilter);
         setData(res);
       } else if (type === 'customers') {
-        const res = await fetchCustomers();
+        const res = await fetchCustomers(search, statusFilter);
         setData(res);
       } else if (type === 'skus') {
-        const res = await fetchSkus();
+        const res = await fetchSkus(search, statusFilter);
         setData(res);
         if (categoriesForSku.length === 0) {
           fetchCategories().then(setCategoriesForSku).catch(console.error);
@@ -152,29 +154,68 @@ export const MasterData: React.FC = () => {
       </div>
 
       <div className="bg-white shadow-sm border border-gray-100 rounded-3xl p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <Database className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-bold text-gray-900 capitalize">{type} List</h2>
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Database className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-bold text-gray-900 capitalize">{type} List</h2>
+            </div>
+            <div className="flex flex-row gap-3 w-full sm:w-auto justify-end">
+              <Button
+                variant="outlined"
+                color="primary"
+                onClick={() => setIsBulkUploadModalOpen(true)}
+                sx={{ px: 3, py: 1, fontWeight: 600, borderRadius: '9999px' }}
+              >
+                Bulk Upload
+              </Button>
+              <Button 
+                variant="contained"
+                color="primary"
+                startIcon={<Plus className="w-4 h-4" />}
+                onClick={() => openModal()}
+                sx={{ px: 3, py: 1, fontWeight: 600, borderRadius: '9999px' }}
+              >
+                Add New
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={() => setIsBulkUploadModalOpen(true)}
-              sx={{ px: 3, py: 1, fontWeight: 600, borderRadius: '9999px' }}
-            >
-              Bulk Upload
-            </Button>
-            <Button 
-              variant="contained"
-              color="primary"
-              startIcon={<Plus className="w-4 h-4" />}
-              onClick={() => openModal()}
-              sx={{ px: 3, py: 1, fontWeight: 600, borderRadius: '9999px' }}
-            >
-              Add New
-            </Button>
+          
+          <div className="flex flex-col sm:flex-row gap-3 items-center">
+            <div className="relative w-full sm:w-auto">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search by name..." 
+                className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-full sm:w-64"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="relative flex-shrink-0 w-full sm:w-auto">
+              <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select
+                className="pl-9 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer text-gray-700 w-full sm:w-auto"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+              >
+                <option value="ALL">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
+            {(search || statusFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setStatusFilter('ALL'); }}
+                className="text-sm text-gray-500 hover:text-red-500 font-medium px-2 transition-colors whitespace-nowrap"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         </div>
 

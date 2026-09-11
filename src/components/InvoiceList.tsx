@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Plus, Eye, X, Printer, Download } from 'lucide-react';
+import { FileText, Plus, Eye, X, Printer, Download, Search, Filter } from 'lucide-react';
 import { Button, IconButton, Tooltip } from '@mui/material';
 import { fetchInvoices } from '../services/api';
 import type { Invoice } from '../types';
@@ -12,6 +12,8 @@ export const InvoiceList: React.FC = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'SALES' | 'PURCHASE'>('ALL');
   const navigate = useNavigate();
   const { format, currency } = useCurrency();
 
@@ -48,11 +50,11 @@ export const InvoiceList: React.FC = () => {
 
   useEffect(() => {
     loadInvoices();
-  }, []);
+  }, [search, typeFilter]);
 
   const loadInvoices = async () => {
     try {
-      const data = await fetchInvoices();
+      const data = await fetchInvoices(search, typeFilter);
       setInvoices(data);
     } catch (error) {
       console.error('Failed to load invoices', error);
@@ -67,20 +69,61 @@ export const InvoiceList: React.FC = () => {
       </div>
 
       <div className="bg-white shadow-sm border border-gray-100 rounded-3xl p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-bold text-gray-900">Invoice List</h2>
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-bold text-gray-900">Invoice List</h2>
+            </div>
+            <div className="flex flex-row gap-3 w-full sm:w-auto justify-end">
+              <Button 
+                variant="contained"
+                color="primary"
+                startIcon={<Plus className="w-4 h-4" />}
+                onClick={() => navigate('/invoices/new')}
+                sx={{ px: 3, py: 1, fontWeight: 600, whiteSpace: 'nowrap', borderRadius: '9999px' }}
+              >
+                Create Invoice
+              </Button>
+            </div>
           </div>
-          <Button 
-            variant="contained"
-            color="primary"
-            startIcon={<Plus className="w-4 h-4" />}
-            onClick={() => navigate('/invoices/new')}
-            sx={{ px: 3, py: 1, fontWeight: 600 }}
-          >
-            Create Invoice
-          </Button>
+          
+          <div className="flex flex-col sm:flex-row gap-3 items-center">
+            <div className="relative w-full sm:w-auto">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input 
+                type="text" 
+                placeholder="Search by Invoice #..." 
+                className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-full sm:w-64"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="relative flex-shrink-0 w-full sm:w-auto">
+              <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <select
+                className="pl-9 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer text-gray-700 w-full sm:w-auto"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as any)}
+              >
+                <option value="ALL">All Types</option>
+                <option value="SALES">Sales</option>
+                <option value="PURCHASE">Purchase</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
+            {(search || typeFilter !== 'ALL') && (
+              <button
+                type="button"
+                onClick={() => { setSearch(''); setTypeFilter('ALL'); }}
+                className="text-sm text-gray-500 hover:text-red-500 font-medium px-2 transition-colors whitespace-nowrap"
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
         </div>
 
         <DataTable 

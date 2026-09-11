@@ -1,6 +1,14 @@
 import dataService from '../axios/dataService';
 import type { User } from '../types';
 
+export const buildQueryParams = (search?: string, status?: string) => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (status && status !== 'ALL') params.append('status', status);
+  return params.toString() ? '?' + params.toString() : '';
+};
+
+
 export const loginApi = async (credentials: any): Promise<{ user: User; token: string }> => {
   const response = await dataService.post('/auth/login', credentials);
   return response.data;
@@ -76,8 +84,8 @@ export const fetchInventoryById = async (id: string): Promise<Product> => {
   return response.data;
 };
 
-export const fetchCategories = async (): Promise<Category[]> => {
-  const response = await dataService.get('/categories');
+export const fetchCategories = async (search?: string, status?: string): Promise<Category[]> => {
+  const response = await dataService.get(`/categories${buildQueryParams(search, status)}`);
   return response.data;
 };
 
@@ -104,8 +112,8 @@ export const bulkUploadCategories = async (file: File) => {
   return response.data;
 };
 
-export const fetchUnits = async (): Promise<Unit[]> => {
-  const response = await dataService.get('/units');
+export const fetchUnits = async (search?: string, status?: string): Promise<Unit[]> => {
+  const response = await dataService.get(`/units${buildQueryParams(search, status)}`);
   return response.data;
 };
 
@@ -132,8 +140,8 @@ export const bulkUploadUnits = async (file: File) => {
   return response.data;
 };
 
-export const fetchSuppliers = async (): Promise<Supplier[]> => {
-  const response = await dataService.get('/suppliers');
+export const fetchSuppliers = async (search?: string, status?: string): Promise<Supplier[]> => {
+  const response = await dataService.get(`/suppliers${buildQueryParams(search, status)}`);
   return response.data;
 };
 
@@ -174,8 +182,8 @@ export const deleteProduct = async (id: string): Promise<void> => {
   await dataService.delete(`/inventory/${id}`);
 };
 
-export const fetchCustomers = async (): Promise<any[]> => {
-  const response = await dataService.get('/customers');
+export const fetchCustomers = async (search?: string, status?: string): Promise<any[]> => {
+  const response = await dataService.get(`/customers${buildQueryParams(search, status)}`);
   return response.data;
 };
 
@@ -202,8 +210,13 @@ export const bulkUploadCustomers = async (file: File) => {
   return response.data;
 };
 
-export const fetchInvoices = async (): Promise<any[]> => {
-  const response = await dataService.get('/invoices');
+export const fetchInvoices = async (search?: string, type?: string): Promise<any[]> => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (type && type !== 'ALL') params.append('type', type);
+  
+  const url = `/invoices${params.toString() ? `?${params.toString()}` : ''}`;
+  const response = await dataService.get(url);
   return response.data;
 };
 
@@ -232,8 +245,8 @@ export interface SkuMaster {
   status?: string;
 }
 
-export const fetchSkus = async (): Promise<SkuMaster[]> => {
-  const response = await dataService.get("/skus");
+export const fetchSkus = async (search?: string, status?: string): Promise<SkuMaster[]> => {
+  const response = await dataService.get(`/skus${buildQueryParams(search, status)}`);
   return response.data;
 };
 
