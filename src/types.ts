@@ -41,6 +41,10 @@ export interface Product {
   categoryId: string;
   supplierId: string;
   unitId?: string;
+  fifoPrice?: number;
+  fifoValue?: number;
+  wacPrice?: number;
+  wacValue?: number;
 }
 
 export interface Customer {

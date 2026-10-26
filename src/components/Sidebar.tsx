@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
@@ -9,146 +9,282 @@ import {
   Settings, 
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Factory,
   Briefcase,
-  Database,
-  ChevronDown,
+  UserCheck,
+  User,
+  ShieldCheck,
+  HelpCircle,
+  FileText,
   Receipt,
-  FileText
+  Wallet,
+  Database,
+  FolderTree,
+  Layers,
+  Truck,
+  Ruler,
+  Tags,
+  ClipboardList,
+  ShoppingCart,
+  Boxes,
+  Scale,
+  Landmark,
+  X
 } from 'lucide-react';
 import { cn } from './Button';
+
+interface SubNavItem {
+  name: string;
+  href: string;
+  icon: React.ElementType;
+}
 
 interface NavItem {
   name: string;
   href?: string;
   icon: React.ElementType;
-  subItems?: { name: string; href: string }[];
+  children?: SubNavItem[];
 }
 
 const navItems: NavItem[] = [
   { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Inventory', href: '/inventory', icon: Package },
-  { name: 'Invoices', href: '/invoices', icon: FileText },
-  { name: 'Expenses', href: '/expenses', icon: Receipt },
+  { 
+    name: 'Stock', 
+    icon: Boxes,
+    children: [
+      { name: 'Dashboard', href: '/stock', icon: Home },
+      { name: 'Material Request', href: '/material-request', icon: ClipboardList },
+      { name: 'Goods Receipt (GRN)', href: '/grn', icon: ClipboardCheck },
+      // { name: 'Stock Entry', href: '/stock-entry', icon: Package },
+      { name: 'Stock Ledger', href: '/stock-ledger', icon: Activity },
+      { name: 'Bin Report (Stock Balance)', href: '/bin-report', icon: Boxes },
+    ]
+  },
+  { 
+    name: 'Production', 
+    icon: Factory,
+    children: [
+      { name: 'Production Orders', href: '/production-orders', icon: ClipboardCheck },
+      { name: 'BOM (Bill of Materials)', href: '/bom', icon: Layers },
+      { name: 'Production Planning', href: '/production-planning', icon: Factory },
+      { name: 'Production Weighing', href: '/production/weighing', icon: Scale },
+    ]
+  },
+  { 
+    name: 'CRM', 
+    icon: Briefcase,
+    children: [
+      { name: 'Clients', href: '/clients', icon: UserCheck },
+      { name: 'Inquiries', href: '/inquiries', icon: HelpCircle },
+      { name: 'Quotations', href: '/quotations', icon: FileText },
+      { name: 'Proforma Invoices', href: '/proforma', icon: Receipt },
+    ]
+  },
+  { 
+    name: 'Finance', 
+    icon: Landmark,
+    children: [
+      { name: 'Expenses', href: '/expenses', icon: Wallet },
+    ]
+  },
+  { 
+    name: 'User Management', 
+    icon: Users,
+    children: [
+      { name: 'Users', href: '/users', icon: UserCheck },
+      { name: 'Roles', href: '/roles', icon: ShieldCheck },
+      { name: 'My Profile', href: '/profile', icon: User },
+    ]
+  },
   { 
     name: 'Master Data', 
     icon: Database,
-    subItems: [
-      { name: 'Categories', href: '/master-data/categories' },
-      { name: 'Suppliers', href: '/master-data/suppliers' },
-      { name: 'Units', href: '/master-data/units' },
-      { name: 'Product Master', href: '/master-data/skus' }
+    children: [
+      { name: 'Item Group', href: '/master/categories', icon: FolderTree },
+      { name: 'Part Of', href: '/master/part-of', icon: Layers },
+      { name: 'Sub Part Of', href: '/master/sub-part-of', icon: Layers },
+      { name: 'Suppliers', href: '/master/suppliers', icon: Truck },
+      { name: 'Customers', href: '/master/customers', icon: Users },
+      { name: 'Units', href: '/master/units', icon: Ruler },
+      { name: 'Machines', href: '/master/machines', icon: Factory },
+      { name: 'Item Master', href: '/master/skus', icon: Tags },
     ]
   },
 ];
 
-export function Sidebar({ isOpen = false, onClose = () => {} }: { isOpen?: boolean, onClose?: () => void }) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
+export interface SidebarProps {
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export function Sidebar({ isMobileOpen, onMobileClose }: SidebarProps) {
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768 && window.innerWidth < 1280;
+    }
+    return false;
+  });
   const location = useLocation();
+
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const initialState: Record<string, boolean> = {};
+    navItems.forEach(item => {
+      if (item.children) {
+        initialState[item.name] = item.children.some(child => {
+          if (child.href === '/stock' || child.href === '/') {
+            return location.pathname === child.href || location.pathname === '/stock/dashboard';
+          }
+          return location.pathname === child.href || location.pathname.startsWith(child.href + '/');
+        });
+      }
+    });
+    setOpenMenus(initialState);
+  }, [location.pathname]);
+
+  const toggleMenu = (name: string) => {
+    setOpenMenus(prev => ({ ...prev, [name]: !prev[name] }));
+  };
 
   return (
     <>
-      {/* Mobile Backdrop */}
-      {isOpen && (
+      {/* Mobile overlay */}
+      {isMobileOpen && (
         <div 
-          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden"
-          onClick={onClose}
+          className="fixed inset-0 bg-black/50 z-50 md:hidden backdrop-blur-sm transition-opacity"
+          onClick={onMobileClose}
         />
       )}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 z-50 md:relative flex flex-col bg-white border-r border-gray-200 h-screen transition-transform duration-300 md:translate-x-0",
-          isCollapsed ? "w-20" : "w-64",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          "flex flex-col bg-white border-r border-gray-200 h-screen transition-all duration-300",
+          "fixed md:relative z-[60] md:z-30",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+          "w-72 max-w-[85vw] md:max-w-none",
+          isCollapsed ? "md:w-20" : "md:w-64"
         )}
       >
       {/* Header / Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-100">
-        {!isCollapsed && (
-          <div className="flex items-center gap-2 text-primary-600 font-bold text-lg whitespace-nowrap overflow-hidden">
-            <Factory size={24} />
-            <span>Patel Strap ERP</span>
+      <div className="h-13 flex items-center justify-between px-3 border-b border-gray-200 relative shrink-0">
+        <div className="flex items-center gap-2.5 text-gray-900 font-extrabold text-sm whitespace-nowrap overflow-hidden tracking-tight">
+          <div className="w-8 h-8 bg-gradient-to-tr from-primary-600 to-primary-400 rounded-xl flex items-center justify-center shadow-sm shrink-0">
+            <span className="text-xs font-extrabold text-white tracking-tighter">PS</span>
           </div>
-        )}
-        {isCollapsed && (
-          <div className="mx-auto text-primary-600">
-            <Factory size={24} />
-          </div>
+          {(!isCollapsed || isMobileOpen) && <span className="truncate">PATEL STRAP</span>}
+        </div>
+
+        {/* Mobile close button */}
+        {isMobileOpen && (
+          <button 
+            type="button"
+            onClick={onMobileClose}
+            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg md:hidden cursor-pointer"
+            title="Close Sidebar"
+          >
+            <X size={18} />
+          </button>
         )}
         
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 absolute -right-3 top-5 bg-white border border-gray-200 shadow-sm z-10 cursor-pointer"
+          className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900 absolute -right-3 top-1/2 -translate-y-1/2 bg-white border border-gray-200 shadow-sm z-10 hidden md:flex items-center justify-center cursor-pointer transition-colors"
+          title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
         </button>
       </div>
 
       {/* Nav Links */}
       <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.href;
-          
-          return (
-            <div key={item.name}>
-              {item.subItems ? (
+          if (item.children) {
+            const hasActiveChild = item.children.some(child => {
+              if (child.href === '/stock' || child.href === '/') {
+                return location.pathname === child.href || location.pathname === '/stock/dashboard';
+              }
+              return location.pathname === child.href || location.pathname.startsWith(child.href + '/');
+            });
+            const isOpen = openMenus[item.name];
+            
+            return (
+              <div key={item.name} className="space-y-1">
                 <button
-                  onClick={() => setIsMasterDataOpen(!isMasterDataOpen)}
-                  title={isCollapsed ? item.name : undefined}
+                  onClick={() => {
+                    if (isCollapsed) setIsCollapsed(false);
+                    toggleMenu(item.name);
+                  }}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors font-medium text-sm text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer",
-                    isCollapsed ? "justify-center px-0" : ""
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <item.icon size={20} className="flex-shrink-0 text-gray-500" />
-                    {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
-                  </div>
-                  {!isCollapsed && (
-                    <ChevronDown size={16} className={`transition-transform ${isMasterDataOpen ? 'rotate-180' : ''}`} />
-                  )}
-                </button>
-              ) : (
-                <Link
-                  to={item.href || '#'}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm cursor-pointer",
-                    isActive 
-                      ? "bg-primary-600 text-white shadow-md shadow-primary-500/20" 
+                    "w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors font-medium text-sm",
+                    hasActiveChild 
+                      ? "bg-primary-50 text-primary-700 font-semibold" 
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
                     isCollapsed ? "justify-center px-0" : ""
                   )}
                   title={isCollapsed ? item.name : undefined}
                 >
-                  <item.icon size={20} className={cn("flex-shrink-0", isActive ? "text-white" : "text-gray-500")} />
-                  {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
-                </Link>
+                  <div className="flex items-center gap-3">
+                    <item.icon size={20} className={cn("flex-shrink-0", hasActiveChild ? "text-primary-600" : "text-gray-500")} />
+                    {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
+                  </div>
+                  {!isCollapsed && (
+                    <ChevronDown size={16} className={cn("transition-transform duration-200 text-gray-400", isOpen && "rotate-180")} />
+                  )}
+                </button>
+
+                {/* Sub Menu Items */}
+                {isOpen && !isCollapsed && (
+                  <div className="pl-3 space-y-1 border-l-2 border-primary-100 ml-5 my-1">
+                    {item.children.map((subItem) => {
+                      const isSubActive = subItem.href === '/stock' || subItem.href === '/'
+                        ? (location.pathname === subItem.href || location.pathname === '/stock/dashboard')
+                        : (location.pathname === subItem.href || location.pathname.startsWith(subItem.href + '/'));
+
+                      return (
+                        <Link
+                          key={subItem.name}
+                          to={subItem.href}
+                          className={cn(
+                            "flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors font-medium text-xs",
+                            isSubActive
+                              ? "bg-primary-600 text-white shadow-sm"
+                              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                          )}
+                        >
+                          <subItem.icon size={15} className={cn("flex-shrink-0", isSubActive ? "text-white" : "text-gray-400")} />
+                          <span>{subItem.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const isActive = location.pathname === item.href;
+          
+          return (
+            <Link
+              key={item.name}
+              to={item.href || '#'}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors font-medium text-sm",
+                isActive 
+                  ? "bg-primary-600 text-white shadow-md shadow-primary-500/20" 
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900",
+                isCollapsed ? "justify-center px-0" : ""
               )}
-              
-              {item.subItems && isMasterDataOpen && !isCollapsed && (
-                <div className="mt-1 ml-9 space-y-1">
-                  {item.subItems.map(subItem => (
-                    <Link
-                      key={subItem.name}
-                      to={subItem.href}
-                      className={cn(
-                        "block px-4 py-2 text-sm rounded-lg transition-colors cursor-pointer",
-                        location.pathname === subItem.href
-                          ? "bg-primary-50 text-primary-600 font-medium"
-                          : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
-                      )}
-                    >
-                      {subItem.name}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
+              title={isCollapsed ? item.name : undefined}
+            >
+              <item.icon size={20} className={cn("flex-shrink-0", isActive ? "text-white" : "text-gray-500")} />
+              {!isCollapsed && <span className="whitespace-nowrap">{item.name}</span>}
+            </Link>
           );
         })}
       </div>
-    </div>
+      </div>
     </>
   );
 }

@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setToken, setLoggedUser } from './slices/Base';
 import type { RootState } from './store';
 import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database, FileText, Menu, X, Receipt, DollarSign } from 'lucide-react';
-import { Dashboard } from './components/Dashboard';
+import Dashboard from './pages/Dashboard';
 import { InventoryTable } from './components/InventoryTable';
 import { Login } from './components/Login';
 import { Signup } from './components/Signup';
@@ -20,6 +20,15 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ThemeProvider } from '@mui/material/styles';
 import { auraTheme } from './theme/muiTheme';
+import { DashboardLayout } from './layouts/DashboardLayout';
+import { ProductMasterList } from './pages/Master/ProductMasterList';
+import { CategoryList } from './pages/Master/CategoryList';
+import { SupplierList } from './pages/Master/SupplierList';
+import { CustomerList } from './pages/Master/CustomerList';
+import { UnitList } from './pages/Master/UnitList';
+import { PartOfList } from './pages/Master/PartOfList';
+import { SubPartOfList } from './pages/Master/SubPartOfList';
+import { MachineList } from './pages/Master/MachineList';
 
 const ProtectedDashboard = WithAuth(Dashboard);
 const ProtectedInventoryTable = WithAuth(InventoryTable);
@@ -30,6 +39,14 @@ const ProtectedProductFormPage = WithAuth(ProductFormPage);
 const ProtectedExpenseList = WithAuth(ExpenseList);
 const ProtectedDailyCashPage = WithAuth(DailyCashPage);
 const ProtectedSettings = WithAuth(SettingsComponent);
+
+const ModernPageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <DashboardLayout>
+    <div className="max-w-7xl mx-auto w-full">
+      {children}
+    </div>
+  </DashboardLayout>
+);
 
 const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, toggleSidebar: () => void, closeMobile?: () => void }) => {
   const location = useLocation();
@@ -44,11 +61,14 @@ const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, togg
       name: 'Master Data', 
       icon: Database,
       subItems: [
-        { name: 'Categories', path: '/master-data/categories' },
-        { name: 'Suppliers', path: '/master-data/suppliers' },
-        { name: 'Customers', path: '/master-data/customers' },
-        { name: 'Units', path: '/master-data/units' },
-        { name: 'Product Master', path: '/master-data/skus' }
+        { name: 'Item Group', path: '/master/categories' },
+        { name: 'Part Of', path: '/master/part-of' },
+        { name: 'Sub Part Of', path: '/master/sub-part-of' },
+        { name: 'Suppliers', path: '/master/suppliers' },
+        { name: 'Customers', path: '/master/customers' },
+        { name: 'Units', path: '/master/units' },
+        { name: 'Machines', path: '/master/machines' },
+        { name: 'Item Master', path: '/master/skus' }
       ]
     },
     { name: 'Settings', path: '/settings', icon: Settings }
@@ -214,42 +234,7 @@ const TopBar = ({ toggleMobileMenu }: { toggleMobileMenu?: () => void }) => {
 };
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
-  const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  if (isAuthPage) {
-    return <div className="min-h-screen bg-[#ebf7f0]">{children}</div>;
-  }
-
-  return (
-    <div className="min-h-screen bg-[#ebf7f0] flex overflow-hidden">
-      {/* Mobile Backdrop */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-gray-900/50 z-40 md:hidden backdrop-blur-sm"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Sidebar - Desktop and Mobile */}
-      <div className={`fixed inset-y-0 left-0 z-50 md:z-20 transition-transform duration-300 md:relative md:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-          closeMobile={() => setIsMobileMenuOpen(false)} 
-        />
-      </div>
-
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto transition-all duration-300">
-        <TopBar toggleMobileMenu={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 w-full max-w-7xl mx-auto px-2 sm:px-4 md:px-8 pb-8">
-          {children}
-        </main>
-      </div>
-    </div>
-  );
+  return <div className="min-h-screen bg-background">{children}</div>;
 };
 
 function App() {
@@ -260,15 +245,35 @@ function App() {
         <AppLayout>
           <Routes>
             <Route path="/" element={<ProtectedDashboard />} />
-            <Route path="/inventory" element={<ProtectedInventoryTable />} />
+            <Route path="/inventory" element={<ModernPageWrapper><ProtectedInventoryTable /></ModernPageWrapper>} />
             <Route path="/inventory/new" element={<ProtectedProductFormPage />} />
             <Route path="/inventory/edit" element={<ProtectedProductFormPage />} />
-            <Route path="/invoices" element={<ProtectedInvoiceList />} />
+            <Route path="/invoices" element={<ModernPageWrapper><ProtectedInvoiceList /></ModernPageWrapper>} />
             <Route path="/invoices/new" element={<ProtectedInvoiceForm />} />
-            <Route path="/expenses" element={<ProtectedExpenseList />} />
-            <Route path="/daily-cash" element={<ProtectedDailyCashPage />} />
-            <Route path="/master-data/:type" element={<ProtectedMasterData />} />
-            <Route path="/settings" element={<ProtectedSettings />} />
+            <Route path="/expenses" element={<ModernPageWrapper><ProtectedExpenseList /></ModernPageWrapper>} />
+            <Route path="/daily-cash" element={<ModernPageWrapper><ProtectedDailyCashPage /></ModernPageWrapper>} />
+
+            {/* Master Data Routes - Modern Patel Strap ERP Design */}
+            <Route path="/master/skus" element={<ProductMasterList />} />
+            <Route path="/master-data/skus" element={<ProductMasterList />} />
+            <Route path="/master/categories" element={<CategoryList />} />
+            <Route path="/master-data/categories" element={<CategoryList />} />
+            <Route path="/master/suppliers" element={<SupplierList />} />
+            <Route path="/master-data/suppliers" element={<SupplierList />} />
+            <Route path="/master/customers" element={<CustomerList />} />
+            <Route path="/master-data/customers" element={<CustomerList />} />
+            <Route path="/master/units" element={<UnitList />} />
+            <Route path="/master-data/units" element={<UnitList />} />
+            <Route path="/master/part-of" element={<PartOfList />} />
+            <Route path="/master/sub-part-of" element={<SubPartOfList />} />
+            <Route path="/master/machines" element={<MachineList />} />
+            <Route path="/products" element={<ProductMasterList />} />
+            <Route path="/products/new" element={<ProtectedProductFormPage />} />
+            <Route path="/products/edit" element={<ProtectedProductFormPage />} />
+
+            {/* Fallback for other master-data types */}
+            <Route path="/master-data/:type" element={<ModernPageWrapper><ProtectedMasterData /></ModernPageWrapper>} />
+            <Route path="/settings" element={<ModernPageWrapper><ProtectedSettings /></ModernPageWrapper>} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="*" element={<Navigate to="/login" replace />} />

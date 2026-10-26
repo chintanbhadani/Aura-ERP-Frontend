@@ -195,7 +195,7 @@ export const DailyCashPage: React.FC = () => {
                   <span>{row.paymentsOut === 0 ? '-' : format(row.paymentsOut)}</span>
                 </div>
               ),
-            },
+            }, 
             {
               header: 'Closing Bal',
               id: 'closingBalance',

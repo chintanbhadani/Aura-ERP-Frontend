@@ -14,6 +14,7 @@ import {
 import { successToast, errorToast } from '../helper/toast';
 import { TextFieldComponent, SelectOutlinedField, ReusableAutocomplete } from './input/index';
 import { DataTable } from './Table/DataTable';
+import { StatusBadge } from './StatusBadge';
 
 type MasterDataType = 'categories' | 'suppliers' | 'units' | 'customers' | 'skus';
 
@@ -153,80 +154,89 @@ export const MasterData: React.FC = () => {
         <p className="text-gray-500 mt-1">Manage {type} data for the system.</p>
       </div>
 
-      <div className="bg-white shadow-sm border border-gray-100 rounded-3xl p-6">
-        <div className="flex flex-col gap-4 mb-6">
+      <div className="bg-white shadow-xs border border-gray-200/80 rounded-2xl p-5 sm:p-6 space-y-5">
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-primary" />
-              <h2 className="text-xl font-bold text-gray-900 capitalize">{type} List</h2>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-primary-50 text-primary-700 rounded-xl">
+                <Database className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900 capitalize tracking-tight">
+                  {type === 'skus' ? 'Product Master' : type} List
+                </h2>
+                <p className="text-xs text-gray-500 mt-0.5">Manage and organize all {type} data records</p>
+              </div>
             </div>
-            <div className="flex flex-row gap-3 w-full sm:w-auto justify-end">
-              <Button
-                variant="outlined"
-                color="primary"
+            <div className="flex flex-row gap-2.5 w-full sm:w-auto justify-end">
+              <button
+                type="button"
                 onClick={() => setIsBulkUploadModalOpen(true)}
-                sx={{ px: 3, py: 1, fontWeight: 600, borderRadius: '9999px' }}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-all shadow-2xs cursor-pointer"
               >
                 Bulk Upload
-              </Button>
-              <Button 
-                variant="contained"
-                color="primary"
-                startIcon={<Plus className="w-4 h-4" />}
+              </button>
+              <button 
+                type="button"
                 onClick={() => openModal()}
-                sx={{ px: 3, py: 1, fontWeight: 600, borderRadius: '9999px' }}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
-                Add New
-              </Button>
+                <Plus className="w-4 h-4" /> Add New
+              </button>
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 items-center">
-            <div className="relative w-full sm:w-auto">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input 
-                type="text" 
-                placeholder="Search by name..." 
-                className="pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-full sm:w-64"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-            <div className="relative flex-shrink-0 w-full sm:w-auto">
-              <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <select
-                className="pl-9 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all appearance-none cursor-pointer text-gray-700 w-full sm:w-auto"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-              >
-                <option value="ALL">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between pt-2">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder={`Search ${type}...`} 
+                  className="pl-9 pr-4 py-2 bg-gray-50/70 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all w-full text-gray-800 placeholder:text-gray-400"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
               </div>
+              <div className="relative flex-shrink-0 w-full sm:w-auto">
+                <Filter className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <select
+                  className="pl-8 pr-8 py-2 bg-gray-50/70 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none cursor-pointer text-gray-700 font-medium"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                >
+                  <option value="ALL">All Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </div>
+              </div>
+              {(search || statusFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  onClick={() => { setSearch(''); setStatusFilter('ALL'); }}
+                  className="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2 transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  Clear Filters
+                </button>
+              )}
             </div>
-            {(search || statusFilter !== 'ALL') && (
-              <button
-                type="button"
-                onClick={() => { setSearch(''); setStatusFilter('ALL'); }}
-                className="text-sm text-gray-500 hover:text-red-500 font-medium px-2 transition-colors whitespace-nowrap"
-              >
-                Clear Filters
-              </button>
-            )}
           </div>
         </div>
 
         <DataTable
           data={data}
+          paginate={true}
+          defaultPageSize={10}
+          emptyText={`No ${type} records available`}
           columns={[
             {
               header: 'Name',
               id: 'name',
               className: 'w-1/3',
-              cell: ({ row }) => <span className="whitespace-nowrap text-gray-900 font-medium">{row.name}</span>
+              cell: ({ row }) => <span className="whitespace-nowrap text-gray-900 font-semibold">{row.name}</span>
             },
             ...((type === 'suppliers' || type === 'customers') ? [
               {
@@ -244,7 +254,11 @@ export const MasterData: React.FC = () => {
               {
                 header: 'SKU Code',
                 id: 'sku',
-                cell: ({ row }: { row: any }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.sku}</span>
+                cell: ({ row }: { row: any }) => (
+                  <span className="whitespace-nowrap font-mono text-xs font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-md">
+                    {row.sku}
+                  </span>
+                )
               },
               {
                 header: 'Category',
@@ -255,32 +269,30 @@ export const MasterData: React.FC = () => {
             {
               header: 'Active Status',
               id: 'active_status',
-              cell: ({ row }) => (
-                <span className={`whitespace-nowrap px-3 py-1 font-medium text-xs rounded-full ${row.status === 'Active' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-600'}`}>
-                  {row.status || 'Active'}
-                </span>
-              )
+              cell: ({ row }) => <StatusBadge status={row.status || 'Active'} />
             },
             {
               header: 'Actions',
               id: 'actions',
               className: 'text-right',
               cell: ({ row }) => (
-                <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
                   <Tooltip title="Edit">
                     <IconButton size="small" color="primary" onClick={() => openModal(row)}>
                       <Pencil className="w-4 h-4" />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={row.status === 'Inactive' ? "Enable" : "Disable"}>
-                    <Button 
-                      size="small" 
-                      color={row.status === 'Inactive' ? "success" : "error"} 
+                    <button 
                       onClick={() => handleToggleStatus(row)}
-                      sx={{ minWidth: 'auto', textTransform: 'none', fontSize: '12px' }}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                        row.status === 'Inactive'
+                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                      }`}
                     >
                       {row.status === 'Inactive' ? "Enable" : "Disable"}
-                    </Button>
+                    </button>
                   </Tooltip>
                 </div>
               )
