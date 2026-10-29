@@ -242,23 +242,6 @@ const SalesReportPageBase: React.FC = () => {
     };
   }, [filteredAndSortedRows]);
 
-  // Dynamic Chart points for TrendChart (Sales Revenue vs Purchase Cost vs Profit)
-  const chartDataPoints: ChartDataPoint[] = useMemo(() => {
-    // Generate 6 trend periods based on real data or monthly distribution
-    const baseRev = filteredSummary.totalRevenue || 19600;
-    const baseCost = filteredSummary.totalCost || 16200;
-    const baseProfit = filteredSummary.totalProfit || 3400;
-
-    return [
-      { label: 'May', inVal: Math.round(baseRev * 0.45), outVal: Math.round(baseCost * 0.47), totalVal: Math.round(baseProfit * 0.35) },
-      { label: 'Jun', inVal: Math.round(baseRev * 0.60), outVal: Math.round(baseCost * 0.58), totalVal: Math.round(baseProfit * 0.68) },
-      { label: 'Jul', inVal: Math.round(baseRev * 0.72), outVal: Math.round(baseCost * 0.70), totalVal: Math.round(baseProfit * 0.82) },
-      { label: 'Aug', inVal: Math.round(baseRev * 0.85), outVal: Math.round(baseCost * 0.82), totalVal: Math.round(baseProfit * 0.95) },
-      { label: 'Sep', inVal: Math.round(baseRev * 0.92), outVal: Math.round(baseCost * 0.90), totalVal: Math.round(baseProfit * 0.98) },
-      { label: 'Oct', inVal: Math.round(baseRev), outVal: Math.round(baseCost), totalVal: Math.round(baseProfit) },
-    ];
-  }, [filteredSummary]);
-
   const handleExportCSV = () => {
     if (filteredAndSortedRows.length === 0) {
       errorToast('No data to export');
