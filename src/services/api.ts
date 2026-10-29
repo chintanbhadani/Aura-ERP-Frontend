@@ -1261,6 +1261,7 @@ export interface SalesReportRow {
   invoiceId: string;
   invoiceNumber: string;
   date: string;
+  createdAt?: string;
   paymentType: string;
   clientName: string;
   clientContact?: string;

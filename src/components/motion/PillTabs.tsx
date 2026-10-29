@@ -38,10 +38,16 @@ export const PillTabs: React.FC<PillTabsProps> = ({
     subtle: 'bg-white text-gray-900 shadow-sm border border-gray-200/80',
   }[variant];
 
+  const activeTextStyles = {
+    dark: 'text-white font-medium',
+    emerald: 'text-white font-medium',
+    subtle: 'text-gray-900 font-bold',
+  }[variant];
+
   const inactiveTextStyles = {
     dark: 'text-gray-600 hover:text-gray-900',
     emerald: 'text-gray-600 hover:text-emerald-700',
-    subtle: 'text-gray-500 hover:text-gray-900',
+    subtle: 'text-gray-500 hover:text-gray-900 font-medium',
   }[variant];
 
   const sizeStyles = {
@@ -64,8 +70,8 @@ export const PillTabs: React.FC<PillTabsProps> = ({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(tab.id)}
-            className={`relative flex items-center font-medium rounded-full transition-colors cursor-pointer select-none ${sizeStyles} ${
-              isActive ? 'text-white' : inactiveTextStyles
+            className={`relative flex items-center rounded-full transition-colors cursor-pointer select-none ${sizeStyles} ${
+              isActive ? activeTextStyles : inactiveTextStyles
             }`}
           >
             {isActive && (
@@ -86,7 +92,9 @@ export const PillTabs: React.FC<PillTabsProps> = ({
                 <span
                   className={`text-[10px] font-semibold px-1.5 py-0.2 rounded-full transition-colors ${
                     isActive
-                      ? 'bg-white/20 text-white'
+                      ? variant === 'subtle'
+                        ? 'bg-gray-100 text-gray-800'
+                        : 'bg-white/20 text-white'
                       : 'bg-gray-200/80 text-gray-700'
                   }`}
                 >

@@ -1,521 +1,383 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { DashboardLayout } from '../layouts/DashboardLayout';
 import { 
-  fetchInventory, 
-  fetchCategories, 
-  fetchSuppliers, 
-  fetchCustomers, 
-  type Product,
-  type Category,
-  type Supplier,
-  type Customer
-} from '../services/api';
-import { 
-  LayoutDashboard, 
-  Boxes, 
-  Tags, 
-  FolderTree, 
-  Layers, 
-  Truck, 
-  Users, 
-  Ruler, 
-  Factory, 
-  AlertTriangle, 
-  TrendingUp, 
+  ScanLine, 
   Plus, 
-  RefreshCw, 
-  ArrowUpRight, 
+  Layers, 
+  TrendingUp, 
+  Activity, 
+  Package, 
+  AlertTriangle, 
+  Boxes, 
   CheckCircle2, 
-  Clock, 
-  ArrowRight,
-  ShieldCheck,
-  Search,
-  ExternalLink,
-  Coins,
-  FileText
+  ArrowUpRight,
+  Sparkles,
+  Calendar,
+  Filter,
+  DollarSign
 } from 'lucide-react';
 
-export default function Dashboard() {
+import { DashboardLayout } from '../layouts/DashboardLayout';
+import WithAuth from '../components/WithAuth';
+import { ModuleName, Permission } from '../helper/constants';
+import { PillTabs, type TabOption } from '../components/motion/PillTabs';
+import { AnimatedNumber } from '../components/motion/AnimatedNumber';
+import { StatSparkCard } from '../components/motion/StatSparkCard';
+import { RadialGauge } from '../components/motion/RadialGauge';
+import { TrendChart } from '../components/motion/TrendChart';
+
+const NAV_TABS: TabOption[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'production', label: 'Production', count: 4 },
+  { id: 'stock', label: 'Stock & Batches', count: 12 },
+  { id: 'sales', label: 'Sales & Orders' },
+];
+
+const CATALOG_CATEGORIES = [
+  { id: 'all', label: 'All', count: 12 },
+  { id: 'strap', label: 'PET Strap Rolls', count: 6 },
+  { id: 'flakes', label: 'PET Flakes', count: 3 },
+  { id: 'masterbatch', label: 'Masterbatch & Additives', count: 3 },
+];
+
+const RECENT_ROLLS = [
+  {
+    id: 'R-7729',
+    name: '12mm x 0.8mm Green Embossed PET Strap',
+    batch: 'Batch #B-2026-94',
+    machine: 'Extrusion Line 1',
+    netWeight: '25.4 kg',
+    status: 'QC Passed',
+    statusType: 'success',
+    color: '#059669',
+    category: 'strap',
+  },
+  {
+    id: 'R-7730',
+    name: '15mm x 0.9mm High-Tension Strap',
+    batch: 'Batch #B-2026-95',
+    machine: 'Extrusion Line 2',
+    netWeight: '26.1 kg',
+    status: 'In Production',
+    statusType: 'info',
+    color: '#0284c7',
+    category: 'strap',
+  },
+  {
+    id: 'R-7731',
+    name: 'Premium Washed Green PET Flakes',
+    batch: 'Lot #FLK-0841',
+    machine: 'Washing & Crushing Unit',
+    netWeight: '850 kg',
+    status: 'Running Low',
+    statusType: 'warning',
+    color: '#d97706',
+    category: 'flakes',
+  },
+  {
+    id: 'R-7732',
+    name: 'Green Masterbatch (Grade A)',
+    batch: 'Lot #MB-301',
+    machine: 'Raw Store',
+    netWeight: '120 kg',
+    status: 'QC Passed',
+    statusType: 'success',
+    color: '#059669',
+    category: 'masterbatch',
+  },
+];
+
+const TAB_DATA: Record<string, {
+  card1: { title: string; value: number; suffix?: string; prefix?: string; badge: { text: string; trend: 'up' | 'down' | 'neutral' | 'alert' }; subtitle: string; spark: number[]; icon: React.ElementType };
+  card2: { title: string; value: number; suffix?: string; prefix?: string; badge: { text: string; trend: 'up' | 'down' | 'neutral' | 'alert' }; subtitle: string; spark: number[]; icon: React.ElementType };
+  card3: { title: string; value: number; suffix?: string; prefix?: string; badge: { text: string; trend: 'up' | 'down' | 'neutral' | 'alert' }; subtitle: string; spark: number[]; icon: React.ElementType };
+  gauge: { value: number; title: string; subtitle: string; current: string; target: string; stats: { label: string; value: string }[] };
+}> = {
+  overview: {
+    card1: { title: 'Units on hand', value: 4345, suffix: ' kg', badge: { text: '+3.2%', trend: 'up' }, subtitle: '12 SKUs • 3 silos', spark: [12, 14, 18, 16, 21, 24, 28], icon: Package },
+    card2: { title: 'Total stock value', value: 111827, prefix: '₹', badge: { text: 'Healthy', trend: 'up' }, subtitle: 'Valued at standard cost', spark: [24, 27, 26, 31, 35, 33, 40], icon: Activity },
+    card3: { title: 'Low stock items', value: 3, badge: { text: 'Reorder', trend: 'alert' }, subtitle: '2 raw materials • 1 SKU', spark: [8, 7, 6, 5, 4, 3, 3], icon: AlertTriangle },
+    gauge: { value: 69.8, title: 'Monthly Production Goal', subtitle: 'Strap rolls extruded vs dispatch target', current: '16,495 kg', target: '24,500 kg', stats: [{ label: 'Orders Dispatched', value: '48' }, { label: 'Active Lines', value: '3 / 4' }] }
+  },
+  production: {
+    card1: { title: 'Active Output', value: 5820, suffix: ' kg', badge: { text: '+8.4%', trend: 'up' }, subtitle: 'Line 1 & 2 at full capacity', spark: [15, 20, 22, 25, 28, 32, 38], icon: Layers },
+    card2: { title: 'Extrusion Efficiency', value: 92, suffix: '%', badge: { text: 'Optimal', trend: 'up' }, subtitle: 'Speed: 120 m/min', spark: [85, 87, 88, 90, 89, 91, 92], icon: Activity },
+    card3: { title: 'Rejection Rate', value: 1.4, suffix: '%', badge: { text: '-0.3%', trend: 'up' }, subtitle: 'Well below 2.0% limit', spark: [2.8, 2.4, 2.1, 1.9, 1.7, 1.5, 1.4], icon: AlertTriangle },
+    gauge: { value: 82.5, title: 'Line Utilization', subtitle: 'Machine running uptime today', current: '20,210 kg', target: '24,500 kg', stats: [{ label: 'Completed Rolls', value: '72' }, { label: 'Avg Cycle', value: '18 min' }] }
+  },
+  stock: {
+    card1: { title: 'Raw Material (Flakes)', value: 8420, suffix: ' kg', badge: { text: 'Adequate', trend: 'neutral' }, subtitle: 'Silo A & B capacity', spark: [10, 11, 12, 11, 13, 14, 15], icon: Boxes },
+    card2: { title: 'Finished Strap Stock', value: 2160, suffix: ' rolls', badge: { text: '+12.5%', trend: 'up' }, subtitle: 'Ready for dispatch bay', spark: [1400, 1600, 1750, 1900, 2050, 2160], icon: Package },
+    card3: { title: 'Pending GRN / Inward', value: 4, suffix: ' batches', badge: { text: 'Incoming', trend: 'neutral' }, subtitle: 'Arrival by 5:00 PM', spark: [2, 3, 4, 3, 5, 4, 4], icon: AlertTriangle },
+    gauge: { value: 76.4, title: 'Warehouse Capacity', subtitle: 'Silo and bin space consumed', current: '8,420 kg', target: '11,000 kg', stats: [{ label: 'Silo Occupancy', value: '78%' }, { label: 'Open Bins', value: '6 / 24' }] }
+  },
+  sales: {
+    card1: { title: 'Dispatched Orders', value: 73, suffix: ' orders', badge: { text: '+37.7%', trend: 'up' }, subtitle: 'This billing cycle', spark: [30, 42, 50, 58, 65, 73], icon: Package },
+    card2: { title: 'Monthly Revenue', value: 245600, prefix: '₹', badge: { text: '+18.2%', trend: 'up' }, subtitle: 'Billed and confirmed', spark: [120, 140, 180, 210, 230, 245], icon: DollarSign },
+    card3: { title: 'Avg Order Value', value: 3490, prefix: '₹', badge: { text: '+6.1%', trend: 'up' }, subtitle: 'Per client transaction', spark: [2900, 3100, 3250, 3320, 3490], icon: TrendingUp },
+    gauge: { value: 91.2, title: 'Quarterly Sales Target', subtitle: 'Total revenue vs quota', current: '₹2,45,600', target: '₹2,70,000', stats: [{ label: 'Clients Active', value: '34' }, { label: 'Avg Turnaround', value: '3 Days' }] }
+  }
+};
+
+function DashboardBase() {
   const navigate = useNavigate();
   const { user } = useSelector((state: any) => state.base);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [tableSearch, setTableSearch] = useState('');
+  const displayName = user?.name || user?.username || user?.firstName || 'Admin';
+  const role = (user?.role || 'Shift Supervisor').replace('_', ' ');
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 
-  const loadDashboardData = async () => {
-    try {
-      setRefreshing(true);
-      const [prodData, catData, supData, custData] = await Promise.allSettled([
-        fetchInventory(),
-        fetchCategories(),
-        fetchSuppliers(),
-        fetchCustomers()
-      ]);
+  const currentTabData = TAB_DATA[activeTab] || TAB_DATA.overview;
 
-      if (prodData.status === 'fulfilled') setProducts(prodData.value || []);
-      if (catData.status === 'fulfilled') setCategories(catData.value || []);
-      if (supData.status === 'fulfilled') setSuppliers(supData.value || []);
-      if (custData.status === 'fulfilled') setCustomers(custData.value || []);
-    } catch (err) {
-      console.error('Error loading dashboard data:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  // Metric Computations
-  const totalItemsCount = products.length;
-  const totalStockQuantity = products.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
-  const totalValuation = products.reduce((sum, p) => {
-    const qty = Number(p.quantity) || 0;
-    const price = Number((p as any).wacPrice || p.cost_price || 0);
-    return sum + (qty * price);
-  }, 0);
-  const lowStockItems = products.filter(p => (Number(p.quantity) || 0) <= (Number(p.min_stock) || 0));
-  const activeSuppliersCount = suppliers.length;
-  const activeCustomersCount = customers.length;
-
-  const filteredRecentProducts = products.filter(p => {
-    if (!tableSearch) return true;
-    const q = tableSearch.toLowerCase();
-    return (
-      p.name?.toLowerCase().includes(q) ||
-      p.sku?.toLowerCase().includes(q) ||
-      p.category?.name?.toLowerCase().includes(q)
-    );
-  }).slice(0, 8);
-
-  const modules = [
-    {
-      title: 'Item Master',
-      count: `${totalItemsCount} Items`,
-      desc: 'All registered SKUs, specifications & live inventory balances',
-      href: '/master/skus',
-      icon: Tags,
-      color: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-      iconBg: 'bg-emerald-600 text-white',
-    },
-    {
-      title: 'Item Group',
-      count: `${categories.length} Categories`,
-      desc: 'Hierarchical product categorization and material groupings',
-      href: '/master/categories',
-      icon: FolderTree,
-      color: 'bg-blue-50 text-blue-700 border-blue-100',
-      iconBg: 'bg-blue-600 text-white',
-    },
-    {
-      title: 'Part Of Master',
-      count: 'Components',
-      desc: 'Assembly classification, core parts and packaging groupings',
-      href: '/master/part-of',
-      icon: Layers,
-      color: 'bg-purple-50 text-purple-700 border-purple-100',
-      iconBg: 'bg-purple-600 text-white',
-    },
-    {
-      title: 'Suppliers & Vendors',
-      count: `${activeSuppliersCount} Suppliers`,
-      desc: 'Procurement partners, contacts and purchase order history',
-      href: '/master/suppliers',
-      icon: Truck,
-      color: 'bg-amber-50 text-amber-700 border-amber-100',
-      iconBg: 'bg-amber-600 text-white',
-    },
-    {
-      title: 'Customers & Clients',
-      count: `${activeCustomersCount} Clients`,
-      desc: 'Client directory, billing profiles and accounts receivable',
-      href: '/master/customers',
-      icon: Users,
-      color: 'bg-teal-50 text-teal-700 border-teal-100',
-      iconBg: 'bg-teal-600 text-white',
-    },
-    {
-      title: 'Invoices & Sales',
-      count: 'Sales Ledger',
-      desc: 'GST tax invoices, payment tracking and revenue summaries',
-      href: '/invoices',
-      icon: FileText,
-      color: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-      iconBg: 'bg-indigo-600 text-white',
-    },
-  ];
+  const filteredRolls = selectedCategory === 'all' 
+    ? RECENT_ROLLS 
+    : RECENT_ROLLS.filter(r => r.category === selectedCategory);
 
   return (
     <DashboardLayout>
-      <div className="max-w-7xl mx-auto space-y-6 pb-12">
-        {/* Top Header Banner */}
-        <div className="bg-white rounded-xl border border-gray-200/80 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#007A5A]">
-              <LayoutDashboard className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Enterprise Dashboard</h1>
-                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  Live
-                </span>
-              </div>
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                Welcome back, <span className="font-semibold text-gray-800">{user?.name || user?.username || 'Administrator'}</span> • Aura ERP
-              </p>
-            </div>
+      <div className="p-4 sm:p-6 lg:p-8 font-sans max-w-7xl mx-auto space-y-6">
+        
+        {/* Top Floating Pill Navigation */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <PillTabs
+              tabs={NAV_TABS}
+              activeId={activeTab}
+              onChange={setActiveTab}
+              layoutId="dashboard-main-nav"
+              variant="dark"
+              size="md"
+            />
           </div>
 
           <div className="flex items-center gap-2.5">
+            <span className="text-xs font-medium text-gray-500 bg-white border border-gray-200/70 px-3 py-1.5 rounded-full shadow-2xs flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+              {currentDate}
+            </span>
             <button
-              onClick={loadDashboardData}
-              disabled={refreshing}
-              title="Refresh Live Data"
-              className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer disabled:opacity-50"
+              onClick={() => navigate('/production-orders/new')}
+              className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-sm shadow-emerald-600/30 transition-all cursor-pointer"
             >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-[#007A5A]' : ''}`} />
-            </button>
-            <button
-              onClick={() => navigate('/invoices/new')}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              New Invoice
-            </button>
-            <button
-              onClick={() => navigate('/master/skus')}
-              className="px-3.5 py-1.5 bg-[#007A5A] hover:bg-[#00664b] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Item
+              <Plus className="w-4 h-4" />
+              New Order
             </button>
           </div>
         </div>
 
-        {/* Primary Metric KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-          {/* Total SKUs */}
-          <div 
-            onClick={() => navigate('/master/skus')}
-            className="bg-white p-4 rounded-xl border border-gray-200/80 shadow-xs hover:border-[#007A5A]/50 transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-500">Total Items</span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-[#007A5A] flex items-center justify-center">
-                <Tags className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="text-xl font-bold text-gray-900 group-hover:text-[#007A5A] transition-colors">
-              {loading ? '...' : totalItemsCount}
-            </div>
-            <div className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
-              <span>Catalog SKUs</span>
-              <ArrowUpRight className="w-3 h-3 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </div>
-
-          {/* Stock Units */}
-          <div 
-            onClick={() => navigate('/master/skus')}
-            className="bg-white p-4 rounded-xl border border-gray-200/80 shadow-xs hover:border-[#007A5A]/50 transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-500">Total Stock</span>
-              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                <Boxes className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="text-xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
-              {loading ? '...' : totalStockQuantity.toLocaleString('en-IN')}
-            </div>
-            <div className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
-              <span>Units on hand</span>
-            </div>
-          </div>
-
-          {/* Stock Valuation */}
-          <div className="bg-white p-4 rounded-xl border border-gray-200/80 shadow-xs">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-500">Valuation</span>
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Coins className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="text-xl font-bold text-gray-900">
-              {loading ? '...' : `₹${Math.round(totalValuation).toLocaleString('en-IN')}`}
-            </div>
-            <div className="text-[11px] text-emerald-600 font-medium mt-1">
-              Current Asset Value
-            </div>
-          </div>
-
-          {/* Low Stock Warning */}
-          <div 
-            onClick={() => navigate('/master/skus')}
-            className={`bg-white p-4 rounded-xl border shadow-xs transition-all cursor-pointer group ${
-              lowStockItems.length > 0 ? 'border-amber-200 hover:border-amber-400' : 'border-gray-200/80'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-500">Low Stock</span>
-              <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
-                lowStockItems.length > 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'
-              }`}>
-                <AlertTriangle className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className={`text-xl font-bold ${lowStockItems.length > 0 ? 'text-amber-600' : 'text-gray-900'}`}>
-              {loading ? '...' : lowStockItems.length}
-            </div>
-            <div className="text-[11px] text-gray-400 mt-1">
-              {lowStockItems.length > 0 ? 'Action required' : 'Optimal levels'}
-            </div>
-          </div>
-
-          {/* Suppliers */}
-          <div 
-            onClick={() => navigate('/master/suppliers')}
-            className="bg-white p-4 rounded-xl border border-gray-200/80 shadow-xs hover:border-[#007A5A]/50 transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-500">Suppliers</span>
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Truck className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="text-xl font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
-              {loading ? '...' : activeSuppliersCount}
-            </div>
-            <div className="text-[11px] text-gray-400 mt-1">
-              Vendor directory
-            </div>
-          </div>
-
-          {/* Customers */}
-          <div 
-            onClick={() => navigate('/master/customers')}
-            className="bg-white p-4 rounded-xl border border-gray-200/80 shadow-xs hover:border-[#007A5A]/50 transition-all cursor-pointer group"
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-500">Clients</span>
-              <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
-                <Users className="w-3.5 h-3.5" />
-              </div>
-            </div>
-            <div className="text-xl font-bold text-gray-900 group-hover:text-teal-600 transition-colors">
-              {loading ? '...' : activeCustomersCount}
-            </div>
-            <div className="text-[11px] text-gray-400 mt-1">
-              Active customers
-            </div>
-          </div>
-        </div>
-
-        {/* Low Stock Alert Banner (if needed) */}
-        {lowStockItems.length > 0 && (
-          <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-4 flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-4 h-4" />
-              </div>
+        {/* Animated Main Content with Tab Transitions */}
+        <div className="space-y-6">
+          {/* Hero Welcome Card + Quick Actions */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left: Welcome Greeting Banner */}
+            <div className="lg:col-span-5 p-6 bg-white rounded-3xl border border-gray-100 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between">
               <div>
-                <p className="text-xs sm:text-sm font-semibold text-amber-900">
-                  {lowStockItems.length} item{lowStockItems.length > 1 ? 's are' : ' is'} at or below minimum threshold
-                </p>
-                <p className="text-xs text-amber-700 mt-0.5">
-                  Items: {lowStockItems.slice(0, 3).map(p => `${p.name} (${p.quantity || 0})`).join(', ')}
-                  {lowStockItems.length > 3 ? ` and ${lowStockItems.length - 3} more` : ''}
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    Live Plant Status
+                  </span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+                  Welcome back, {displayName}!
+                </h1>
+                <p className="text-xs sm:text-sm text-gray-500 mt-2 leading-relaxed">
+                  Here's what's moving on the shop floor today —{' '}
+                  <strong className="text-gray-800 font-semibold">2 orders to ship</strong> and{' '}
+                  <strong className="text-gray-800 font-semibold">2 batches waiting on QA</strong>.
                 </p>
               </div>
-            </div>
-            <button
-              onClick={() => navigate('/master/skus')}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-medium shrink-0 cursor-pointer transition-colors"
-            >
-              Reorder Items
-            </button>
-          </div>
-        )}
 
-        {/* Master Workspaces Grid */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Master Workspaces</h2>
-              <p className="text-xs text-gray-500">Direct shortcuts to enterprise data masters</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-            {modules.map((mod) => {
-              const Icon = mod.icon;
-              return (
-                <div
-                  key={mod.title}
-                  onClick={() => navigate(mod.href)}
-                  className="bg-white p-4 rounded-xl border border-gray-200/80 shadow-xs hover:border-[#007A5A] hover:shadow-sm transition-all cursor-pointer group flex items-start gap-3.5"
+              <div className="flex flex-wrap items-center gap-3 mt-6 pt-4 border-t border-gray-100">
+                <button
+                  onClick={() => navigate('/production-orders/new')}
+                  className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white px-4 py-2 rounded-full text-xs font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
                 >
-                  <div className={`w-10 h-10 rounded-xl ${mod.iconBg} flex items-center justify-center shrink-0 shadow-xs`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <h3 className="text-sm font-semibold text-gray-900 group-hover:text-[#007A5A] transition-colors truncate">
-                        {mod.title}
-                      </h3>
-                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 shrink-0">
-                        {mod.count}
+                  <Plus className="w-4 h-4" />
+                  New Order
+                </button>
+                <button
+                  onClick={() => navigate('/bom/new')}
+                  className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 active:scale-98 text-gray-800 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer"
+                >
+                  <Layers className="w-4 h-4 text-gray-500" />
+                  Make a Batch
+                </button>
+                <button
+                  onClick={() => navigate('/production/weighing')}
+                  className="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 px-3.5 py-2 rounded-full text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+                >
+                  <ScanLine className="w-4 h-4 text-gray-500" />
+                  Scan Roll
+                </button>
+              </div>
+            </div>
+
+            {/* Right: 3 Animated Stat Spark Cards with CountUp */}
+            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <StatSparkCard
+                title={currentTabData.card1.title}
+                value={currentTabData.card1.value}
+                suffix={currentTabData.card1.suffix}
+                prefix={currentTabData.card1.prefix}
+                badge={currentTabData.card1.badge}
+                subtitle={currentTabData.card1.subtitle}
+                sparklineData={currentTabData.card1.spark}
+                icon={currentTabData.card1.icon}
+              />
+
+              <StatSparkCard
+                title={currentTabData.card2.title}
+                value={currentTabData.card2.value}
+                prefix={currentTabData.card2.prefix}
+                suffix={currentTabData.card2.suffix}
+                decimals={0}
+                badge={currentTabData.card2.badge}
+                subtitle={currentTabData.card2.subtitle}
+                sparklineData={currentTabData.card2.spark}
+                icon={currentTabData.card2.icon}
+              />
+
+              <StatSparkCard
+                title={currentTabData.card3.title}
+                value={currentTabData.card3.value}
+                suffix={currentTabData.card3.suffix}
+                prefix={currentTabData.card3.prefix}
+                badge={currentTabData.card3.badge}
+                subtitle={currentTabData.card3.subtitle}
+                sparklineData={currentTabData.card3.spark}
+                icon={currentTabData.card3.icon}
+              />
+            </div>
+          </div>
+
+          {/* Row 2: Interactive SVG Chart (Left) + Radial Sales/Goal Gauge (Right) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left: Trend Chart */}
+            <div className="lg:col-span-8">
+              <TrendChart
+                title={activeTab === 'sales' ? 'Revenue & Order Trends' : 'Inventory & Production Statistics'}
+                data={[
+                  { label: 'May', inVal: 2800, outVal: 2100, totalVal: 84000 },
+                  { label: 'Jun', inVal: 3400, outVal: 2700, totalVal: 92000 },
+                  { label: 'Jul', inVal: 4200, outVal: 3500, totalVal: 98000 },
+                  { label: 'Aug', inVal: 3900, outVal: 3800, totalVal: 104000 },
+                  { label: 'Sep', inVal: 4700, outVal: 3900, totalVal: 108000 },
+                  { label: 'Oct', inVal: 5230, outVal: 4345, totalVal: 111827 },
+                ]}
+              />
+            </div>
+
+            {/* Right: Radial Gauge */}
+            <div className="lg:col-span-4 flex flex-col justify-between">
+              <RadialGauge
+                value={currentTabData.gauge.value}
+                title={currentTabData.gauge.title}
+                subtitle={currentTabData.gauge.subtitle}
+                currentLabel={currentTabData.gauge.current}
+                targetLabel={currentTabData.gauge.target}
+                extraStats={currentTabData.gauge.stats}
+              />
+            </div>
+          </div>
+
+          {/* Row 3: Catalog & Batch Production Grid with Filter Pills */}
+          <div className="p-6 bg-white rounded-3xl border border-gray-100 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 className="text-base font-bold text-gray-900 tracking-tight">
+                  Finished Goods & Active Batches
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Real-time status across Extrusion Lines, Silos, and Dispatch Bay
+                </p>
+              </div>
+
+              {/* Filter Pills */}
+              <PillTabs
+                tabs={CATALOG_CATEGORIES}
+                activeId={selectedCategory}
+                onChange={setSelectedCategory}
+                layoutId="catalog-filter-pill"
+                variant="subtle"
+                size="sm"
+              />
+            </div>
+
+            {/* Grid of Items */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {filteredRolls.map((roll, idx) => (
+                <motion.div
+                  key={roll.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05, duration: 0.3 }}
+                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                  className="p-4 bg-gray-50/70 hover:bg-white rounded-2xl border border-gray-200/70 hover:border-emerald-200 hover:shadow-lg transition-all duration-300 flex flex-col justify-between group cursor-pointer"
+                  onClick={() => navigate('/bom')}
+                >
+                  <div>
+                    {/* Top Tag & Status */}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="text-[10px] font-mono font-bold text-gray-500 bg-white border border-gray-200/80 px-2 py-0.5 rounded-full">
+                        {roll.id}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                          roll.statusType === 'success'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : roll.statusType === 'warning'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-sky-50 text-sky-700 border border-sky-200'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                        {roll.status}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                      {mod.desc}
-                    </p>
+
+                    {/* Item Title */}
+                    <h4 className="text-xs font-bold text-gray-900 group-hover:text-emerald-700 transition-colors line-clamp-2">
+                      {roll.name}
+                    </h4>
+                    <p className="text-[11px] text-gray-400 mt-1">{roll.batch}</p>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-[#007A5A] group-hover:translate-x-0.5 transition-all shrink-0 self-center" />
-                </div>
-              );
-            })}
-          </div>
-        </div>
 
-        {/* Recent Items & Stock Table */}
-        <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-gray-900">Inventory Items Overview</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Live stock status, categories and standard cost pricing</p>
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Filter items..."
-                  value={tableSearch}
-                  onChange={(e) => setTableSearch(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 bg-gray-50 focus:bg-white border border-gray-200 focus:border-[#007A5A] rounded-lg text-xs outline-none w-44 sm:w-56 transition-all"
-                />
-              </div>
-              <button
-                onClick={() => navigate('/master/skus')}
-                className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-[#007A5A] hover:bg-emerald-50/50 transition-colors cursor-pointer shrink-0"
-              >
-                View All Items
-              </button>
+                  {/* Bottom Specs */}
+                  <div className="pt-3 mt-3 border-t border-gray-200/60 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="text-[10px] text-gray-400 block">Unit / Weight</span>
+                      <span className="font-bold text-gray-800">{roll.netWeight}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-gray-400 block">Location</span>
+                      <span className="font-semibold text-gray-600 truncate max-w-[100px] block">
+                        {roll.machine}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-gray-50/75 border-b border-gray-200/80 text-gray-500 font-semibold uppercase tracking-wider text-[11px]">
-                  <th className="py-2.5 px-4">Item Name</th>
-                  <th className="py-2.5 px-4">SKU / ID</th>
-                  <th className="py-2.5 px-4">Item Group</th>
-                  <th className="py-2.5 px-4 text-right">Stock Quantity</th>
-                  <th className="py-2.5 px-4 text-right">Standard Cost</th>
-                  <th className="py-2.5 px-4 text-center">Status</th>
-                  <th className="py-2.5 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray-400 text-xs">
-                      Loading inventory records...
-                    </td>
-                  </tr>
-                ) : filteredRecentProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray-400 text-xs">
-                      No matching items found.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRecentProducts.map((p) => {
-                    const qty = Number(p.quantity) || 0;
-                    const minStock = Number(p.min_stock) || 0;
-                    const isLow = qty <= minStock;
-                    const isOut = qty === 0;
-
-                    return (
-                      <tr 
-                        key={p.id}
-                        onClick={() => navigate('/master/skus')}
-                        className="hover:bg-gray-50/60 transition-colors cursor-pointer"
-                      >
-                        <td className="py-3 px-4 font-semibold text-gray-900">
-                          <div className="flex items-center gap-2">
-                            <span>{p.name}</span>
-                            {p.unit?.name && (
-                              <span className="text-[10px] text-gray-400 font-normal">
-                                • {p.unit.name}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono text-gray-600 font-medium">
-                          {p.sku}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 font-medium text-[11px]">
-                            {p.category?.name || 'Uncategorized'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className={`font-semibold ${isOut ? 'text-rose-600' : isLow ? 'text-amber-600' : 'text-gray-900'}`}>
-                            {qty.toLocaleString('en-IN')}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-right text-gray-600 font-mono">
-                          ₹{Number(p.cost_price || 0).toLocaleString('en-IN')}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          {isOut ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                              Out of Stock
-                            </span>
-                          ) : isLow ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                              Low Stock
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              In Stock
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate('/master/skus');
-                            }}
-                            className="p-1 hover:bg-gray-100 text-gray-400 hover:text-gray-600 rounded cursor-pointer transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
         </div>
+
       </div>
     </DashboardLayout>
   );
 }
+
+export const Dashboard = WithAuth(DashboardBase, ModuleName.DASHBOARD, Permission.VIEW_DASHBOARD);
+export default Dashboard;
