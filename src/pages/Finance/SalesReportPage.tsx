@@ -27,9 +27,10 @@ import {
   Sparkles,
   ArrowUpRight,
   Activity,
-  ShieldCheck
+  ShieldCheck,
+  Wallet
 } from 'lucide-react';
-import { fetchSalesReport, type SalesReportRow, type SalesReportSummary, type SalesReportBatch } from '../../services/api';
+import { fetchSalesReport, fetchExpenses, type SalesReportRow, type SalesReportSummary, type SalesReportBatch, type Expense } from '../../services/api';
 import { useCurrency } from '../../helper/currency';
 import { errorToast, successToast } from '../../helper/toast';
 import WithAuth from '../../components/WithAuth';
@@ -82,25 +83,41 @@ const SalesReportPageBase: React.FC = () => {
   const [selectedSupplier, setSelectedSupplier] = useState('ALL');
   const [sortField, setSortField] = useState<'date' | 'totalSales' | 'grossProfit' | 'marginPct'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  // Expenses State (Filtered as per date)
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [totalExpenses, setTotalExpenses] = useState<number>(0);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
   const loadReport = async () => {
     setLoading(true);
     try {
-      const data = await fetchSalesReport({
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-        search: searchTerm || undefined
-      });
-      setRows(data.rows || []);
-      setSummary(data.summary || {
-        totalUnits: 0,
-        totalRevenue: 0,
-        totalCost: 0,
-        totalProfit: 0,
-        overallMargin: 0,
-        totalInvoices: 0
-      });
+      const [salesData, expenseData] = await Promise.allSettled([
+        fetchSalesReport({
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
+          search: searchTerm || undefined
+        }),
+        fetchExpenses(undefined, startDate || undefined, endDate || undefined)
+      ]);
+
+      if (salesData.status === 'fulfilled') {
+        setRows(salesData.value.rows || []);
+        setSummary(salesData.value.summary || {
+          totalUnits: 0,
+          totalRevenue: 0,
+          totalCost: 0,
+          totalProfit: 0,
+          overallMargin: 0,
+          totalInvoices: 0
+        });
+      }
+
+      if (expenseData.status === 'fulfilled') {
+        const expList = Array.isArray(expenseData.value) ? expenseData.value : [];
+        setExpenses(expList);
+        const sum = expList.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+        setTotalExpenses(sum);
+      }
     } catch (err: any) {
       console.error('Failed to load Sales Report:', err);
       errorToast('Failed to load sales report');
@@ -349,6 +366,22 @@ const SalesReportPageBase: React.FC = () => {
             </button>
 
             <button
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 text-gray-500" />
+              <span>Print Report</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/invoices/purchase/new')}
+              className="inline-flex items-center gap-1.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-2xs transition-all cursor-pointer"
+            >
+              <Truck className="w-3.5 h-3.5 text-gray-500" />
+              <span>Purchase PO</span>
+            </button>
+
+            <button
               onClick={() => navigate('/invoices/sales/new')}
               className="inline-flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white px-3.5 py-1.5 rounded-full text-xs font-semibold shadow-sm shadow-emerald-600/30 transition-all cursor-pointer"
             >
@@ -358,92 +391,70 @@ const SalesReportPageBase: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 1: Hero Welcome Banner + 3 Animated Stat Spark Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Left: Hero Status Card */}
-          <div className="lg:col-span-5 p-6 bg-white rounded-3xl border border-gray-100 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
-                  Live Sales & Margins
-                </span>
-              </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-                Sales & Profit Dashboard
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500 mt-2 leading-relaxed">
-                Shop floor sales tracking —{' '}
-                <strong className="text-gray-800 font-semibold">{filteredSummary.totalInvoices} active invoices</strong>,{' '}
-                <strong className="text-emerald-700 font-semibold">{filteredSummary.overallMargin.toFixed(1)}% gross margin</strong>, and{' '}
-                <strong className="text-gray-800 font-semibold">{filteredSummary.totalUnits.toLocaleString()} units sold</strong>.
-              </p>
-            </div>
+        {/* Row 1: 5 Animated Stat Cards across the top (Removed Sales & Profit Dashboard, Added Total Expenses) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* 1. Total Sales Revenue */}
+          <StatSparkCard
+            title="Total Sales Revenue"
+            value={filteredSummary.totalRevenue}
+            prefix={symbol ? `${symbol} ` : '₹ '}
+            decimals={0}
+            badge={{ text: '+18.4%', trend: 'up' }}
+            subtitle={`From ${filteredSummary.totalInvoices} sales invoices`}
+            sparklineData={[12000, 14500, 13800, 16200, 18400, filteredSummary.totalRevenue || 19600]}
+            icon={TrendingUp}
+          />
 
-            <div className="flex flex-wrap items-center gap-3 mt-6 pt-4 border-t border-gray-100">
-              <button
-                onClick={() => navigate('/invoices/sales/new')}
-                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white px-4 py-2 rounded-full text-xs font-bold shadow-md shadow-emerald-500/25 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                New Invoice
-              </button>
-              <button
-                onClick={handlePrint}
-                className="inline-flex items-center gap-2 bg-gray-100 hover:bg-gray-200 active:scale-98 text-gray-800 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer"
-              >
-                <Printer className="w-4 h-4 text-gray-500" />
-                Print Report
-              </button>
-              <button
-                onClick={() => navigate('/invoices/purchase/new')}
-                className="inline-flex items-center gap-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 px-3.5 py-2 rounded-full text-xs font-semibold shadow-2xs transition-all cursor-pointer"
-              >
-                <Truck className="w-4 h-4 text-gray-500" />
-                Purchase PO
-              </button>
-            </div>
-          </div>
+          {/* 2. Total Purchase Cost */}
+          <StatSparkCard
+            title="Total Purchase Cost"
+            value={filteredSummary.totalCost}
+            prefix={symbol ? `${symbol} ` : '₹ '}
+            decimals={0}
+            badge={{ text: 'Valuation', trend: 'neutral' }}
+            subtitle="PO procurement costs"
+            sparklineData={[9800, 11400, 12200, 13800, 14900, filteredSummary.totalCost || 16200]}
+            icon={Truck}
+          />
 
-          {/* Right: 3 Animated Stat Spark Cards with CountUp Numbers */}
-          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Sales Revenue Card */}
-            <StatSparkCard
-              title="Total Sales Revenue"
-              value={filteredSummary.totalRevenue}
-              prefix={symbol ? `${symbol} ` : '₹ '}
-              decimals={0}
-              badge={{ text: '+18.4%', trend: 'up' }}
-              subtitle={`From ${filteredSummary.totalInvoices} invoices`}
-              sparklineData={[12000, 14500, 13800, 16200, 18400, filteredSummary.totalRevenue || 19600]}
-              icon={TrendingUp}
-            />
+          {/* 3. Gross Profit */}
+          <StatSparkCard
+            title="Gross Profit"
+            value={filteredSummary.totalProfit}
+            prefix={symbol ? `${symbol} ` : '₹ '}
+            decimals={0}
+            badge={{ text: `${filteredSummary.overallMargin.toFixed(1)}%`, trend: filteredSummary.overallMargin >= 15 ? 'up' : 'alert' }}
+            subtitle="Markup over PO batch cost"
+            sparklineData={[2200, 3100, 2600, 2900, 3200, filteredSummary.totalProfit || 3400]}
+            icon={DollarSign}
+          />
 
-            {/* Purchase Cost Card */}
-            <StatSparkCard
-              title="Total Purchase Cost"
-              value={filteredSummary.totalCost}
-              prefix={symbol ? `${symbol} ` : '₹ '}
-              decimals={0}
-              badge={{ text: 'Valuation', trend: 'neutral' }}
-              subtitle="Procurement batch costs"
-              sparklineData={[9800, 11400, 12200, 13800, 14900, filteredSummary.totalCost || 16200]}
-              icon={Truck}
-            />
+          {/* 4. Total Expenses (As per filter) */}
+          <StatSparkCard
+            title="Total Expenses"
+            value={totalExpenses}
+            prefix={symbol ? `${symbol} ` : '₹ '}
+            decimals={0}
+            badge={{ text: `${expenses.length} Records`, trend: 'neutral' }}
+            subtitle={startDate || endDate ? 'Filtered period expenses' : 'All-time operating expenses'}
+            sparklineData={[50, 80, 70, 90, 85, totalExpenses || 100]}
+            icon={Wallet}
+          />
 
-            {/* Gross Profit Card */}
-            <StatSparkCard
-              title="Net Gross Profit"
-              value={filteredSummary.totalProfit}
-              prefix={symbol ? `${symbol} ` : '₹ '}
-              decimals={0}
-              badge={{ text: `${filteredSummary.overallMargin.toFixed(1)}%`, trend: filteredSummary.overallMargin >= 15 ? 'up' : 'alert' }}
-              subtitle="Profit after PO cost"
-              sparklineData={[2200, 3100, 2600, 2900, 3200, filteredSummary.totalProfit || 3400]}
-              icon={DollarSign}
-            />
-          </div>
+          {/* 5. Net Profit (Gross Profit - Expenses) */}
+          <StatSparkCard
+            title="Net Profit"
+            value={filteredSummary.totalProfit - totalExpenses}
+            prefix={symbol ? `${symbol} ` : '₹ '}
+            decimals={0}
+            badge={{ 
+              text: `${filteredSummary.totalRevenue > 0 ? (((filteredSummary.totalProfit - totalExpenses) / filteredSummary.totalRevenue) * 100).toFixed(1) : 0}%`, 
+              trend: (filteredSummary.totalProfit - totalExpenses) >= 0 ? 'up' : 'down' 
+            }}
+            subtitle="After operating expenses"
+            sparklineData={[2150, 3020, 2530, 2810, 3115, (filteredSummary.totalProfit - totalExpenses) || 3300]}
+            icon={ShieldCheck}
+          />
         </div>
 
         {/* Row 2: Amazon Seller Central Real Sales & Units Graph */}
