@@ -11,6 +11,12 @@ export interface User {
 export interface BaseState {
   token: string | null;
   user: User | null;
+  roleDetails?: any;
+}
+
+export interface ReduxState {
+  base: BaseState;
+  settings?: any;
 }
 
 export type ProductType = {

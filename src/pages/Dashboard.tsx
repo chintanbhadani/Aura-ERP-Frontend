@@ -171,7 +171,7 @@ export default function Dashboard() {
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                Welcome back, <span className="font-semibold text-gray-800">{user?.name || user?.username || 'Administrator'}</span> • Patel Strap Industries Ltd
+                Welcome back, <span className="font-semibold text-gray-800">{user?.name || user?.username || 'Administrator'}</span> • Aura ERP
               </p>
             </div>
           </div>

@@ -4,6 +4,8 @@ import { ERPListPageLayout, type QuickFilterField, type FilterRule } from '../..
 import { type ColumnDef } from '../../components/CustomTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { successToast, errorToast } from '../../helper/toast';
+import WithAuth from '../../components/WithAuth';
+import { ModuleName, Permission } from '../../helper/constants';
 import { 
   Factory, 
   Plus, 
@@ -43,7 +45,7 @@ const QUICK_FILTER_FIELDS: QuickFilterField[] = [
 
 const FILTER_RULE_FIELDS = ['Machine Code', 'Machine Name', 'Status'];
 
-export const MachineList: React.FC = () => {
+const MachineListBase: React.FC = () => {
   const navigate = useNavigate();
 
   const [machines, setMachines] = useState<MachineRecord[]>(() => {
@@ -426,3 +428,6 @@ export const MachineList: React.FC = () => {
     </>
   );
 };
+
+export const MachineList = WithAuth(MachineListBase, ModuleName.MACHINE, Permission.LIST);
+export default MachineList;

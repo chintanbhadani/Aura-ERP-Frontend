@@ -12,8 +12,9 @@ import {
 } from '@mui/material';
 import { DashboardLayout } from '../../layouts/DashboardLayout';
 import { ERPFormHeader, ERPFormPageLayout } from '../../components/ERPForm';
-import { FormCommentsAndActivity, triggerActivityRefresh } from '../../components/FormCommentsAndActivity';
+import { triggerActivityRefresh } from '../../components/FormCommentsAndActivity';
 import WithAuth from '../../components/WithAuth';
+import { ModuleName, Permission } from '../../helper/constants';
 import { useSelector } from 'react-redux';
 import { formatDistanceToNow } from 'date-fns';
 import { 
@@ -528,6 +529,7 @@ const SupplierFormPageBase: React.FC = () => {
                 if (formikRef.current) {
                   const errs = await formikRef.current.validateForm();
                   if (errs && Object.keys(errs).length > 0) {
+                    Object.keys(errs).forEach(key => formikRef.current?.setFieldTouched(key, true, false));
                     const firstErrKey = Object.keys(errs)[0];
                     const firstErrMsg = (errs as any)[firstErrKey];
                     errorToast(`Cannot save: ${firstErrMsg}`);
@@ -1611,5 +1613,5 @@ const SupplierFormPageBase: React.FC = () => {
   );
 };
 
-export const SupplierFormPage = WithAuth(SupplierFormPageBase);
+export const SupplierFormPage = WithAuth(SupplierFormPageBase, ModuleName.SUPPLIERS, Permission.ADD);
 export default SupplierFormPage;

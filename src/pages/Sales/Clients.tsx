@@ -1,17 +1,77 @@
-import React, { useState, useEffect } from 'react';
-import { DashboardLayout } from '../../layouts/DashboardLayout';
-import { Card, CardTitle } from '../../components/Card';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ERPListPageLayout, type QuickFilterField, type FilterRule } from '../../components/ERPList';
+import { type ColumnDef } from '../../components/CustomTable';
 import { Button } from '../../components/Button';
 import { Input } from '../../components/Input';
 import { fetchClients, checkClientConflict, createClient } from '../../services/client.service';
 import { checkOutlookStatus, getOutlookAuthUrl, syncOutlookContacts } from '../../services/outlook.service';
-import { Plus, AlertTriangle, Building2, UserCircle, Briefcase, Loader2, Mail, CheckCircle2, RefreshCw } from 'lucide-react';
+import { 
+  Building2, 
+  UserCircle, 
+  Loader2, 
+  Mail, 
+  Phone,
+  RefreshCw, 
+  ExternalLink,
+  AlertTriangle,
+  FileText
+} from 'lucide-react';
+import WithAuth from '../../components/WithAuth';
+import { ModuleName, Permission } from '../../helper/constants';
 
-export default function Clients() {
-  const [clients, setClients] = useState<any[]>([]);
+export interface ClientRecord {
+  id: string | number;
+  companyName: string;
+  email?: string;
+  phone?: string;
+  gstNumber?: string;
+  customerGroup?: string;
+  assignedRep?: {
+    id?: string;
+    username?: string;
+    role?: string;
+  };
+  inquiries?: any[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+const QUICK_FILTER_FIELDS: QuickFilterField[] = [
+  { key: 'companyName', placeholder: 'Company Name', className: 'w-40 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-3 py-1.5 text-xs outline-none' },
+  { key: 'phone', placeholder: 'Phone', className: 'w-32 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-3 py-1.5 text-xs outline-none' },
+  { key: 'gstNumber', placeholder: 'GST Number', className: 'w-36 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-3 py-1.5 text-xs outline-none' },
+  { key: 'assignedRep', placeholder: 'Assigned Rep', className: 'w-32 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-3 py-1.5 text-xs outline-none' }
+];
+
+const FILTER_RULE_FIELDS = ['Company Name', 'Email', 'Phone', 'GST Number', 'Assigned Rep'];
+
+function ClientsBase() {
+  const navigate = useNavigate();
+  const [clients, setClients] = useState<ClientRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+
+  // Toolbar & filter states
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [assignedToFilter, setAssignedToFilter] = useState('');
+  const [createdByFilter, setCreatedByFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [showTags, setShowTags] = useState(false);
+  const [viewType, setViewType] = useState('List View');
+  const [sortField, setSortField] = useState('Company Name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const [quickFilters, setQuickFilters] = useState<Record<string, string>>({
+    companyName: '',
+    phone: '',
+    gstNumber: '',
+    assignedRep: ''
+  });
+  const [filterRules, setFilterRules] = useState<FilterRule[]>([]);
+
   // Form State
   const [formData, setFormData] = useState({
     companyName: '',
@@ -44,14 +104,13 @@ export default function Clients() {
 
   const handleOutlookAction = async () => {
     if (isOutlookConnected) {
-      // Sync
       setIsSyncing(true);
       setSyncMessage(null);
       try {
         const res = await syncOutlookContacts();
         setSyncMessage(res.message);
-        loadClients(); // Reload clients after sync
-        setTimeout(() => setSyncMessage(null), 5000); // clear msg after 5s
+        loadClients();
+        setTimeout(() => setSyncMessage(null), 5000);
       } catch (error: any) {
         console.error('Failed to sync outlook contacts', error);
         alert(error.response?.data?.error || 'Failed to sync contacts.');
@@ -59,7 +118,6 @@ export default function Clients() {
         setIsSyncing(false);
       }
     } else {
-      // Connect
       try {
         const res = await getOutlookAuthUrl();
         window.location.href = res.url;
@@ -71,11 +129,13 @@ export default function Clients() {
   };
 
   const loadClients = async () => {
+    setLoading(true);
     try {
       const data = await fetchClients();
-      setClients(data);
+      setClients(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to load clients', error);
+      setClients([]);
     } finally {
       setLoading(false);
     }
@@ -83,7 +143,7 @@ export default function Clients() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setConflictWarning(null); // clear warning on type
+    setConflictWarning(null);
   };
 
   const handleCheckConflict = async () => {
@@ -119,116 +179,320 @@ export default function Clients() {
     }
   };
 
-  return (
-    <DashboardLayout>
-      <div className="p-6 lg:p-8 space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+  const handleQuickFilterChange = (key: string, value: string) => {
+    setQuickFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleClearAllFilters = () => {
+    setGlobalSearch('');
+    setQuickFilters({
+      companyName: '',
+      phone: '',
+      gstNumber: '',
+      assignedRep: ''
+    });
+    setFilterRules([]);
+    setAssignedToFilter('');
+    setCreatedByFilter('');
+    setTagFilter('');
+  };
+
+  const hasActiveFilters = Boolean(
+    globalSearch ||
+    quickFilters.companyName ||
+    quickFilters.phone ||
+    quickFilters.gstNumber ||
+    quickFilters.assignedRep ||
+    filterRules.length > 0 ||
+    assignedToFilter ||
+    createdByFilter ||
+    tagFilter
+  );
+
+  const filteredClients = useMemo(() => {
+    return clients.filter(c => {
+      if (quickFilters.companyName && !(c.companyName || '').toLowerCase().includes(quickFilters.companyName.toLowerCase())) {
+        return false;
+      }
+      if (quickFilters.phone && !(c.phone || '').toLowerCase().includes(quickFilters.phone.toLowerCase())) {
+        return false;
+      }
+      if (quickFilters.gstNumber && !(c.gstNumber || '').toLowerCase().includes(quickFilters.gstNumber.toLowerCase())) {
+        return false;
+      }
+      if (quickFilters.assignedRep && !(c.assignedRep?.username || '').toLowerCase().includes(quickFilters.assignedRep.toLowerCase())) {
+        return false;
+      }
+      if (assignedToFilter && c.assignedRep?.username !== assignedToFilter) {
+        return false;
+      }
+
+      if (filterRules.length > 0) {
+        for (const rule of filterRules) {
+          if (!rule.value) continue;
+          let targetVal = '';
+          if (rule.field === 'Company Name') targetVal = c.companyName || '';
+          else if (rule.field === 'Email') targetVal = c.email || '';
+          else if (rule.field === 'Phone') targetVal = c.phone || '';
+          else if (rule.field === 'GST Number') targetVal = c.gstNumber || '';
+          else if (rule.field === 'Assigned Rep') targetVal = c.assignedRep?.username || '';
+
+          const valLower = targetVal.toLowerCase();
+          const ruleLower = rule.value.toLowerCase();
+          if (rule.operator === 'Equals' && valLower !== ruleLower) return false;
+          if (rule.operator === 'Contains' && !valLower.includes(ruleLower)) return false;
+          if (rule.operator === 'Starts With' && !valLower.startsWith(ruleLower)) return false;
+        }
+      }
+
+      if (globalSearch) {
+        const q = globalSearch.toLowerCase();
+        const match =
+          (c.companyName || '').toLowerCase().includes(q) ||
+          (c.email || '').toLowerCase().includes(q) ||
+          (c.phone || '').toLowerCase().includes(q) ||
+          (c.gstNumber || '').toLowerCase().includes(q) ||
+          (c.assignedRep?.username || '').toLowerCase().includes(q);
+        if (!match) return false;
+      }
+
+      return true;
+    }).sort((a, b) => {
+      let comparison = 0;
+      if (sortField === 'Company Name') {
+        comparison = (a.companyName || '').localeCompare(b.companyName || '');
+      } else if (sortField === 'GST Number') {
+        comparison = (a.gstNumber || '').localeCompare(b.gstNumber || '');
+      } else if (sortField === 'Assigned Rep') {
+        comparison = (a.assignedRep?.username || '').localeCompare(b.assignedRep?.username || '');
+      } else {
+        const dateA = new Date(a.createdAt || 0).getTime();
+        const dateB = new Date(b.createdAt || 0).getTime();
+        comparison = dateA - dateB;
+      }
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+  }, [clients, globalSearch, quickFilters, filterRules, assignedToFilter, sortField, sortOrder]);
+
+  const handleExportCSV = () => {
+    if (filteredClients.length === 0) return;
+    const headers = ['ID', 'Company Name', 'Email', 'Phone', 'GST Number', 'Assigned Rep', 'Quotes Count'];
+    const rows = filteredClients.map(c => [
+      c.id,
+      `"${(c.companyName || '').replace(/"/g, '""')}"`,
+      `"${(c.email || '').replace(/"/g, '""')}"`,
+      `"${(c.phone || '').replace(/"/g, '""')}"`,
+      `"${(c.gstNumber || '').replace(/"/g, '""')}"`,
+      `"${(c.assignedRep?.username || '').replace(/"/g, '""')}"`,
+      c.inquiries?.length || 0
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Clients_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const columns: ColumnDef<ClientRecord>[] = [
+    {
+      key: 'companyName',
+      title: 'Client / Company',
+      render: (_, row) => (
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0">
+            <Building2 className="w-4 h-4" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Client Management</h1>
-            <p className="text-sm text-gray-500 mt-1">Track clients, inquiries, and resolve assignment conflicts.</p>
-          </div>
-          <Button onClick={() => setShowModal(true)} className="gap-2">
-            <Plus className="w-4 h-4" /> New Client / Inquiry
-          </Button>
-        </div>
-
-        {/* Outlook Integration */}
-        <Card className="p-5 bg-blue-50 border-blue-100 flex items-start sm:items-center justify-between flex-col sm:flex-row gap-4">
-          <div className="flex items-center gap-4">
-            <div className={`p-2.5 rounded-full ${isOutlookConnected ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-              {isOutlookConnected ? <CheckCircle2 className="w-5 h-5" /> : <Mail className="w-5 h-5" />}
-            </div>
-            <div>
-              <h3 className={`font-semibold ${isOutlookConnected ? 'text-green-900' : 'text-blue-900'}`}>
-                {isOutlookConnected ? 'Outlook Connected' : 'Outlook Integration Available'}
-              </h3>
-              <p className={`text-sm mt-0.5 ${isOutlookConnected ? 'text-green-700' : 'text-blue-700'}`}>
-                {isOutlookConnected 
-                  ? 'Your Microsoft account is linked. You can manually sync contacts or let the daily cron job run.' 
-                  : 'Connect your Microsoft account to automatically sync client contacts directly into the ERP.'}
-              </p>
-              {syncMessage && (
-                <p className="text-sm font-medium text-green-700 mt-2 bg-green-100 px-2 py-1 rounded w-fit">
-                  {syncMessage}
-                </p>
-              )}
-            </div>
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={handleOutlookAction}
-            disabled={isSyncing}
-            className={`shrink-0 bg-white hover:bg-blue-100 ${isOutlookConnected ? 'border-green-200 text-green-700 hover:bg-green-100' : 'border-blue-200 text-blue-700 hover:bg-blue-100'}`}
-          >
-            {isSyncing ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Syncing...</>
-            ) : isOutlookConnected ? (
-              <><RefreshCw className="w-4 h-4 mr-2" /> Sync Contacts</>
-            ) : (
-              'Connect Outlook'
+            <span className="font-semibold text-gray-900 block text-xs hover:text-emerald-700 transition-colors">
+              {row.companyName}
+            </span>
+            {row.customerGroup && (
+              <span className="text-[10px] text-gray-400 font-medium">
+                {row.customerGroup}
+              </span>
             )}
-          </Button>
-        </Card>
-
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50 text-gray-700 text-xs uppercase font-semibold border-b border-gray-100">
-                <tr>
-                  <th className="px-6 py-4">Client</th>
-                  <th className="px-6 py-4">Contact Details</th>
-                  <th className="px-6 py-4">GST Number</th>
-                  <th className="px-6 py-4">Assigned Rep</th>
-                  <th className="px-6 py-4">Inquiries</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-8 text-center text-gray-400">
-                      Loading clients...
-                    </td>
-                  </tr>
-                ) : clients.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                      <Briefcase className="w-8 h-8 mx-auto text-gray-300 mb-3" />
-                      <p className="font-medium">No clients found</p>
-                      <p className="text-sm mt-1">Add a new client to start tracking inquiries.</p>
-                    </td>
-                  </tr>
-                ) : (
-                  clients.map(client => (
-                    <tr key={client.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-medium text-gray-900">
-                        <div className="flex items-center gap-2">
-                          <Building2 className="w-4 h-4 text-gray-400" />
-                          {client.companyName}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 space-y-1">
-                        <div className="text-xs">{client.email || '-'}</div>
-                        <div className="text-xs text-gray-400">{client.phone || '-'}</div>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs">{client.gstNumber || '-'}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 text-xs font-medium px-2 py-1 bg-green-50 text-green-700 rounded-md w-fit">
-                          <UserCircle className="w-3.5 h-3.5" />
-                          {client.assignedRep?.username}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-xs font-medium">
-                        {client.inquiries?.length || 0} Quotes
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
           </div>
-        </Card>
+        </div>
+      )
+    },
+    {
+      key: 'email',
+      title: 'Email Address',
+      render: (_, row) => (
+        row.email ? (
+          <a 
+            href={`mailto:${row.email}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 text-xs text-gray-700 hover:text-emerald-700 transition-colors"
+          >
+            <Mail className="w-3.5 h-3.5 text-gray-400" />
+            <span className="truncate max-w-[200px]">{row.email}</span>
+          </a>
+        ) : (
+          <span className="text-gray-400 text-xs">-</span>
+        )
+      )
+    },
+    {
+      key: 'phone',
+      title: 'Phone Number',
+      render: (_, row) => (
+        row.phone ? (
+          <a 
+            href={`tel:${row.phone}`}
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 text-xs text-gray-700 hover:text-emerald-700 transition-colors"
+          >
+            <Phone className="w-3.5 h-3.5 text-gray-400" />
+            <span>{row.phone}</span>
+          </a>
+        ) : (
+          <span className="text-gray-400 text-xs">-</span>
+        )
+      )
+    },
+    {
+      key: 'gstNumber',
+      title: 'GST Number',
+      render: (_, row) => (
+        row.gstNumber ? (
+          <span className="font-mono text-[11px] font-semibold bg-gray-100 text-gray-800 px-2 py-0.5 rounded border border-gray-200">
+            {row.gstNumber}
+          </span>
+        ) : (
+          <span className="text-gray-400 text-xs">-</span>
+        )
+      )
+    },
+    {
+      key: 'assignedRep',
+      title: 'Assigned Rep',
+      render: (_, row) => (
+        <div className="flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-md w-fit">
+          <UserCircle className="w-3.5 h-3.5 text-emerald-600" />
+          <span>{row.assignedRep?.username || 'Unassigned'}</span>
+        </div>
+      )
+    },
+    {
+      key: 'inquiries',
+      title: 'Inquiries',
+      render: (_, row) => {
+        const count = row.inquiries?.length || 0;
+        return (
+          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
+            count > 0 ? 'bg-primary-50 text-primary-700 border border-primary-200' : 'bg-gray-100 text-gray-500'
+          }`}>
+            <FileText className="w-3 h-3" />
+            {count} {count === 1 ? 'Quote' : 'Quotes'}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'actions',
+      title: '',
+      render: (_, row) => (
+        <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => navigate(`/master/customers/${row.id}`)}
+            className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors"
+            title="View Customer Profile"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </button>
+        </div>
+      )
+    }
+  ];
 
-      </div>
+  const uniqueReps = useMemo(() => {
+    const set = new Set<string>();
+    clients.forEach(c => {
+      if (c.assignedRep?.username) set.add(c.assignedRep.username);
+    });
+    return Array.from(set);
+  }, [clients]);
+
+  const extraHeaderActions = (
+    <div className="flex items-center gap-2">
+      {syncMessage && (
+        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg animate-in fade-in">
+          {syncMessage}
+        </span>
+      )}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleOutlookAction}
+        disabled={isSyncing}
+        className={`text-xs gap-1.5 h-8 font-medium ${
+          isOutlookConnected 
+            ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' 
+            : 'border-blue-200 text-blue-700 hover:bg-blue-50'
+        }`}
+      >
+        {isSyncing ? (
+          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Syncing...</>
+        ) : isOutlookConnected ? (
+          <><RefreshCw className="w-3.5 h-3.5 text-emerald-600" /> Sync Outlook</>
+        ) : (
+          <><Mail className="w-3.5 h-3.5 text-blue-600" /> Connect Outlook</>
+        )}
+      </Button>
+    </div>
+  );
+
+  return (
+    <>
+      <ERPListPageLayout<ClientRecord>
+        title="Client Management"
+        data={filteredClients}
+        columns={columns}
+        loading={loading}
+        selectable={true}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        favorites={favorites}
+        onToggleFavorite={(id) => setFavorites(prev => ({ ...prev, [id]: !prev[id] }))}
+        onRowClick={(row) => navigate(`/master/customers/${row.id}`)}
+        onAddNew={() => setShowModal(true)}
+        addNewLabel="New Client / Inquiry"
+        searchPlaceholder="Search clients by name, email, phone, GST..."
+        globalSearch={globalSearch}
+        setGlobalSearch={setGlobalSearch}
+        quickFilterFields={QUICK_FILTER_FIELDS}
+        quickFilters={quickFilters}
+        onQuickFilterChange={handleQuickFilterChange}
+        filterRuleFields={FILTER_RULE_FIELDS}
+        filterRules={filterRules}
+        setFilterRules={setFilterRules}
+        hasActiveFilters={hasActiveFilters}
+        onClearAllFilters={handleClearAllFilters}
+        sortField={sortField}
+        setSortField={setSortField}
+        sortOrder={sortOrder}
+        setSortOrder={setSortOrder}
+        viewType={viewType}
+        setViewType={setViewType}
+        assignedToFilter={assignedToFilter}
+        setAssignedToFilter={setAssignedToFilter}
+        assignedToOptions={uniqueReps}
+        createdByFilter={createdByFilter}
+        setCreatedByFilter={setCreatedByFilter}
+        tagFilter={tagFilter}
+        setTagFilter={setTagFilter}
+        showTags={showTags}
+        setShowTags={setShowTags}
+        onRefresh={loadClients}
+        onExportAll={handleExportCSV}
+        onPrint={() => window.print()}
+        extraHeaderActions={extraHeaderActions}
+        emptyMessage="No clients found. Click 'New Client / Inquiry' to create one."
+      />
 
       {/* New Client Modal */}
       {showModal && (
@@ -240,7 +504,6 @@ export default function Clients() {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              
               <Input 
                 label="Company Name" 
                 name="companyName" 
@@ -297,12 +560,13 @@ export default function Clients() {
                   {isSubmitting ? 'Saving...' : 'Save & Continue'}
                 </Button>
               </div>
-
             </form>
           </div>
         </div>
       )}
-
-    </DashboardLayout>
+    </>
   );
 }
+
+export const Clients = WithAuth(ClientsBase, ModuleName.CLIENTS, Permission.LIST);
+export default Clients;

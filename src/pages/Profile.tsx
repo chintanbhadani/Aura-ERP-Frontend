@@ -7,8 +7,10 @@ import { Shield, KeyRound, Save, Loader2, CheckCircle2 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { setLoggedUser } from '../lib/slice/Base';
 import dataService from '../axios/dataService';
+import WithAuth from '../components/WithAuth';
+import { ModuleName, Permission } from '../helper/constants';
 
-export default function Profile() {
+function ProfileBase() {
   const { user } = useSelector((state: any) => state.base);
   const dispatch = useDispatch();
 
@@ -70,7 +72,7 @@ export default function Profile() {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-12 font-sans relative">
+      <div className="p-3 lg:p-6 font-sans relative">
         <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
           
           <header>
@@ -83,10 +85,15 @@ export default function Profile() {
             {/* Left Column: Avatar & Basic Info */}
             <div className="md:col-span-1 space-y-6">
               <Card className="p-6 flex flex-col items-center text-center">
-                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 flex items-center justify-center text-white font-bold text-3xl shadow-inner mb-4">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-primary-600 to-primary-400 flex items-center justify-center text-white font-bold text-3xl shadow-inner mb-4 shrink-0">
                   {initials}
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">{user?.username || 'Loading...'}</h2>
+                <h2 
+                  className="text-xl font-bold text-gray-900 truncate w-full px-2"
+                  title={user?.username || ''}
+                >
+                  {user?.username || 'Loading...'}
+                </h2>
                 <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-sm font-medium capitalize">
                   <Shield className="w-4 h-4" />
                   {roleName}
@@ -165,3 +172,6 @@ export default function Profile() {
     </DashboardLayout>
   );
 }
+
+export const Profile = WithAuth(ProfileBase, ModuleName.USER_MANAGEMENT, Permission.LIST);
+export default Profile;

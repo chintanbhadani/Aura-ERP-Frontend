@@ -1,52 +1,51 @@
 import React from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { ButtonComponent, type IButtonComponentProps } from './button/ButtonComponent';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export { ButtonComponent } from './button/ButtonComponent';
+export * from './button/index';
+
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'secondary' | 'outline' | 'outlined' | 'ghost' | 'soft' | 'danger';
+  size?: 'sm' | 'md' | 'lg' | 'small' | 'medium' | 'large';
   fullWidth?: boolean;
+  loading?: boolean;
+  startIcon?: React.ReactNode;
+  endIcon?: React.ReactNode;
 }
 
 export function Button({
-  className,
   variant = 'primary',
   size = 'md',
   fullWidth,
   children,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center rounded-full font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:pointer-events-none disabled:opacity-50';
-  
-  const variants = {
-    primary: 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm',
-    secondary: 'bg-primary-50 text-primary-900 hover:bg-primary-100',
-    outline: 'border-2 border-primary-600 text-primary-600 hover:bg-primary-50',
-    ghost: 'hover:bg-primary-50 text-primary-600',
-  };
+  // Normalize variant
+  let mappedVariant: any = variant;
+  if (variant === 'outline') mappedVariant = 'outlined';
+  if (variant === 'ghost') mappedVariant = 'text';
 
-  const sizes = {
-    sm: 'h-9 px-4 text-sm',
-    md: 'h-11 px-8 text-base',
-    lg: 'h-14 px-10 text-lg',
-  };
+  // Normalize size
+  let mappedSize: 'small' | 'medium' | 'large' = 'medium';
+  if (size === 'sm' || size === 'small') mappedSize = 'small';
+  if (size === 'lg' || size === 'large') mappedSize = 'large';
 
   return (
-    <button
-      className={cn(
-        baseStyles,
-        variants[variant],
-        sizes[size],
-        fullWidth ? 'w-full' : '',
-        className
-      )}
-      {...props}
+    <ButtonComponent
+      variant={mappedVariant}
+      size={mappedSize}
+      fullWidth={fullWidth}
+      {...(props as any)}
     >
       {children}
-    </button>
+    </ButtonComponent>
   );
 }
+
+export default Button;

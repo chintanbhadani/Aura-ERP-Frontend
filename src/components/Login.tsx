@@ -6,7 +6,7 @@ import * as Yup from 'yup';
 import { Box, Button, Checkbox, FormControlLabel } from '@mui/material';
 import { loginApi } from '../services/api';
 import { setToken, setLoggedUser } from '../slices/Base';
-import { Leaf } from 'lucide-react';
+import { AuraLogo } from './AuraLogo';
 import { successToast, errorToast } from '../helper/toast';
 import { TextFieldComponent } from './input/index';
 
@@ -25,7 +25,7 @@ export const Login: React.FC = () => {
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-primary flex-col items-center justify-center p-12 text-center transition-colors">
         <div className="bg-white/20 p-4 rounded-3xl mb-8 backdrop-blur-sm">
-          <Leaf className="w-12 h-12 text-white" />
+          <AuraLogo variant="prism" size={60} showText={false} />
         </div>
         <h1 className="text-4xl lg:text-5xl font-bold text-white mb-6 leading-tight">
           Manage your production with ease.

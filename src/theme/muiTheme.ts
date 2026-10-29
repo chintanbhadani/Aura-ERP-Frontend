@@ -6,10 +6,10 @@ import { createTheme, alpha } from '@mui/material/styles';
  * will automatically update to your new color!
  */
 export const THEME_CONFIG = {
-  primary: '#0f8b5a',
+  primary: '#059669', // Aura ERP Primary Emerald
   primaryLight: '#34d399',
-  primaryDark: '#0b6b45',
-  primaryBg: '#ebf7f0',
+  primaryDark: '#047857',
+  primaryBg: '#ecfdf5',
   contrastText: '#ffffff',
   borderRadius: 14,
 };
@@ -56,17 +56,29 @@ export const auraTheme = createTheme({
     borderRadius: THEME_CONFIG.borderRadius,
   },
   typography: {
-    fontFamily: 'inherit',
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+    h1: { fontFamily: "'Inter', sans-serif", fontWeight: 700 },
+    h2: { fontFamily: "'Inter', sans-serif", fontWeight: 700 },
+    h3: { fontFamily: "'Inter', sans-serif", fontWeight: 600 },
+    h4: { fontFamily: "'Inter', sans-serif", fontWeight: 600 },
+    h5: { fontFamily: "'Inter', sans-serif", fontWeight: 600 },
+    h6: { fontFamily: "'Inter', sans-serif", fontWeight: 600 },
+    subtitle1: { fontFamily: "'Inter', sans-serif", fontWeight: 500 },
+    subtitle2: { fontFamily: "'Inter', sans-serif", fontWeight: 500 },
+    body1: { fontFamily: "'Inter', sans-serif", fontWeight: 400 },
+    body2: { fontFamily: "'Inter', sans-serif", fontWeight: 400 },
     button: {
+      fontFamily: "'Inter', sans-serif",
       textTransform: 'none',
       fontWeight: 600,
     },
+    caption: { fontFamily: "'Inter', sans-serif", fontWeight: 400 },
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: ({ ownerState }: { ownerState: any }) => ({
-          borderRadius: 9999,
+          borderRadius: 10,
           textTransform: 'none',
           fontWeight: 600,
           boxShadow: 'none',

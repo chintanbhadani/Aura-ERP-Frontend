@@ -5,6 +5,7 @@ import type { BaseState, User } from '../types';
 const initialState: BaseState = {
   token: null,
   user: null,
+  roleDetails: null,
 };
 
 const baseSlice = createSlice({
@@ -16,10 +17,18 @@ const baseSlice = createSlice({
     },
     setToken(state, action: PayloadAction<string | null>) {
       state.token = action.payload;
+    },
+    setRoleDetails(state, action: PayloadAction<any>) {
+      state.roleDetails = action.payload;
+    },
+    resetAuth(state) {
+      state.token = null;
+      state.user = null;
+      state.roleDetails = null;
     }
   }
 });
 
-export const { setToken, setLoggedUser } = baseSlice.actions;
+export const { setToken, setLoggedUser, setRoleDetails, resetAuth } = baseSlice.actions;
 
 export default baseSlice.reducer;

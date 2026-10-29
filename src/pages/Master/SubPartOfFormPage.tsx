@@ -6,6 +6,7 @@ import { DashboardLayout } from '../../layouts/DashboardLayout';
 import { ERPFormHeader, ERPFormPageLayout } from '../../components/ERPForm';
 import { FormCommentsAndActivity, triggerActivityRefresh } from '../../components/FormCommentsAndActivity';
 import WithAuth from '../../components/WithAuth';
+import { ModuleName, Permission } from '../../helper/constants';
 import { useSelector } from 'react-redux';
 import { 
   fetchSubPartOfById, 
@@ -181,6 +182,7 @@ const SubPartOfFormPageBase: React.FC = () => {
                 if (formikRef.current) {
                   const errs = await formikRef.current.validateForm();
                   if (errs && Object.keys(errs).length > 0) {
+                    Object.keys(errs).forEach(key => formikRef.current?.setFieldTouched(key, true, false));
                     const firstErrKey = Object.keys(errs)[0];
                     const firstErrMsg = (errs as any)[firstErrKey];
                     errorToast(`Cannot save: ${firstErrMsg}`);
@@ -366,5 +368,5 @@ const SubPartOfFormPageBase: React.FC = () => {
   );
 };
 
-export const SubPartOfFormPage = WithAuth(SubPartOfFormPageBase);
+export const SubPartOfFormPage = WithAuth(SubPartOfFormPageBase, ModuleName.SUB_PART_OF, Permission.ADD);
 export default SubPartOfFormPage;

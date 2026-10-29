@@ -1,5 +1,5 @@
 import React from 'react';
-import { Leaf } from 'lucide-react';
+import { AuraLogo } from '../components/AuraLogo';
 
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,15 +10,15 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
         <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-primary-500 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-primary-400 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
         
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-3xl flex items-center justify-center mb-8 shadow-2xl border border-white/20">
-            <Leaf size={48} className="text-white" />
+        <div className="relative z-10 flex flex-col items-center text-center w-full max-w-2xl px-4">
+          <div className="w-32 h-32 bg-gradient-to-tr from-white/20 to-white/10 backdrop-blur-xl rounded-[2.5rem] flex items-center justify-center mb-10 shadow-2xl border border-white/30 transform rotate-3 hover:rotate-0 transition-transform duration-500">
+            <AuraLogo variant="prism" size={84} showText={false} />
           </div>
-          <h1 className="text-5xl font-bold mb-6 tracking-tight leading-tight">
-            Manage your <br/> production with ease.
+          <h1 className="text-5xl md:text-6xl font-extrabold mb-6 tracking-tight leading-tight text-white">
+            Aura ERP
           </h1>
-          <p className="text-primary-100 text-lg max-w-md">
-            The next generation ERP system for PET strap manufacturing. Real-time data, automated BOM, and precise QC tracking.
+          <p className="text-primary-100 text-lg md:text-xl font-medium max-w-lg leading-relaxed">
+            The next generation ERP system for manufacturing. Real-time data, automated BOM, and precise QC tracking.
           </p>
         </div>
       </div>

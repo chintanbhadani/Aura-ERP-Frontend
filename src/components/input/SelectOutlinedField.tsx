@@ -38,7 +38,7 @@ export const SelectOutlinedField = <T extends {}>({
   const formik = React.useContext<any>(FormikContext);
   const isFormikControlled = Boolean(formik && name && controlledValue === undefined);
   const formikField = isFormikControlled && name ? formik.getFieldProps(name) : null;
-  const formikMeta = isFormikControlled && name ? formik.getFieldMeta(name) : null;
+  const formikMeta = formik && name ? formik.getFieldMeta(name) : null;
 
   const value = controlledValue !== undefined
     ? controlledValue
@@ -56,7 +56,7 @@ export const SelectOutlinedField = <T extends {}>({
   const selectId = `${name || uniqueId}-select`;
 
   const handleChange = (event: SelectChangeEvent<string | number>) => {
-    if (isFormikControlled && name && formik) {
+    if (name && formik) {
       formik.setFieldValue(name, event.target.value);
     }
     if (onChange) {
@@ -64,8 +64,9 @@ export const SelectOutlinedField = <T extends {}>({
     }
   };
 
-  const hasError = Boolean(formikMeta && formikMeta.touched && formikMeta.error);
-  const errorText = formikMeta && formikMeta.touched && formikMeta.error ? String(formikMeta.error) : '';
+  const isTouched = Boolean(formikMeta && (formikMeta.touched || (formik && formik.submitCount > 0)));
+  const hasError = Boolean(isTouched && formikMeta?.error);
+  const errorText = isTouched && formikMeta?.error ? String(formikMeta.error) : '';
 
   return (
     <FormControl
@@ -79,7 +80,10 @@ export const SelectOutlinedField = <T extends {}>({
           fontWeight: 500,
           fontSize: '0.875rem',
           '&.Mui-focused': {
-            color: '#059669'
+            color: hasError ? '#ef4444' : '#059669'
+          },
+          '&.Mui-error': {
+            color: '#ef4444 !important'
           },
           ...(hasStartAdornment ? {
             '&:not(.MuiInputLabel-shrink)': {
@@ -93,13 +97,22 @@ export const SelectOutlinedField = <T extends {}>({
           fontSize: '0.875rem',
           fontWeight: 500,
           '& fieldset': {
-            borderColor: '#e5e7eb'
+            borderColor: hasError ? '#ef4444 !important' : '#e5e7eb'
           },
           '&:hover fieldset': {
-            borderColor: '#cbd5e1'
+            borderColor: hasError ? '#dc2626 !important' : '#cbd5e1'
           },
           '&.Mui-focused fieldset': {
-            borderColor: '#059669'
+            borderColor: hasError ? '#ef4444 !important' : '#059669'
+          },
+          '&.Mui-error fieldset': {
+            borderColor: '#ef4444 !important'
+          },
+          '&.Mui-error:hover fieldset': {
+            borderColor: '#dc2626 !important'
+          },
+          '&.Mui-error.Mui-focused fieldset': {
+            borderColor: '#ef4444 !important'
           }
         },
         '& .MuiSelect-select': {
@@ -107,6 +120,16 @@ export const SelectOutlinedField = <T extends {}>({
           fontWeight: 500,
           color: '#111827',
           py: '8.5px !important'
+        },
+        '& .MuiFormHelperText-root': {
+          marginLeft: '4px',
+          marginRight: '4px',
+          marginTop: '4px',
+          fontSize: '0.75rem',
+          fontWeight: 500,
+          '&.Mui-error': {
+            color: '#ef4444 !important'
+          }
         },
         ...sx
       }}

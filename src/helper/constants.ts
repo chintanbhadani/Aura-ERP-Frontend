@@ -22,3 +22,60 @@ export const chemicalTypeOptions = [
   { label: 'Volumetric Solution (Readymade)', value: 'volumetric-solution-readymade', id: 8 },
   { label: 'TLC Plate', value: 'tlc-plate', id: 9 }
 ];
+
+export const Permission = {
+  LIST: 'List',
+  EDIT: 'Edit',
+  ADD: 'Add',
+  DELETE: 'Delete',
+  ISSUE: 'Issue',
+  APPROVE: 'Approve',
+  EXPORT_DATA: 'Export Data',
+  VIEW_DASHBOARD: 'View Dashboard',
+  AUDIT: 'Audit',
+  VIEW_HISTORY: 'View History',
+  PRINT: 'Print',
+  RESET_2FA: 'Reset 2FA',
+  GENERATE_PASSWORD: 'Generate Password'
+} as const;
+
+export type Permission = (typeof Permission)[keyof typeof Permission];
+
+export const ModuleName = {
+  DASHBOARD: 'Dashboard',
+  PRODUCTION_ORDERS: 'Production Orders',
+  PRODUCTION_PLANNING: 'Production Planning',
+  BOM: 'BOM (Bill of Materials)',
+  PRODUCTION_WEIGHING: 'Production Weighing',
+  STOCK_ENTRIES: 'Stock Entries',
+  INVENTORY_PRODUCTS: 'Inventory Products',
+  MATERIAL_REQUISITION: 'Material Requisition',
+  PURCHASE_ORDERS: 'Purchase Orders',
+  SUPPLIERS: 'Suppliers',
+  GRN: 'Goods Receipt Note (GRN)',
+  CLIENTS: 'Clients',
+  INQUIRIES: 'Inquiries',
+  QUOTATIONS: 'Quotations',
+  PROFORMA_INVOICES: 'Proforma Invoices',
+  TAX_INVOICES: 'Tax Invoices',
+  EXPENSES: 'Expenses',
+  USER_MANAGEMENT: 'User Management',
+  ROLE_PERMISSIONS: 'Role & Permissions',
+  MASTER_DATA: 'Master Data',
+  STICKER_CODE_CONFIG: 'Sticker Code Config',
+  WEIGHMENT_LEDGER: 'Weighment Ledger',
+  USER_AUDIT_LOGS: 'User Audit Logs',
+  DATABASE_BACKUP: 'Database Backup',
+
+  // Convenience aliases for Master data submodules
+  CATEGORY: 'Master Data',
+  UNIT: 'Master Data',
+  PART_OF: 'Master Data',
+  SUB_PART_OF: 'Master Data',
+  MACHINE: 'Master Data',
+  STOCK_LEDGER: 'Stock Entries',
+  BIN_REPORT: 'Inventory Products'
+} as const;
+
+export type ModuleName = (typeof ModuleName)[keyof typeof ModuleName];
+

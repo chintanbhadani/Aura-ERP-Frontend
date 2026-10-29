@@ -5,6 +5,7 @@ import * as Yup from 'yup';
 import { DashboardLayout } from '../../layouts/DashboardLayout';
 import { ERPFormHeader, ERPFormPageLayout } from '../../components/ERPForm';
 import WithAuth from '../../components/WithAuth';
+import { ModuleName, Permission } from '../../helper/constants';
 import { useSelector } from 'react-redux';
 import { 
   fetchUserById, 
@@ -459,6 +460,7 @@ export const UserFormPageBase: React.FC = () => {
                   if (formikRef.current) {
                     const errs = await formikRef.current.validateForm();
                     if (errs && Object.keys(errs).length > 0) {
+                      Object.keys(errs).forEach(key => formikRef.current?.setFieldTouched(key, true, false));
                       const firstKey = Object.keys(errs)[0];
                       errorToast(`Cannot save: ${(errs as any)[firstKey]}`);
                       return;
@@ -701,9 +703,6 @@ export const UserFormPageBase: React.FC = () => {
                               label="User Name *"
                               placeholder="e.g. admin, jsuresh"
                             />
-                            {errors.username && touched.username && (
-                              <p className="text-[11px] text-red-500 mt-1">{errors.username}</p>
-                            )}
                           </div>
 
                           <div>
@@ -719,11 +718,8 @@ export const UserFormPageBase: React.FC = () => {
                               name="email"
                               type="email"
                               label="Email Address"
-                              placeholder="e.g. admin@patelstrap.com"
+                              placeholder="e.g. admin@auraerp.com"
                             />
-                            {errors.email && touched.email && (
-                              <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>
-                            )}
                           </div>
 
                           <div>
@@ -892,9 +888,6 @@ export const UserFormPageBase: React.FC = () => {
                               </button>
                             )}
                           </div>
-                          {errors.password && touched.password && (
-                            <p className="text-[11px] text-red-500 mt-1">{errors.password}</p>
-                          )}
                           <p className="text-[11px] text-gray-400">
                             {isEditMode 
                               ? 'Security notice: Passwords are automatically hashed with bcrypt and securely stored in database.' 
@@ -976,5 +969,6 @@ export const UserFormPageBase: React.FC = () => {
   );
 };
 
-export const UserFormPage = WithAuth(UserFormPageBase);
+export const UserFormPage = WithAuth(UserFormPageBase, ModuleName.USER_MANAGEMENT, Permission.ADD);
 export default UserFormPage;
+

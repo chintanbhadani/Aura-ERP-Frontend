@@ -1,286 +1,220 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { setToken, setLoggedUser } from './slices/Base';
-import type { RootState } from './store';
-import { LayoutDashboard, Activity, Package, Users, ClipboardCheck, UserCog, Settings, Factory, ChevronDown, User, LogOut, ChevronLeft, ChevronRight, Database, FileText, Menu, X, Receipt, DollarSign } from 'lucide-react';
-import Dashboard from './pages/Dashboard';
-import { InventoryTable } from './components/InventoryTable';
-import { Login } from './components/Login';
-import { Signup } from './components/Signup';
-import { MasterData } from './components/MasterData';
-import { InvoiceList } from './components/InvoiceList';
-import { InvoiceFormPage } from './pages/Sales/InvoiceFormPage';
-import { ProductFormPage } from './pages/Inventory/ProductFormPage';
-import { ExpenseList } from './components/ExpenseList';
-import { DailyCashPage } from './components/DailyCashPage';
-import { Settings as SettingsComponent } from './components/Settings';
-import WithAuth from './components/WithAuth';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { ThemeProvider } from '@mui/material/styles';
-import { auraTheme } from './theme/muiTheme';
-import { DashboardLayout } from './layouts/DashboardLayout';
-import { ProductMasterList } from './pages/Master/ProductMasterList';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import UnauthorizedPage from './pages/UnauthorizedPage';
+import Dashboard from './pages/Dashboard';
+import Inventory from './pages/Inventory';
+import Profile from './pages/Profile';
+import Clients from './pages/Sales/Clients';
+import Inquiries from './pages/Sales/Inquiries';
+import { InquiryFormPage } from './pages/Sales/InquiryFormPage';
+import Quotations from './pages/Sales/Quotations';
+import ProformaInvoices from './pages/Sales/ProformaInvoices';
+import MasterData from './components/MasterData';
+import { ExpenseListPage } from './pages/Finance/ExpenseListPage';
+import { ExpenseFormPage } from './pages/Finance/ExpenseFormPage';
+import { SalesReportPage } from './pages/Finance/SalesReportPage';
 import { CategoryList } from './pages/Master/CategoryList';
-import { SupplierList } from './pages/Master/SupplierList';
-import { CustomerList } from './pages/Master/CustomerList';
-import { UnitList } from './pages/Master/UnitList';
+import { CategoryFormPage } from './pages/Master/CategoryFormPage';
 import { PartOfList } from './pages/Master/PartOfList';
+import { PartOfFormPage } from './pages/Master/PartOfFormPage';
 import { SubPartOfList } from './pages/Master/SubPartOfList';
+import { SubPartOfFormPage } from './pages/Master/SubPartOfFormPage';
+import { SupplierList } from './pages/Master/SupplierList';
+import { SupplierFormPage } from './pages/Master/SupplierFormPage';
+import { CustomerList } from './pages/Master/CustomerList';
+import { CustomerFormPage } from './pages/Master/CustomerFormPage';
+import { UnitList } from './pages/Master/UnitList';
+import { UnitFormPage } from './pages/Master/UnitFormPage';
 import { MachineList } from './pages/Master/MachineList';
-
-const ProtectedDashboard = WithAuth(Dashboard);
-const ProtectedInventoryTable = WithAuth(InventoryTable);
-const ProtectedMasterData = WithAuth(MasterData);
-const ProtectedInvoiceList = WithAuth(InvoiceList);
-const ProtectedInvoiceForm = WithAuth(InvoiceFormPage);
-const ProtectedProductFormPage = WithAuth(ProductFormPage);
-const ProtectedExpenseList = WithAuth(ExpenseList);
-const ProtectedDailyCashPage = WithAuth(DailyCashPage);
-const ProtectedSettings = WithAuth(SettingsComponent);
-
-const ModernPageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <DashboardLayout>
-    <div className="max-w-7xl mx-auto w-full">
-      {children}
-    </div>
-  </DashboardLayout>
-);
-
-const Sidebar = ({ isOpen, toggleSidebar, closeMobile }: { isOpen: boolean, toggleSidebar: () => void, closeMobile?: () => void }) => {
-  const location = useLocation();
-
-  const links = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Inventory', path: '/inventory', icon: Package },
-    { name: 'Invoices', path: '/invoices', icon: FileText },
-    { name: 'Expenses', path: '/expenses', icon: Receipt },
-    { name: 'Daily Cash', path: '/daily-cash', icon: DollarSign },
-    { 
-      name: 'Master Data', 
-      icon: Database,
-      subItems: [
-        { name: 'Item Group', path: '/master/categories' },
-        { name: 'Part Of', path: '/master/part-of' },
-        { name: 'Sub Part Of', path: '/master/sub-part-of' },
-        { name: 'Suppliers', path: '/master/suppliers' },
-        { name: 'Customers', path: '/master/customers' },
-        { name: 'Units', path: '/master/units' },
-        { name: 'Machines', path: '/master/machines' },
-        { name: 'Item Master', path: '/master/skus' }
-      ]
-    },
-    { name: 'Settings', path: '/settings', icon: Settings }
-  ];
-
-  const [isMasterDataOpen, setIsMasterDataOpen] = useState(false);
-
-  return (
-    <div className={`${isOpen ? 'w-60' : 'w-20'} bg-white border-r border-gray-100 flex flex-col h-full z-50 transition-all duration-300 relative`}>
-      <button 
-        onClick={toggleSidebar}
-        className="hidden md:flex absolute -right-3 top-6 bg-white border border-gray-200 rounded-md p-1 shadow-sm text-gray-500 hover:text-gray-700 z-30"
-      >
-        {isOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-      </button>
-      <button 
-        onClick={closeMobile}
-        className="md:hidden absolute right-4 top-6 text-gray-500 hover:text-gray-700 p-2"
-      >
-        <X className="w-5 h-5" />
-      </button>
-      
-      <Link to="/" className={`p-6 flex items-center ${isOpen ? 'gap-3' : 'justify-center'} text-primary font-bold text-xl mb-6 mt-2 hover:opacity-80 transition-opacity`}>
-        <Factory className="w-6 h-6 shrink-0" />
-        {isOpen && <span>Aura ERP</span>}
-      </Link>
-      
-      <nav className="flex-1 px-4 space-y-1">
-        {links.map((link) => {
-          const Icon = link.icon;
-          const isActive = location.pathname === link.path;
-          return (
-            <div key={link.name}>
-              {link.subItems ? (
-                <button
-                  onClick={() => setIsMasterDataOpen(!isMasterDataOpen)}
-                  title={!isOpen ? link.name : undefined}
-                  className={`w-full flex items-center justify-between ${isOpen ? 'gap-3 px-4' : 'justify-center px-0'} py-2.5 rounded-lg font-medium transition-colors text-sm text-gray-500 hover:text-gray-900 hover:bg-gray-50 cursor-pointer`}
-                >
-                  <div className={`flex items-center ${isOpen ? 'gap-3' : 'justify-center'}`}>
-                    <Icon className="w-[18px] h-[18px] shrink-0" />
-                    {isOpen && <span className="whitespace-nowrap">{link.name}</span>}
-                  </div>
-                  {isOpen && (
-                    <ChevronDown className={`w-4 h-4 transition-transform ${isMasterDataOpen ? 'rotate-180' : ''}`} />
-                  )}
-                </button>
-              ) : (
-                <Link
-                  to={link.path || '#'}
-                  title={!isOpen ? link.name : undefined}
-                  className={`flex items-center ${isOpen ? 'gap-3 px-4' : 'justify-center px-0'} py-2.5 rounded-lg font-medium transition-colors text-sm ${
-                    isActive 
-                      ? 'bg-primary text-white' 
-                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon className="w-[18px] h-[18px] shrink-0" />
-                  {isOpen && <span className="whitespace-nowrap">{link.name}</span>}
-                </Link>
-              )}
-              {link.subItems && isMasterDataOpen && isOpen && (
-                <div className="mt-1 ml-9 space-y-1">
-                  {link.subItems.map(subItem => (
-                    <Link
-                      key={subItem.name}
-                      to={subItem.path}
-                      className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
-                        location.pathname === subItem.path
-                          ? 'bg-primary-bg text-primary font-medium'
-                          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
-                    >
-                      {subItem.name}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
-    </div>
-  );
-};
-
-const TopBar = ({ toggleMobileMenu }: { toggleMobileMenu?: () => void }) => {
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const user = useSelector((state: RootState) => state.base.user);
-
-  const handleLogout = () => {
-    dispatch(setToken(null));
-    dispatch(setLoggedUser(null));
-    navigate('/login');
-  };
-
-  return (
-    <div className="flex justify-between md:justify-end items-center p-4 md:p-6 relative z-10 w-full max-w-7xl mx-auto">
-      <button 
-        onClick={toggleMobileMenu}
-        className="md:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-      >
-        <Menu className="w-6 h-6" />
-      </button>
-      <button 
-        onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-        className="flex items-center gap-2 bg-white rounded-full p-1 pr-3 shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors relative z-50 cursor-pointer"
-      >
-        <div className="bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs uppercase">
-          {user?.name ? user.name.substring(0, 2) : 'U'}
-        </div>
-        <ChevronDown className="w-4 h-4 text-gray-500" />
-      </button>
-
-      {isUserMenuOpen && (
-        <>
-          <div 
-            className="fixed inset-0 z-40" 
-            onClick={() => setIsUserMenuOpen(false)}
-          ></div>
-          <div className="absolute top-20 right-6 w-64 bg-white rounded-2xl shadow-lg border border-gray-100 z-50 overflow-hidden py-2">
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-50">
-              <div className="bg-primary text-white w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 uppercase">
-                {user?.username ? user?.username.substring(0, 2) : 'U'}
-              </div>
-              <div className="overflow-hidden">
-                <p className="text-gray-900 font-semibold text-sm truncate">{user?.username || ''}</p>
-                <p className="text-gray-400 text-xs truncate">{user?.role || user?.email || ''}</p>
-              </div>
-            </div>
-            <div className="py-2">
-              <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors">
-                <User className="w-4 h-4" />
-                My Profile
-              </button>
-              <button 
-                onClick={() => {
-                  setIsUserMenuOpen(false);
-                  navigate('/settings');
-                }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors cursor-pointer"
-              >
-                <Settings className="w-4 h-4" />
-                Settings
-              </button>
-            </div>
-            <div className="px-4 pb-2">
-              <button 
-                onClick={handleLogout}
-                className="w-full flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2.5 rounded-xl text-sm font-medium hover:bg-red-100 transition-colors mt-2 cursor-pointer"
-              >
-                Logout
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
-
-const AppLayout = ({ children }: { children: React.ReactNode }) => {
-  return <div className="min-h-screen bg-background">{children}</div>;
-};
+import { ProductMasterList } from './pages/Master/ProductMasterList';
+import { UserManagementList } from './pages/Master/UserManagementList';
+import { UserFormPage } from './pages/Master/UserFormPage';
+import { RoleManagementList } from './pages/UserManagement/RoleManagementList';
+import { RoleFormPage } from './pages/UserManagement/RoleFormPage';
+import { InvoiceFormPage } from './pages/Sales/InvoiceFormPage';
+import { ProductFormPage } from './pages/Inventory/ProductFormPage';
+import { InvoiceList } from './components/InvoiceList';
+import { InventoryTable as ProductInventory } from './components/InventoryTable';
+import { StockEntryList } from './pages/Inventory/StockEntryList';
+import { GrnList } from './pages/Inventory/GrnList';
+import { GRNFormPage } from './pages/Inventory/GRNFormPage';
+import { MaterialRequestList } from './pages/Inventory/MaterialRequestList';
+import { MaterialRequestFormPage } from './pages/Inventory/MaterialRequestFormPage';
+import { PurchaseOrderList } from './pages/Buying/PurchaseOrderList';
+import { PurchaseOrderFormPage } from './pages/Buying/PurchaseOrderFormPage';
+import { BinReportList } from './pages/Inventory/BinReportList';
+import { StockLedgerList } from './pages/Inventory/StockLedgerList';
+import { StockDashboardPage } from './pages/Inventory/StockDashboardPage';
+import { ProductionOrderList } from './pages/Sales/ProductionOrderList';
+import { ProductionOrderFormPage } from './pages/Sales/ProductionOrderFormPage';
+import { ProductionPlanningPage } from './pages/Sales/ProductionPlanningPage';
+import { BomListPage } from './pages/Production/BomListPage';
+import { BomFormPage } from './pages/Production/BomFormPage';
+import { ProductionWeighingLedger } from './pages/Production/ProductionWeighingLedger';
+import { RollDetailPage } from './pages/Production/RollDetailPage';
 
 function App() {
   return (
-    <ThemeProvider theme={auraTheme}>
-      <Router>
-        <ToastContainer position="top-right" autoClose={4000} />
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<ProtectedDashboard />} />
-            <Route path="/inventory" element={<ModernPageWrapper><ProtectedInventoryTable /></ModernPageWrapper>} />
-            <Route path="/inventory/new" element={<ProtectedProductFormPage />} />
-            <Route path="/inventory/edit" element={<ProtectedProductFormPage />} />
-            <Route path="/invoices" element={<ModernPageWrapper><ProtectedInvoiceList /></ModernPageWrapper>} />
-            <Route path="/invoices/new" element={<ProtectedInvoiceForm />} />
-            <Route path="/expenses" element={<ModernPageWrapper><ProtectedExpenseList /></ModernPageWrapper>} />
-            <Route path="/daily-cash" element={<ModernPageWrapper><ProtectedDailyCashPage /></ModernPageWrapper>} />
+    <Router>
+      <Routes>
+        {/* Auth Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        
+        {/* Protected App Routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/stock" element={<StockDashboardPage />} />
+        <Route path="/stock/dashboard" element={<StockDashboardPage />} />
+        <Route path="/app/stock" element={<StockDashboardPage />} />
+        <Route path="/inventory" element={<StockDashboardPage />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/clients" element={<Clients />} />
+        <Route path="/inquiries" element={<Inquiries />} />
+        <Route path="/inquiries/new" element={<InquiryFormPage />} />
+        <Route path="/inquiries/:id" element={<InquiryFormPage />} />
+        <Route path="/crm/inquiries" element={<Inquiries />} />
+        <Route path="/crm/inquiries/new" element={<InquiryFormPage />} />
+        <Route path="/crm/inquiries/:id" element={<InquiryFormPage />} />
+        <Route path="/quotations" element={<Quotations />} />
+        <Route path="/proforma" element={<ProformaInvoices />} />
 
-            {/* Master Data Routes - Modern Patel Strap ERP Design */}
-            <Route path="/master/skus" element={<ProductMasterList />} />
-            <Route path="/master-data/skus" element={<ProductMasterList />} />
-            <Route path="/master/categories" element={<CategoryList />} />
-            <Route path="/master-data/categories" element={<CategoryList />} />
-            <Route path="/master/suppliers" element={<SupplierList />} />
-            <Route path="/master-data/suppliers" element={<SupplierList />} />
-            <Route path="/master/customers" element={<CustomerList />} />
-            <Route path="/master-data/customers" element={<CustomerList />} />
-            <Route path="/master/units" element={<UnitList />} />
-            <Route path="/master-data/units" element={<UnitList />} />
-            <Route path="/master/part-of" element={<PartOfList />} />
-            <Route path="/master/sub-part-of" element={<SubPartOfList />} />
-            <Route path="/master/machines" element={<MachineList />} />
-            <Route path="/products" element={<ProductMasterList />} />
-            <Route path="/products/new" element={<ProtectedProductFormPage />} />
-            <Route path="/products/edit" element={<ProtectedProductFormPage />} />
+        {/* BOM (Bill of Materials) Routes */}
+        <Route path="/bom" element={<BomListPage />} />
+        <Route path="/bom/new" element={<BomFormPage />} />
+        <Route path="/bom/:id" element={<BomFormPage />} />
+        <Route path="/production/bom" element={<BomListPage />} />
+        <Route path="/production/bom/new" element={<BomFormPage />} />
+        <Route path="/production/bom/:id" element={<BomFormPage />} />
 
-            {/* Fallback for other master-data types */}
-            <Route path="/master-data/:type" element={<ModernPageWrapper><ProtectedMasterData /></ModernPageWrapper>} />
-            <Route path="/settings" element={<ModernPageWrapper><ProtectedSettings /></ModernPageWrapper>} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        </AppLayout>
-      </Router>
-    </ThemeProvider>
+        {/* Production Weighing & Roll Sticker Generator */}
+        <Route path="/production/weighing" element={<ProductionWeighingLedger />} />
+        <Route path="/production-weighing" element={<ProductionWeighingLedger />} />
+        <Route path="/production/roll/:code" element={<RollDetailPage />} />
+        <Route path="/roll/:code" element={<RollDetailPage />} />
+
+        {/* Production Planning Routes */}
+        <Route path="/production-planning" element={<ProductionPlanningPage />} />
+        <Route path="/production/planning" element={<ProductionPlanningPage />} />
+        <Route path="/crm/production-planning" element={<ProductionPlanningPage />} />
+        <Route path="/sales/production-planning" element={<ProductionPlanningPage />} />
+
+        {/* Production Order Routes */}
+        <Route path="/production-orders" element={<ProductionOrderList />} />
+        <Route path="/production-orders/new" element={<ProductionOrderFormPage />} />
+        <Route path="/production-orders/:id" element={<ProductionOrderFormPage />} />
+        <Route path="/production-order" element={<ProductionOrderList />} />
+        <Route path="/production-order/new" element={<ProductionOrderFormPage />} />
+        <Route path="/production-order/:id" element={<ProductionOrderFormPage />} />
+        <Route path="/crm/production-orders" element={<ProductionOrderList />} />
+        <Route path="/sales/production-orders" element={<ProductionOrderList />} />
+
+        {/* Bin Report Routes */}
+        <Route path="/bin-report" element={<BinReportList />} />
+        <Route path="/stock/bin-report" element={<BinReportList />} />
+        <Route path="/app/query-report/Neelkanth%20Bin%20Report" element={<BinReportList />} />
+        <Route path="/app/query-report/Neelkanth Bin Report" element={<BinReportList />} />
+        
+        {/* Purchase Order Routes */}
+        <Route path="/purchase-order" element={<PurchaseOrderList />} />
+        <Route path="/purchase-order/new" element={<PurchaseOrderFormPage />} />
+        <Route path="/purchase-order/:id" element={<PurchaseOrderFormPage />} />
+        <Route path="/buying/purchase-order" element={<PurchaseOrderList />} />
+        <Route path="/buying/purchase-order/new" element={<PurchaseOrderFormPage />} />
+        <Route path="/buying/purchase-order/:id" element={<PurchaseOrderFormPage />} />
+
+        {/* Material Request Routes */}
+        <Route path="/material-request" element={<MaterialRequestList />} />
+        <Route path="/material-request/new" element={<MaterialRequestFormPage />} />
+        <Route path="/material-request/:id" element={<MaterialRequestFormPage />} />
+        <Route path="/master/material-request" element={<MaterialRequestList />} />
+        <Route path="/master/material-request/new" element={<MaterialRequestFormPage />} />
+        <Route path="/master/material-request/:id" element={<MaterialRequestFormPage />} />
+
+        {/* Dedicated Master Data Routes */}
+        <Route path="/master/categories" element={<CategoryList />} />
+        <Route path="/master/categories/new" element={<CategoryFormPage />} />
+        <Route path="/master/categories/:id" element={<CategoryFormPage />} />
+        <Route path="/master/part-of" element={<PartOfList />} />
+        <Route path="/master/part-of/new" element={<PartOfFormPage />} />
+        <Route path="/master/part-of/:id" element={<PartOfFormPage />} />
+        <Route path="/master/sub-part-of" element={<SubPartOfList />} />
+        <Route path="/master/sub-part-of/new" element={<SubPartOfFormPage />} />
+        <Route path="/master/sub-part-of/:id" element={<SubPartOfFormPage />} />
+        <Route path="/master/suppliers" element={<SupplierList />} />
+        <Route path="/master/suppliers/new" element={<SupplierFormPage />} />
+        <Route path="/master/suppliers/:id" element={<SupplierFormPage />} />
+        <Route path="/master/customers" element={<CustomerList />} />
+        <Route path="/master/customers/new" element={<CustomerFormPage />} />
+        <Route path="/master/customers/:id" element={<CustomerFormPage />} />
+        <Route path="/master/units" element={<UnitList />} />
+        <Route path="/master/units/new" element={<UnitFormPage />} />
+        <Route path="/master/units/:id" element={<UnitFormPage />} />
+        <Route path="/master/machines" element={<MachineList />} />
+        <Route path="/master/skus" element={<ProductMasterList />} />
+        
+        {/* User & Role Management Routes */}
+        <Route path="/users" element={<UserManagementList />} />
+        <Route path="/users/new" element={<UserFormPage />} />
+        <Route path="/users/:id" element={<UserFormPage />} />
+        <Route path="/users/edit" element={<UserFormPage />} />
+        <Route path="/users/edit/:id" element={<UserFormPage />} />
+        <Route path="/master/users" element={<UserManagementList />} />
+        <Route path="/master/users/new" element={<UserFormPage />} />
+        <Route path="/master/users/:id" element={<UserFormPage />} />
+        <Route path="/roles" element={<RoleManagementList />} />
+        <Route path="/roles/new" element={<RoleFormPage />} />
+        <Route path="/roles/:id" element={<RoleFormPage />} />
+        <Route path="/roles/edit/:id" element={<RoleFormPage />} />
+        <Route path="/user/role" element={<RoleFormPage />} />
+        
+        <Route path="/master/:type" element={<MasterData />} />
+        
+        {/* Finance / Expense Routes */}
+        <Route path="/expenses" element={<ExpenseListPage />} />
+        <Route path="/expenses/new" element={<ExpenseFormPage />} />
+        <Route path="/expenses/:id" element={<ExpenseFormPage />} />
+        <Route path="/finance/expenses" element={<ExpenseListPage />} />
+        <Route path="/finance/expenses/new" element={<ExpenseFormPage />} />
+        <Route path="/finance/expenses/:id" element={<ExpenseFormPage />} />
+        <Route path="/finance/sales-report" element={<SalesReportPage />} />
+        <Route path="/sales-report" element={<SalesReportPage />} />
+        <Route path="/invoices" element={<InvoiceList />} />
+        <Route path="/invoices/sales" element={<InvoiceList fixedType="SALES" />} />
+        <Route path="/invoices/purchase" element={<InvoiceList fixedType="PURCHASE" />} />
+        <Route path="/invoices/new" element={<InvoiceFormPage />} />
+        <Route path="/invoices/sales/new" element={<InvoiceFormPage defaultType="SALES" />} />
+        <Route path="/invoices/purchase/new" element={<InvoiceFormPage defaultType="PURCHASE" />} />
+        <Route path="/invoices/:id" element={<InvoiceFormPage />} />
+        
+        {/* Item Master Detail Routes */}
+        <Route path="/products" element={<ProductMasterList />} />
+        <Route path="/products/new" element={<ProductFormPage />} />
+        <Route path="/products/edit" element={<ProductFormPage />} />
+        <Route path="/item/:id" element={<ProductFormPage />} />
+        <Route path="/stock-entry" element={<StockEntryList />} />
+        <Route path="/stock-ledger" element={<StockLedgerList />} />
+        <Route path="/stock/stock-ledger" element={<StockLedgerList />} />
+        
+        {/* GRN Routes */}
+        <Route path="/grn" element={<GrnList />} />
+        <Route path="/grn/new" element={<GRNFormPage />} />
+        <Route path="/grn/:id" element={<GRNFormPage />} />
+        <Route path="/stock/grn" element={<GrnList />} />
+        <Route path="/stock/grn/new" element={<GRNFormPage />} />
+        <Route path="/stock/grn/:id" element={<GRNFormPage />} />
+        </Route>
+        
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <ToastContainer position="top-right" autoClose={4000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover />
+    </Router>
   );
 }
 

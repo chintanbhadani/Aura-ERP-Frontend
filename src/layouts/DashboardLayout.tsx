@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Sidebar } from '../components/Sidebar';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { setToken, setLoggedUser } from '../lib/slice/Base';
+import type { ReduxState } from '../helper/fe.interface';
+import { hasModulePermission } from '../helper/helper';
+import { ModuleName, Permission } from '../helper/constants';
 import { 
   LogOut, 
   User, 
@@ -24,7 +27,8 @@ import {
   HelpCircle,
   FileText,
   ClipboardList,
-  ShoppingCart
+  ShoppingCart,
+  TrendingUp
 } from 'lucide-react';
 
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -35,26 +39,29 @@ interface GlobalSearchItem {
   href: string;
   category: string;
   icon: React.ElementType;
+  moduleName?: string;
+  requiredPermission?: string;
 }
 
 const GLOBAL_NAV_ITEMS: GlobalSearchItem[] = [
-  { name: 'Item List', href: '/master/skus', category: 'Master Data', icon: Tags },
-  { name: 'Item Group', href: '/master/categories', category: 'Master Data', icon: FolderTree },
-  { name: 'Suppliers', href: '/master/suppliers', category: 'Master Data', icon: Truck },
-  { name: 'Customers', href: '/master/customers', category: 'Master Data', icon: Users },
-  { name: 'Units', href: '/master/units', category: 'Master Data', icon: Ruler },
-  { name: 'Purchase Order List', href: '/purchase-order', category: 'Buying', icon: ShoppingCart },
-  { name: 'Goods Receipt (GRN List)', href: '/grn', category: 'Inventory', icon: ClipboardCheck },
+  { name: 'Item List', href: '/master/skus', category: 'Master Data', icon: Tags, moduleName: ModuleName.INVENTORY_PRODUCTS, requiredPermission: Permission.LIST },
+  { name: 'Item Group', href: '/master/categories', category: 'Master Data', icon: FolderTree, moduleName: ModuleName.MASTER_DATA, requiredPermission: Permission.LIST },
+  { name: 'Suppliers', href: '/master/suppliers', category: 'Master Data', icon: Truck, moduleName: ModuleName.SUPPLIERS, requiredPermission: Permission.LIST },
+  { name: 'Customers', href: '/master/customers', category: 'Master Data', icon: Users, moduleName: ModuleName.CLIENTS, requiredPermission: Permission.LIST },
+  { name: 'Units', href: '/master/units', category: 'Master Data', icon: Ruler, moduleName: ModuleName.MASTER_DATA, requiredPermission: Permission.LIST },
+  { name: 'Purchase Order List', href: '/purchase-order', category: 'Buying', icon: ShoppingCart, moduleName: ModuleName.PURCHASE_ORDERS, requiredPermission: Permission.LIST },
+  { name: 'Goods Receipt (GRN List)', href: '/grn', category: 'Inventory', icon: ClipboardCheck, moduleName: ModuleName.GRN, requiredPermission: Permission.LIST },
   // { name: 'Stock Entry List', href: '/stock-entry', category: 'Inventory', icon: Package },
-  { name: 'Material Request List', href: '/material-request', category: 'Inventory', icon: ClipboardList },
-  { name: 'Production Orders', href: '/production-orders', category: 'CRM', icon: ClipboardCheck },
-  { name: 'Invoices', href: '/invoices', category: 'Sales', icon: Receipt },
-  { name: 'Clients', href: '/clients', category: 'CRM', icon: UserCheck },
-  { name: 'Inquiries', href: '/inquiries', category: 'CRM', icon: HelpCircle },
-  { name: 'Quotations', href: '/quotations', category: 'CRM', icon: FileText },
-  { name: 'Proforma Invoices', href: '/proforma', category: 'CRM', icon: Receipt },
-  { name: 'Expenses', href: '/expenses', category: 'Finance', icon: Wallet },
-  { name: 'Dashboard', href: '/', category: 'General', icon: Home },
+  { name: 'Material Request List', href: '/material-request', category: 'Inventory', icon: ClipboardList, moduleName: ModuleName.MATERIAL_REQUISITION, requiredPermission: Permission.LIST },
+  { name: 'Production Orders', href: '/production-orders', category: 'CRM', icon: ClipboardCheck, moduleName: ModuleName.PRODUCTION_ORDERS, requiredPermission: Permission.LIST },
+  { name: 'Invoices', href: '/invoices', category: 'Sales', icon: Receipt, moduleName: ModuleName.TAX_INVOICES, requiredPermission: Permission.LIST },
+  { name: 'Clients', href: '/clients', category: 'CRM', icon: UserCheck, moduleName: ModuleName.CLIENTS, requiredPermission: Permission.LIST },
+  { name: 'Inquiries', href: '/inquiries', category: 'CRM', icon: HelpCircle, moduleName: ModuleName.INQUIRIES, requiredPermission: Permission.LIST },
+  { name: 'Quotations', href: '/quotations', category: 'CRM', icon: FileText, moduleName: ModuleName.QUOTATIONS, requiredPermission: Permission.LIST },
+  { name: 'Proforma Invoices', href: '/proforma', category: 'CRM', icon: Receipt, moduleName: ModuleName.PROFORMA_INVOICES, requiredPermission: Permission.LIST },
+  { name: 'Expenses', href: '/expenses', category: 'Finance', icon: Wallet, moduleName: ModuleName.EXPENSES, requiredPermission: Permission.LIST },
+  { name: 'Sales Report', href: '/finance/sales-report', category: 'Finance', icon: TrendingUp, moduleName: ModuleName.TAX_INVOICES, requiredPermission: Permission.LIST },
+  { name: 'Dashboard', href: '/', category: 'General', icon: Home, moduleName: ModuleName.DASHBOARD, requiredPermission: Permission.VIEW_DASHBOARD },
   { name: 'My Profile', href: '/profile', category: 'General', icon: User },
 ];
 
@@ -86,6 +93,8 @@ const ROUTE_BREADCRUMBS: Record<string, { module: string; page: string }> = {
   '/production-order': { module: 'CRM', page: 'Production Orders' },
   '/production-order/new': { module: 'CRM', page: 'New Production Order' },
   '/expenses': { module: 'Finance', page: 'Expenses' },
+  '/finance/sales-report': { module: 'Finance', page: 'Sales Report' },
+  '/sales-report': { module: 'Finance', page: 'Sales Report' },
   '/profile': { module: 'User', page: 'My Profile' },
   '/products/new': { module: 'Stock', page: 'New Item' },
   '/products/edit': { module: 'Stock', page: 'Edit Item' },
@@ -183,10 +192,31 @@ function GlobalSearchInput({
     setIsOpen(true);
   };
 
-  const filteredItems = GLOBAL_NAV_ITEMS.filter(item => 
-    item.name.toLowerCase().includes(query.toLowerCase()) ||
-    item.category.toLowerCase().includes(query.toLowerCase())
-  );
+  const roleDetails = useSelector((state: ReduxState) => state.base?.roleDetails);
+  const permissionsDetails = useMemo(() => {
+    if (roleDetails?.permissionsDetails) return roleDetails.permissionsDetails;
+    try {
+      const cached = localStorage.getItem('roleDetails');
+      return cached ? JSON.parse(cached)?.permissionsDetails : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [roleDetails]);
+
+  const filteredItems = GLOBAL_NAV_ITEMS.filter(item => {
+    const matchesQuery = item.name.toLowerCase().includes(query.toLowerCase()) ||
+      item.category.toLowerCase().includes(query.toLowerCase());
+    if (!matchesQuery) return false;
+
+    if (item.moduleName && permissionsDetails && Array.isArray(permissionsDetails)) {
+      return hasModulePermission(
+        permissionsDetails,
+        item.moduleName,
+        item.requiredPermission || Permission.LIST
+      );
+    }
+    return true;
+  });
 
   return (
     <div className={`relative ${isMobile ? 'w-full' : 'w-64 md:w-80'}`}>

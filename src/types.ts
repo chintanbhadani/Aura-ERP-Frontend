@@ -9,22 +9,26 @@ export interface User {
 export interface BaseState {
   token: string | null;
   user: User | null;
+  roleDetails?: any;
 }
 
 export interface Supplier {
-  id: string;
+  id: string | number;
   name: string;
   contact?: string;
   email?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Category {
-  id: string;
+  id: string | number;
   name: string;
+  disabled?: boolean;
 }
 
 export interface Unit {
-  id: string;
+  id: string | number;
   name: string;
 }
 
@@ -32,26 +36,35 @@ export interface Product {
   id?: string;
   sku: string;
   name: string;
-  quantity: number;
-  cost_price: number;
-  selling_price: number;
+  quantity?: number;
+  cost_price?: number;
+  selling_price?: number;
   min_stock?: number;
   location?: string;
   status?: string;
-  categoryId: string;
-  supplierId: string;
+  categoryId?: string;
+  category?: Category;
+  supplierId?: string;
+  supplier?: Supplier;
   unitId?: string;
+  unit?: Unit;
   fifoPrice?: number;
   fifoValue?: number;
   wacPrice?: number;
   wacValue?: number;
+  [key: string]: any;
 }
 
 export interface Customer {
-  id: string;
+  id: string | number;
   name: string;
   contact?: string;
   email?: string;
+  customerName?: string;
+  companyName?: string;
+  phone?: string;
+  imageUrl?: string;
+  attachments?: any;
 }
 
 export interface InvoiceItem {
@@ -80,7 +93,9 @@ export interface Invoice {
   supplierId?: string | null;
   items?: InvoiceItem[];
   customer?: Customer;
+  client?: any;
   supplier?: any;
+  status?: string;
   createdAt: string;
   updatedAt: string;
 }

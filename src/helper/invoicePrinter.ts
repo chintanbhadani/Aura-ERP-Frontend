@@ -49,9 +49,15 @@ export const generateInvoiceHtml = (invoice: Invoice, currency?: CurrencySetting
   const activeCurrency = currency || getActiveCurrency();
   const isSales = invoice.type === 'SALES';
   const entityTitle = isSales ? 'Customer' : 'Supplier';
-  const entityName = isSales ? (invoice.customer?.name || 'Customer') : (invoice.supplier?.name || 'Supplier');
-  const entityContact = isSales ? (invoice.customer?.contact || '-') : (invoice.supplier?.contact || '-');
-  const entityEmail = isSales ? (invoice.customer?.email || '-') : (invoice.supplier?.email || '-');
+  const entityName = isSales
+    ? (invoice.client?.companyName || invoice.client?.name || invoice.customer?.name || 'Customer')
+    : (invoice.supplier?.name || invoice.supplier?.companyName || 'Supplier');
+  const entityContact = isSales
+    ? (invoice.client?.phone || invoice.customer?.contact || '-')
+    : (invoice.supplier?.contact || invoice.supplier?.phone || '-');
+  const entityEmail = isSales
+    ? (invoice.client?.email || invoice.customer?.email || '-')
+    : (invoice.supplier?.email || '-');
   const formattedDate = new Date(invoice.date).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -97,7 +103,7 @@ export const generateInvoiceHtml = (invoice: Invoice, currency?: CurrencySetting
           padding: 0;
         }
         body {
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
           color: #1f2937;
           background: #ffffff;
           -webkit-print-color-adjust: exact;
@@ -381,9 +387,15 @@ export const downloadInvoicePdf = async (invoice: Invoice, currency?: CurrencySe
     const isSales = invoice.type === 'SALES';
     const primaryRgb = hexToRgb(THEME_CONFIG.primary || '#0f8b5a');
     const entityTitle = isSales ? 'CUSTOMER' : 'SUPPLIER';
-    const entityName = isSales ? (invoice.customer?.name || 'Customer') : (invoice.supplier?.name || 'Supplier');
-    const entityContact = isSales ? (invoice.customer?.contact || '-') : (invoice.supplier?.contact || '-');
-    const entityEmail = isSales ? (invoice.customer?.email || '-') : (invoice.supplier?.email || '-');
+    const entityName = isSales
+      ? (invoice.client?.companyName || invoice.client?.name || invoice.customer?.name || 'Customer')
+      : (invoice.supplier?.name || invoice.supplier?.companyName || 'Supplier');
+    const entityContact = isSales
+      ? (invoice.client?.phone || invoice.customer?.contact || '-')
+      : (invoice.supplier?.contact || invoice.supplier?.phone || '-');
+    const entityEmail = isSales
+      ? (invoice.client?.email || invoice.customer?.email || '-')
+      : (invoice.supplier?.email || '-');
     const formattedDate = new Date(invoice.date).toLocaleDateString();
     const totalAmount = formatCurrency(invoice.totalAmount, activeCurrency);
 

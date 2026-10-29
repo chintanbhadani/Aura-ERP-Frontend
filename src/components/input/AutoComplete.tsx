@@ -1,12 +1,26 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useState, useEffect, useCallback } from 'react';
 import { Autocomplete, Box, TextField, createFilterOptions, type FilterOptionsState } from '@mui/material';
 import { useField, useFormikContext } from 'formik';
 import { Plus } from 'lucide-react';
+import dataService from '../../axios/dataService';
 
 export interface ReusableAutocompleteProps<T> {
+  // Required props
   keyName: string;
-  options?: T[];
   getOptionLabel: (option: any) => string;
+
+  // Optional data props
+  options?: T[];
+  defaultOptions?: T[];
+  apiEndpoint?: string;
+  filterPayload?: any;
+  searchKey?: string;
+  refreshKey?: number | string;
+  optionKey?: string;
+  getOptions?: (data: any) => void;
+  compareKey?: string;
+
+  // UI & Formik props
   isTitleVisible?: boolean;
   placeholder?: string;
   label?: string;
@@ -19,9 +33,10 @@ export interface ReusableAutocompleteProps<T> {
   loadingText?: string;
   loading?: boolean;
   onChange?: (value: T | T[] | null) => void;
-  compareKey?: string;
   creatable?: boolean;
   onCreate?: (inputValue: string) => Promise<T | void> | T | void;
+  startIcon?: React.ReactNode;
+  renderOption?: (props: React.HTMLAttributes<HTMLLIElement>, option: T, state?: any) => React.ReactNode;
 }
 
 const defaultFilter = createFilterOptions<any>();
@@ -29,7 +44,14 @@ const defaultFilter = createFilterOptions<any>();
 export const ReusableAutocomplete = <T extends { id?: string | number }>({
   keyName,
   options = [],
+  defaultOptions = [],
   getOptionLabel,
+  apiEndpoint,
+  filterPayload,
+  searchKey,
+  refreshKey,
+  optionKey = 'items',
+  getOptions,
   placeholder = 'Select an option',
   label,
   size = 'small',
@@ -44,20 +66,103 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
   compareKey = 'id',
   creatable = false,
   onCreate,
+  startIcon,
+  renderOption,
 }: ReusableAutocompleteProps<T>) => {
-  const { setFieldValue } = useFormikContext<any>();
+  const { setFieldValue, submitCount } = useFormikContext<any>();
   const [field, meta] = useField(keyName);
-  const [inputValue, setInputValue] = React.useState('');
+  const [inputValue, setInputValue] = useState<string>('');
+  const [fetchedOptions, setFetchedOptions] = useState<T[]>(defaultOptions.length > 0 ? defaultOptions : options);
+  const [apiLoading, setApiLoading] = useState<boolean>(false);
 
+  // Sync initial options when no apiEndpoint is passed
+  useEffect(() => {
+    if (!apiEndpoint) {
+      setFetchedOptions(options.length > 0 ? options : defaultOptions);
+    }
+  }, [options, defaultOptions, apiEndpoint]);
+
+  // Debounced fetch when apiEndpoint is provided
+  useEffect(() => {
+    if (!apiEndpoint) return;
+
+    let isMounted = true;
+    const timer = setTimeout(async () => {
+      try {
+        setApiLoading(true);
+        const params: Record<string, any> = { ...(filterPayload || {}) };
+        if (searchKey && inputValue) {
+          params[searchKey] = inputValue;
+        }
+
+        const res = await dataService.get(apiEndpoint, { params });
+        if (!isMounted) return;
+
+        const data = res?.data;
+        getOptions && getOptions(data);
+
+        // Resolve data from common payload structures:
+        let resolvedList: T[] = [];
+        if (optionKey && Array.isArray(data?.[optionKey])) {
+          resolvedList = data[optionKey];
+        } else if (optionKey && Array.isArray(data?.data?.[optionKey])) {
+          resolvedList = data.data[optionKey];
+        } else if (Array.isArray(data?.data)) {
+          resolvedList = data.data;
+        } else if (Array.isArray(data?.items)) {
+          resolvedList = data.items;
+        } else if (Array.isArray(data)) {
+          resolvedList = data;
+        }
+
+        setFetchedOptions(resolvedList || []);
+      } catch (err) {
+        console.error(`Error fetching options from ${apiEndpoint}:`, err);
+      } finally {
+        if (isMounted) setApiLoading(false);
+      }
+    }, searchKey && inputValue ? 400 : 0);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [apiEndpoint, refreshKey, JSON.stringify(filterPayload), searchKey ? inputValue : undefined]);
+
+  const activeOptions = apiEndpoint ? fetchedOptions : (options.length > 0 ? options : fetchedOptions);
+  const isComponentLoading = loading || apiLoading;
+
+  interface OptionType {
+    id?: string | number;
+    [key: string]: any;
+  }
+
+  // Selected value with dummy fallback for pending or paginated records
   const selectedValue = useMemo(() => {
     if (multiple) {
-      return (
-        options?.filter(option => {
+      const selected =
+        activeOptions?.filter(option => {
           if (!Array.isArray(field.value)) return false;
-          const optVal = (option as any)[compareKey] ?? (option as any).id;
+          const optVal = (option as OptionType)[compareKey] ?? (option as OptionType).id;
           return field.value.some((v: any) => v === optVal || (v !== undefined && optVal !== undefined && String(v) === String(optVal)));
-        }) || []
-      );
+        }) || [];
+
+      if (Array.isArray(field.value)) {
+        field.value.forEach((val: any) => {
+          const valToMatch = typeof val === 'object' && val !== null
+            ? ((val as any)[compareKey] ?? (val as any).id)
+            : val;
+          const exists = selected.some(option => {
+            const optVal = (option as OptionType)[compareKey] ?? (option as OptionType).id;
+            return optVal === valToMatch || (optVal !== undefined && valToMatch !== undefined && String(optVal) === String(valToMatch));
+          });
+          if (!exists && valToMatch) {
+            const dummyOption: any = typeof val === 'object' && val !== null ? val : { id: valToMatch, [compareKey]: valToMatch, name: String(valToMatch) };
+            selected.push(dummyOption);
+          }
+        });
+      }
+      return selected;
     }
 
     if (field.value === undefined || field.value === null || field.value === '') {
@@ -68,8 +173,8 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
       ? ((field.value as any)[compareKey] ?? (field.value as any).id ?? (field.value as any).name)
       : field.value;
 
-    const found = options?.find(option => {
-      const optVal = (option as any)[compareKey] ?? (option as any).id;
+    const found = activeOptions?.find(option => {
+      const optVal = (option as OptionType)[compareKey] ?? (option as OptionType).id;
       if (optVal === valToMatch) return true;
       if (optVal !== undefined && valToMatch !== undefined && String(optVal) === String(valToMatch)) return true;
       if (typeof option === 'object' && option !== null && (option as any).name) {
@@ -84,24 +189,29 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
       return field.value;
     }
 
+    if (field.value) {
+      const dummyOption: any = { id: field.value, [compareKey]: field.value, name: String(field.value) };
+      return dummyOption;
+    }
+
     return null;
-  }, [options, field.value, multiple, compareKey]);
+  }, [activeOptions, field.value, multiple, compareKey]);
 
   const customFilterOptions = (rawOptions: T[], params: FilterOptionsState<T>) => {
     const filtered = filterOptions ? filterOptions(rawOptions, params) : defaultFilter(rawOptions, params);
-    const { inputValue } = params;
+    const { inputValue: query } = params;
 
-    if (creatable && inputValue && inputValue.trim() !== '') {
+    if (creatable && query && query.trim() !== '') {
       const isExisting = rawOptions.some(opt => {
         const optLabel = getOptionLabel(opt);
-        return optLabel?.trim().toLowerCase() === inputValue.trim().toLowerCase();
+        return optLabel?.trim().toLowerCase() === query.trim().toLowerCase();
       });
 
       if (!isExisting) {
         filtered.push({
-          [compareKey]: `__new__:${inputValue.trim()}`,
-          name: inputValue.trim(),
-          inputValue: inputValue.trim(),
+          [compareKey]: `__new__:${query.trim()}`,
+          name: query.trim(),
+          inputValue: query.trim(),
           isNew: true,
         } as any);
       }
@@ -110,45 +220,47 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
     return filtered;
   };
 
-  // Context-aware empty-state message
   const resolvedNoOptionsText = noOptionsText ?? (
-    options.length === 0
-      ? (
-        <Box sx={{ py: 1.5, px: 1, textAlign: 'center' }}>
-          <Box sx={{ fontSize: 13, fontWeight: 600, color: 'text.secondary', mb: 0.5 }}>
-            No data available
-          </Box>
-          {creatable && (
-            <Box sx={{ fontSize: 12, color: 'text.disabled' }}>
-              Type to add a new entry
-            </Box>
-          )}
+    activeOptions.length === 0 ? (
+      <Box sx={{ py: 1.5, px: 1, textAlign: 'center' }}>
+        <Box sx={{ fontSize: 13, fontWeight: 600, color: 'text.secondary', mb: 0.5 }}>
+          No data available
         </Box>
-      )
-      : (
-        <Box sx={{ py: 1.5, px: 1, textAlign: 'center' }}>
-          <Box sx={{ fontSize: 13, fontWeight: 600, color: 'text.secondary', mb: 0.5 }}>
-            No matching results
+        {creatable && (
+          <Box sx={{ fontSize: 12, color: 'text.disabled' }}>
+            Type to add a new entry
           </Box>
-          {creatable && (
-            <Box sx={{ fontSize: 12, color: 'text.disabled' }}>
-              Type to add a new entry
-            </Box>
-          )}
+        )}
+      </Box>
+    ) : (
+      <Box sx={{ py: 1.5, px: 1, textAlign: 'center' }}>
+        <Box sx={{ fontSize: 13, fontWeight: 600, color: 'text.secondary', mb: 0.5 }}>
+          No matching results
         </Box>
-      )
+        {creatable && (
+          <Box sx={{ fontSize: 12, color: 'text.disabled' }}>
+            Type to add a new entry
+          </Box>
+        )}
+      </Box>
+    )
   );
 
   return (
     <Box sx={{ ...sx }}>
       <Autocomplete
         multiple={multiple}
-        options={options}
+        options={activeOptions}
         getOptionLabel={(option) => {
+          if (!option) return '';
           if (typeof option === 'string') return option;
           if ((option as any)?.inputValue) return (option as any).inputValue;
           if ((option as any)?.isNew) return (option as any).name || '';
-          return getOptionLabel ? getOptionLabel(option) : ((option as any)?.name || '');
+          if (getOptionLabel) {
+            const labelStr = getOptionLabel(option);
+            if (labelStr !== undefined && labelStr !== null && labelStr !== '') return labelStr;
+          }
+          return (option as any)?.name || (option as any)?.title || (option as any)?.label || (option as any)?.[compareKey] || String((option as any)?.id || '');
         }}
         value={selectedValue}
         isOptionEqualToValue={(option, val) => {
@@ -167,7 +279,7 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
         freeSolo={creatable}
         filterOptions={customFilterOptions}
         inputValue={inputValue}
-        onInputChange={(_, val) => setInputValue(val)}
+        onInputChange={(_, val) => setInputValue(val || '')}
         onChange={async (_, newValue) => {
           if (!newValue) {
             setFieldValue(keyName, multiple ? [] : '');
@@ -189,9 +301,9 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
             return;
           }
 
-          // Handle freeSolo string input directly (e.g. pressing Enter on typed string)
+          // Handle freeSolo string input directly
           if (typeof newValue === 'string' && creatable) {
-            const existing = options.find(opt => getOptionLabel(opt)?.trim().toLowerCase() === newValue.trim().toLowerCase());
+            const existing = activeOptions.find(opt => getOptionLabel(opt)?.trim().toLowerCase() === newValue.trim().toLowerCase());
             if (existing) {
               const id = (existing as any)[compareKey] ?? (existing as any).id;
               setFieldValue(keyName, id);
@@ -222,40 +334,116 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
             onChange && onChange(newValue as any);
           }
         }}
-        loading={loading}
+        loading={isComponentLoading}
         loadingText={loadingText}
         noOptionsText={resolvedNoOptionsText}
         disabled={disabled}
-        renderOption={(props, option) => {
+        renderOption={(props, option, state) => {
           const { key, ...optionProps } = props;
           if ((option as any)?.isNew) {
             return (
               <li key={key} {...optionProps}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, color: 'primary.main', fontWeight: 600 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.5, color: '#059669', fontWeight: 600 }}>
                   <Plus size={16} />
                   <span>Add &quot;{(option as any).inputValue || (option as any).name}&quot;</span>
                 </Box>
               </li>
             );
           }
+          if (renderOption) {
+            return renderOption(props, option, state);
+          }
           return (
             <li key={key} {...optionProps}>
-              {getOptionLabel ? getOptionLabel(option) : (option as any).name}
+              {getOptionLabel ? getOptionLabel(option) : ((option as any).name || (option as any).title || (option as any)[compareKey])}
             </li>
           );
         }}
-        renderInput={params => (
-          <TextField
-            {...params}
-            label={label}
-            placeholder={placeholder}
-            size={size}
-            error={Boolean(meta.touched && meta.error)}
-            helperText={meta.touched ? meta.error : ''}
-            slotProps={params.slotProps}
-            sx={{ width: '100%' }}
-          />
-        )}
+        renderInput={params => {
+          const isTouched = Boolean(meta.touched || (submitCount && submitCount > 0));
+          const hasError = Boolean(isTouched && meta.error);
+
+          return (
+            <TextField
+              {...params}
+              label={label}
+              placeholder={placeholder}
+              size={size}
+              error={hasError}
+              helperText={hasError && meta.error ? String(meta.error) : ''}
+              slotProps={{
+                ...params.slotProps,
+                input: {
+                  ...params.slotProps?.input,
+                  startAdornment: (
+                    <>
+                      {startIcon && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', mr: 0.5, color: '#059669', flexShrink: 0 }}>
+                          {startIcon}
+                        </Box>
+                      )}
+                      {params.slotProps?.input?.startAdornment}
+                    </>
+                  ),
+                },
+                inputLabel: params.slotProps?.inputLabel
+              }}
+              sx={{
+                width: '100%',
+                '& .MuiInputLabel-root': {
+                  color: '#4b5563',
+                  fontWeight: 500,
+                  fontSize: '0.875rem',
+                  '&.Mui-focused': {
+                    color: hasError ? '#ef4444' : '#059669'
+                  },
+                  '&.Mui-error': {
+                    color: '#ef4444 !important'
+                  }
+                },
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '10px',
+                  backgroundColor: '#ffffff',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  '& fieldset': {
+                    borderColor: hasError ? '#ef4444 !important' : '#e5e7eb'
+                  },
+                  '&:hover fieldset': {
+                    borderColor: hasError ? '#dc2626 !important' : '#cbd5e1'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: hasError ? '#ef4444 !important' : '#059669'
+                  },
+                  '&.Mui-error fieldset': {
+                    borderColor: '#ef4444 !important'
+                  },
+                  '&.Mui-error:hover fieldset': {
+                    borderColor: '#dc2626 !important'
+                  },
+                  '&.Mui-error.Mui-focused fieldset': {
+                    borderColor: '#ef4444 !important'
+                  }
+                },
+                '& .MuiInputBase-input': {
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: '#111827'
+                },
+                '& .MuiFormHelperText-root': {
+                  marginLeft: '4px',
+                  marginRight: '4px',
+                  marginTop: '4px',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  '&.Mui-error': {
+                    color: '#ef4444 !important'
+                  }
+                }
+              }}
+            />
+          );
+        }}
       />
     </Box>
   );
@@ -277,6 +465,9 @@ export const StandaloneAutocomplete = <T extends Record<string, any>>({
   onCreate,
   noOptionsText,
   startIcon,
+  error = false,
+  helperText,
+  onBlur,
 }: {
   value: T | null;
   onChange: (value: T | null) => void;
@@ -293,6 +484,9 @@ export const StandaloneAutocomplete = <T extends Record<string, any>>({
   onCreate?: (inputValue: string) => Promise<T | void> | T | void;
   noOptionsText?: React.ReactNode;
   startIcon?: React.ReactNode;
+  error?: boolean;
+  helperText?: React.ReactNode;
+  onBlur?: (e: any) => void;
 }) => {
   const [inputValue, setInputValue] = React.useState('');
 
@@ -401,6 +595,7 @@ export const StandaloneAutocomplete = <T extends Record<string, any>>({
           </Box>
         )
       }
+      onBlur={onBlur}
       sx={{
         width: '100%',
         '& .MuiInputLabel-root': {
@@ -408,7 +603,10 @@ export const StandaloneAutocomplete = <T extends Record<string, any>>({
           fontWeight: 500,
           fontSize: '0.875rem',
           '&.Mui-focused': {
-            color: '#059669'
+            color: error ? '#ef4444' : '#059669'
+          },
+          '&.Mui-error': {
+            color: '#ef4444 !important'
           }
         },
         '& .MuiOutlinedInput-root': {
@@ -418,19 +616,38 @@ export const StandaloneAutocomplete = <T extends Record<string, any>>({
           color: '#111827',
           backgroundColor: '#ffffff',
           '& fieldset': {
-            borderColor: '#e5e7eb',
+            borderColor: error ? '#ef4444 !important' : '#e5e7eb',
           },
           '&:hover fieldset': {
-            borderColor: '#cbd5e1',
+            borderColor: error ? '#dc2626 !important' : '#cbd5e1',
           },
           '&.Mui-focused fieldset': {
-            borderColor: '#059669',
+            borderColor: error ? '#ef4444 !important' : '#059669',
           },
+          '&.Mui-error fieldset': {
+            borderColor: '#ef4444 !important'
+          },
+          '&.Mui-error:hover fieldset': {
+            borderColor: '#dc2626 !important'
+          },
+          '&.Mui-error.Mui-focused fieldset': {
+            borderColor: '#ef4444 !important'
+          }
         },
         '& .MuiInputBase-input': {
           fontSize: '0.875rem',
           fontWeight: 500,
           color: '#111827'
+        },
+        '& .MuiFormHelperText-root': {
+          marginLeft: '4px',
+          marginRight: '4px',
+          marginTop: '4px',
+          fontSize: '0.75rem',
+          fontWeight: 500,
+          '&.Mui-error': {
+            color: '#ef4444 !important'
+          }
         },
         ...sx,
       }}
@@ -486,6 +703,8 @@ export const StandaloneAutocomplete = <T extends Record<string, any>>({
           placeholder={placeholder}
           size={size}
           variant="outlined"
+          error={error}
+          helperText={helperText}
           slotProps={{
             ...params.slotProps,
             input: {

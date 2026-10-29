@@ -1,20 +1,24 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Pencil, Trash2, Plus, Database, Search, Filter } from 'lucide-react';
+import { Pencil, Trash2, Plus, Database } from 'lucide-react';
+import { DashboardLayout } from '../layouts/DashboardLayout';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { Box, Button, IconButton, Tooltip } from '@mui/material';
 import { 
-  fetchCategories, createCategory, updateCategory, bulkUploadCategories,
-  fetchSuppliers, createSupplier, updateSupplier, bulkUploadSuppliers,
-  fetchUnits, createUnit, updateUnit, bulkUploadUnits,
-  fetchCustomers, createCustomer, updateCustomer, bulkUploadCustomers,
-  fetchSkus, createSku, updateSku, bulkUploadSkus
+  fetchCategories, createCategory, updateCategory, deleteCategory,
+  fetchSuppliers, createSupplier, updateSupplier, deleteSupplier,
+  fetchUnits, createUnit, updateUnit, deleteUnit,
+  fetchCustomers, createCustomer, updateCustomer, deleteCustomer,
+  fetchSkus, createSku, updateSku, deleteSku
 } from '../services/api';
 import { successToast, errorToast } from '../helper/toast';
 import { TextFieldComponent, SelectOutlinedField, ReusableAutocomplete } from './input/index';
-import { DataTable } from './Table/DataTable';
-import { StatusBadge } from './StatusBadge';
+import { ListViewLayout } from './ListViewLayout';
+import { CompactTable } from './CompactTable';
+import type { ColumnDef } from './CompactTable';
+import WithAuth from './WithAuth';
+import { ModuleName, Permission } from '../helper/constants';
 
 type MasterDataType = 'categories' | 'suppliers' | 'units' | 'customers' | 'skus';
 
@@ -29,51 +33,63 @@ const categoryModalValidationSchema = Yup.object({
   name: Yup.string().trim().required('Category name is required'),
 });
 
-export const MasterData: React.FC = () => {
+const MasterDataBase: React.FC = () => {
   const { type } = useParams<{ type: MasterDataType }>();
   const navigate = useNavigate();
 
   const [data, setData] = useState<any[]>([]);
   const [categoriesForSku, setCategoriesForSku] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'Active' | 'Inactive'>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [pendingCategoryName, setPendingCategoryName] = useState('');
   const categoryResolveRef = useRef<((cat: any) => void) | null>(null);
 
-  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
-  const [uploadingBulk, setUploadingBulk] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const isValidType = type === 'categories' || type === 'suppliers' || type === 'units' || type === 'customers' || type === 'skus';
 
   useEffect(() => {
+    if (type === 'material-request' as any) {
+      navigate('/material-request');
+      return;
+    }
     if (!isValidType) {
       navigate('/');
-    } else {
-      loadData();
+      return;
     }
-  }, [type, search, statusFilter]);
+    setSearchTerm('');
+    setData([]);
+    setLoading(true);
+    loadData('');
+  }, [type]);
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (!isValidType || !searchTerm) return;
+    const timer = setTimeout(() => {
+      loadData(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const loadData = async (searchQuery?: string) => {
+    setLoading(true);
     try {
       if (type === 'categories') {
-        const res = await fetchCategories(search, statusFilter);
+        const res = await fetchCategories(searchQuery);
         setData(res);
       } else if (type === 'suppliers') {
-        const res = await fetchSuppliers(search, statusFilter);
+        const res = await fetchSuppliers(searchQuery);
         setData(res);
       } else if (type === 'units') {
-        const res = await fetchUnits(search, statusFilter);
+        const res = await fetchUnits(searchQuery);
         setData(res);
       } else if (type === 'customers') {
-        const res = await fetchCustomers(search, statusFilter);
+        const res = await fetchCustomers(searchQuery);
         setData(res);
       } else if (type === 'skus') {
-        const res = await fetchSkus(search, statusFilter);
+        const res = await fetchSkus(searchQuery);
         setData(res);
         if (categoriesForSku.length === 0) {
           fetchCategories().then(setCategoriesForSku).catch(console.error);
@@ -81,6 +97,8 @@ export const MasterData: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load data', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -105,207 +123,112 @@ export const MasterData: React.FC = () => {
     setEditingItem(null);
   };
 
-  const handleToggleStatus = async (item: any) => {
-    const newStatus = item.status === 'Inactive' ? 'Active' : 'Inactive';
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
     try {
-      if (type === 'categories') await updateCategory(item.id, { status: newStatus });
-      else if (type === 'suppliers') await updateSupplier(item.id, { status: newStatus });
-      else if (type === 'units') await updateUnit(item.id, { status: newStatus });
-      else if (type === 'customers') await updateCustomer(item.id, { status: newStatus });
-      else if (type === 'skus') await updateSku(item.id, { status: newStatus });
-      successToast(`Status updated to ${newStatus}`);
-      loadData();
+      if (type === 'categories') await deleteCategory(id);
+      else if (type === 'suppliers') await deleteSupplier(id);
+      else if (type === 'units') await deleteUnit(id);
+      else if (type === 'customers') await deleteCustomer(id);
+      else if (type === 'skus') await deleteSku(id);
+      successToast('Deleted successfully');
+      loadData(searchTerm);
     } catch (error: any) {
-      console.error('Error updating status', error);
-      errorToast(error?.response?.data?.error || 'Failed to update status.');
-    }
-  };
-
-  const handleBulkUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setUploadingBulk(true);
-      if (type === 'categories') await bulkUploadCategories(file);
-      else if (type === 'suppliers') await bulkUploadSuppliers(file);
-      else if (type === 'units') await bulkUploadUnits(file);
-      else if (type === 'customers') await bulkUploadCustomers(file);
-      else if (type === 'skus') await bulkUploadSkus(file);
-      
-      successToast('Bulk upload successful');
-      setIsBulkUploadModalOpen(false);
-      loadData();
-    } catch (error: any) {
-      console.error('Bulk upload error', error);
-      errorToast(error?.response?.data?.error || 'Bulk upload failed');
-    } finally {
-      setUploadingBulk(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      console.error('Error deleting data', error);
+      errorToast(error?.response?.data?.error || 'Failed to delete. It might be in use.');
     }
   };
 
   if (!isValidType) return null;
 
   return (
-    <div className="w-full">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">{getTitle()}</h1>
-        <p className="text-gray-500 mt-1">Manage {type} data for the system.</p>
-      </div>
-
-      <div className="bg-white shadow-xs border border-gray-200/80 rounded-2xl p-5 sm:p-6 space-y-5">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-primary-50 text-primary-700 rounded-xl">
-                <Database className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 capitalize tracking-tight">
-                  {type === 'skus' ? 'Product Master' : type} List
-                </h2>
-                <p className="text-xs text-gray-500 mt-0.5">Manage and organize all {type} data records</p>
-              </div>
-            </div>
-            <div className="flex flex-row gap-2.5 w-full sm:w-auto justify-end">
-              <button
-                type="button"
-                onClick={() => setIsBulkUploadModalOpen(true)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 transition-all shadow-2xs cursor-pointer"
-              >
-                Bulk Upload
-              </button>
-              <button 
-                type="button"
-                onClick={() => openModal()}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" /> Add New
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between pt-2">
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input 
-                  type="text" 
-                  placeholder={`Search ${type}...`} 
-                  className="pl-9 pr-4 py-2 bg-gray-50/70 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all w-full text-gray-800 placeholder:text-gray-400"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-              <div className="relative flex-shrink-0 w-full sm:w-auto">
-                <Filter className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <select
-                  className="pl-8 pr-8 py-2 bg-gray-50/70 border border-gray-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all appearance-none cursor-pointer text-gray-700 font-medium"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                >
-                  <option value="ALL">All Status</option>
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-                <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                  <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-              </div>
-              {(search || statusFilter !== 'ALL') && (
-                <button
-                  type="button"
-                  onClick={() => { setSearch(''); setStatusFilter('ALL'); }}
-                  className="text-xs text-rose-600 hover:text-rose-700 font-semibold px-2 transition-colors whitespace-nowrap cursor-pointer"
-                >
-                  Clear Filters
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <DataTable
+    <DashboardLayout>
+      <ListViewLayout
+        title={getTitle()}
+        description={`Manage ${type === 'skus' ? 'Product Master' : type} data for the system.`}
+        onAdd={() => type === 'skus' ? navigate('/products/new') : openModal()}
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder={type === 'skus' ? "Search by Name, SKU code, Category..." : "Search..."}
+      >
+        <CompactTable
           data={data}
-          paginate={true}
-          defaultPageSize={10}
-          emptyText={`No ${type} records available`}
+          loading={loading}
           columns={[
             {
-              header: 'Name',
-              id: 'name',
-              className: 'w-1/3',
-              cell: ({ row }) => <span className="whitespace-nowrap text-gray-900 font-semibold">{row.name}</span>
+              key: 'name',
+              title: 'Name',
+              render: (val, row) => (
+                <span 
+                  onClick={() => type === 'skus' && navigate(`/products/edit?id=${row.id}`)} 
+                  className={type === 'skus' ? 'font-semibold text-primary-700 hover:underline cursor-pointer' : 'font-medium text-gray-900'}
+                >
+                  {val}
+                </span>
+              )
             },
             ...((type === 'suppliers' || type === 'customers') ? [
               {
-                header: 'Contact',
-                id: 'contact',
-                cell: ({ row }: { row: any }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.contact || '-'}</span>
+                key: 'contact',
+                title: 'Contact',
+                render: (val, row) => <span className="text-gray-600">{row.contact || '-'}</span>
               },
               {
-                header: 'Email',
-                id: 'email',
-                cell: ({ row }: { row: any }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.email || '-'}</span>
+                key: 'email',
+                title: 'Email',
+                render: (val, row) => <span className="text-gray-600">{row.email || '-'}</span>
               }
-            ] : []),
+            ] as ColumnDef[] : []),
             ...(type === 'skus' ? [
               {
-                header: 'SKU Code',
-                id: 'sku',
-                cell: ({ row }: { row: any }) => (
-                  <span className="whitespace-nowrap font-mono text-xs font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-md">
+                key: 'sku',
+                title: 'SKU Code',
+                render: (val, row) => (
+                  <span 
+                    onClick={() => navigate(`/products/edit?id=${row.id}`)}
+                    className="font-mono text-xs text-primary-600 font-semibold hover:underline cursor-pointer"
+                  >
                     {row.sku}
                   </span>
                 )
               },
               {
-                header: 'Category',
-                id: 'category',
-                cell: ({ row }: { row: any }) => <span className="whitespace-nowrap text-gray-600 text-sm">{row.category?.name || '-'}</span>
+                key: 'category',
+                title: 'Category',
+                render: (val, row) => <span className="text-gray-600">{row.category?.name || '-'}</span>
               }
-            ] : []),
+            ] as ColumnDef[] : []),
             {
-              header: 'Active Status',
-              id: 'active_status',
-              cell: ({ row }) => <StatusBadge status={row.status || 'Active'} />
-            },
-            {
-              header: 'Actions',
-              id: 'actions',
-              className: 'text-right',
-              cell: ({ row }) => (
-                <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-                  <Tooltip title="Edit">
-                    <IconButton size="small" color="primary" onClick={() => openModal(row)}>
+              key: 'actions',
+              title: 'Actions',
+              render: (_, row) => (
+                <div className="flex items-center gap-2">
+                  <Tooltip title="Edit Item Details">
+                    <IconButton 
+                      size="small" 
+                      color="primary" 
+                      onClick={() => type === 'skus' ? navigate(`/products/edit?id=${row.id}`) : openModal(row)}
+                    >
                       <Pencil className="w-4 h-4" />
                     </IconButton>
                   </Tooltip>
-                  <Tooltip title={row.status === 'Inactive' ? "Enable" : "Disable"}>
-                    <button 
-                      onClick={() => handleToggleStatus(row)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                        row.status === 'Inactive'
-                          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                          : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
-                      }`}
-                    >
-                      {row.status === 'Inactive' ? "Enable" : "Disable"}
-                    </button>
+                  <Tooltip title="Delete">
+                    <IconButton size="small" color="error" onClick={() => handleDelete(row.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </IconButton>
                   </Tooltip>
                 </div>
               )
             }
           ]}
         />
-      </div>
+      </ListViewLayout>
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
             <h2 className="text-lg font-bold text-gray-900 mb-5">
-              {editingItem ? 'Edit' : 'Add New'} {type === 'categories' ? 'Category' : type === 'suppliers' ? 'Supplier' : type === 'customers' ? 'Customer' : type === 'skus' ? 'Product Master' : 'Unit'}
+              {editingItem ? 'Edit' : 'Add New'} {type === 'categories' ? 'Category' : type === 'suppliers' ? 'Supplier' : type === 'customers' ? 'Customer' : type === 'skus' ? 'Product' : 'Unit'}
             </h2>
             
             <Formik
@@ -476,70 +399,8 @@ export const MasterData: React.FC = () => {
           </div>
         </div>
       )}
-      {/* Bulk Upload Modal */}
-      {isBulkUploadModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Bulk Upload {type}</h2>
-            <p className="text-sm text-gray-500">Upload an Excel (.xlsx, .xls) file containing your data. Missing standard required fields like 'name' will be skipped.</p>
-            <button 
-              type="button"
-              className="text-primary font-bold text-sm mb-6 hover:underline"
-              onClick={() => {
-                let headers = 'name';
-                if (type === 'suppliers' || type === 'customers') headers = 'name,contact,email';
-                if (type === 'skus') headers = 'name,sku';
-                
-                const csvContent = "data:text/csv;charset=utf-8," + headers + "\n";
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `${type}_sample.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }}
-            >
-              Download sample template.
-            </button>
-            
-            <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 flex flex-col items-center justify-center bg-gray-50 mb-6">
-              <Database className="w-10 h-10 text-gray-400 mb-3" />
-              <p className="text-sm text-gray-600 text-center mb-4">Select an Excel file from your computer</p>
-              
-              <input 
-                type="file"
-                accept=".xlsx, .xls, .csv"
-                className="hidden"
-                ref={fileInputRef}
-                onChange={handleBulkUpload}
-              />
-              
-              <Button 
-                variant="contained" 
-                color="primary"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingBulk}
-                sx={{ borderRadius: '9999px', textTransform: 'none', px: 4 }}
-              >
-                {uploadingBulk ? 'Uploading...' : 'Choose file'}
-              </Button>
-            </div>
-            
-            <div className="flex justify-end pt-2">
-              <Button 
-                variant="text" 
-                color="inherit" 
-                onClick={() => setIsBulkUploadModalOpen(false)}
-                disabled={uploadingBulk}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </DashboardLayout>
   );
 };
+export const MasterData = WithAuth(MasterDataBase, ModuleName.MASTER_DATA, Permission.LIST);
 export default MasterData;

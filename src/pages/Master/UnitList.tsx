@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import WithAuth from '../../components/WithAuth';
+import { ModuleName, Permission } from '../../helper/constants';
 import { ERPListPageLayout, ERPBulkImportModal, type QuickFilterField, type FilterRule } from '../../components/ERPList';
 import { type ColumnDef } from '../../components/CustomTable';
 import { 
@@ -29,32 +30,11 @@ import {
   Edit3, 
   X 
 } from 'lucide-react';
+import { formatFullDateTime } from '../../helper/helper';
 
 const unitSchema = Yup.object({
   name: Yup.string().trim().required('Unit name is required')
 });
-
-const formatRelativeTime = (dateInput?: string | Date): string => {
-  if (!dateInput) return '2 d';
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return '2 d';
-
-  const now = new Date();
-  const diffMs = Math.max(0, now.getTime() - d.getTime());
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-  const diffMonth = Math.floor(diffDay / 30);
-  const diffYear = Math.floor(diffDay / 365);
-
-  if (diffSec < 60) return `${Math.max(1, diffSec)} s`;
-  if (diffMin < 60) return `${diffMin} m`;
-  if (diffHour < 24) return `${diffHour} h`;
-  if (diffDay < 30) return `${diffDay} d`;
-  if (diffMonth < 12) return `${diffMonth} M`;
-  return `${diffYear} y`;
-};
 
 const INITIAL_UNITS: any[] = [];
 
@@ -366,10 +346,20 @@ const UnitListBase: React.FC = () => {
       )
     },
     {
+      key: 'updatedAt',
+      title: 'Updated At',
+      width: '240px',
+      render: (_, row) => (
+        <span className="text-xs text-gray-600 font-mono font-medium">
+          {formatFullDateTime(row.updatedAt)}
+        </span>
+      )
+    },
+    {
       key: 'meta',
       title: '',
       align: 'right',
-      width: '130px',
+      width: '90px',
       headerRender: ({ currentPageCount, totalCount }) => (
         <div className="flex items-center justify-end gap-2 font-normal text-gray-500 lowercase text-xs select-none">
           <span>{currentPageCount} of {totalCount.toLocaleString()}</span>
@@ -387,12 +377,8 @@ const UnitListBase: React.FC = () => {
       ),
       render: (_, row) => {
         const isFav = favorites[row.id];
-        const timeAgo = formatRelativeTime(row.updatedAt);
         return (
           <div className="flex items-center justify-end gap-3 text-gray-500 text-xs select-none">
-            <span className="text-[11px] font-medium text-gray-500 min-w-[28px] text-right">
-              {timeAgo}
-            </span>
             <div className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors" title="Comments">
               <MessageSquare className="w-3 h-3 text-gray-400" />
               <span>0</span>
@@ -637,5 +623,5 @@ const UnitListBase: React.FC = () => {
   );
 };
 
-export const UnitList = WithAuth(UnitListBase);
+export const UnitList = WithAuth(UnitListBase, ModuleName.UNIT, Permission.LIST);
 export default UnitList;

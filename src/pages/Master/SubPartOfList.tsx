@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import WithAuth from '../../components/WithAuth';
+import { ModuleName, Permission } from '../../helper/constants';
 import { ERPListPageLayout, ERPBulkImportModal, type QuickFilterField } from '../../components/ERPList';
 import { type ColumnDef } from '../../components/CustomTable';
 import { 
@@ -17,24 +18,6 @@ import {
   Heart, 
   MessageSquare 
 } from 'lucide-react';
-
-const formatRelativeTime = (dateInput?: string | Date): string => {
-  if (!dateInput) return 'recently';
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return 'recently';
-
-  const now = new Date();
-  const diffMs = Math.max(0, now.getTime() - d.getTime());
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHour = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHour / 24);
-
-  if (diffSec < 60) return `${Math.max(1, diffSec)} s`;
-  if (diffMin < 60) return `${diffMin} m`;
-  if (diffHour < 24) return `${diffHour} h`;
-  return `${diffDay} d`;
-};
 
 const QUICK_FILTER_FIELDS: QuickFilterField[] = [
   { key: 'id', placeholder: 'ID', className: 'w-24 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-2.5 py-1 text-xs outline-none' },
@@ -328,5 +311,5 @@ const SubPartOfListBase: React.FC = () => {
   );
 };
 
-export const SubPartOfList = WithAuth(SubPartOfListBase);
+export const SubPartOfList = WithAuth(SubPartOfListBase, ModuleName.SUB_PART_OF, Permission.LIST);
 export default SubPartOfList;

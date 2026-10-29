@@ -71,6 +71,7 @@ export const InventoryTable: React.FC = () => {
         await deleteProduct(id);
         successToast('Material deleted successfully');
         loadData();
+        
       } catch (error: any) {
         console.error('Error deleting product', error);
         errorToast(error?.response?.data?.error || 'Failed to delete product');
@@ -135,7 +136,7 @@ export const InventoryTable: React.FC = () => {
               <Button 
                 variant="contained"
                 color="primary"
-                onClick={() => navigate('/inventory/new')}
+                onClick={() => navigate('/products/new')}
                 sx={{ px: { xs: 1.5, sm: 3 }, py: 1, whiteSpace: 'nowrap', minWidth: 'auto', fontSize: { xs: '0.8125rem', sm: '0.875rem' }, fontWeight: 600, borderRadius: '9999px' }}
               >
                 Add Stock
@@ -214,7 +215,7 @@ export const InventoryTable: React.FC = () => {
               cell: ({ row }) => (
                 <div
                   className="whitespace-nowrap cursor-pointer group"
-                  onClick={() => navigate(`/inventory/edit?id=${row.id}`)}
+                  onClick={() => navigate(`/products/edit?id=${row.id}`)}
                 >
                   <p className="font-bold text-gray-900 group-hover:text-primary group-hover:underline transition-colors">{row.name}</p>
                   <p className="text-xs text-gray-400">SKU: {row.sku}</p>
@@ -249,8 +250,8 @@ export const InventoryTable: React.FC = () => {
               id: 'wac',
               cell: ({ row }) => (
                 <div className="whitespace-nowrap">
-                  <p className="text-gray-600 text-sm">Price: {format(row.wacPrice || row.cost_price || 0)}</p>
-                  <p className="font-medium text-primary text-sm">Total: {format(row.wacValue || (Number(row.quantity || 0) * Number(row.cost_price || 0)))}</p>
+                  <p className="text-gray-600 text-sm">Price: {format((row as any).wacPrice || row.cost_price || 0)}</p>
+                  <p className="font-medium text-primary text-sm">Total: {format((row as any).wacValue || (Number(row.quantity || 0) * Number(row.cost_price || 0)))}</p>
                 </div>
               )
             },
@@ -259,8 +260,8 @@ export const InventoryTable: React.FC = () => {
               id: 'fifo',
               cell: ({ row }) => (
                 <div className="whitespace-nowrap">
-                  <p className="text-gray-600 text-sm">Price: {format(row.fifoPrice || row.cost_price || 0)}</p>
-                  <p className="font-medium text-primary text-sm">Total: {format(row.fifoValue || (Number(row.quantity || 0) * Number(row.cost_price || 0)))}</p>
+                  <p className="text-gray-600 text-sm">Price: {format((row as any).fifoPrice || row.cost_price || 0)}</p>
+                  <p className="font-medium text-primary text-sm">Total: {format((row as any).fifoValue || (Number(row.quantity || 0) * Number(row.cost_price || 0)))}</p>
                 </div>
               )
             },
@@ -284,7 +285,7 @@ export const InventoryTable: React.FC = () => {
               cell: ({ row }) => (
                 <div className="flex items-center justify-end gap-2 whitespace-nowrap">
                   <Tooltip title="Edit">
-                    <IconButton size="small" color="primary" onClick={() => navigate(`/inventory/edit?id=${row.id}`)}>
+                    <IconButton size="small" color="primary" onClick={() => navigate(`/products/edit?id=${row.id}`)}>
                       <Pencil className="w-4 h-4" 
                       />
                     </IconButton>

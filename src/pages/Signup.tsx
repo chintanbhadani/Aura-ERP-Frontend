@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
-import { Leaf } from 'lucide-react';
+import { AuraLogo } from '../components/AuraLogo';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -22,9 +22,7 @@ export default function Signup() {
   return (
     <AuthLayout>
       <div className="mb-10 lg:hidden flex items-center justify-center">
-        <div className="w-16 h-16 bg-primary-50 rounded-2xl flex items-center justify-center">
-          <Leaf className="text-primary-600" size={32} />
-        </div>
+        <AuraLogo variant="prism" size={48} showText={true} />
       </div>
       
       <div className="mb-8">

@@ -1,6 +1,5 @@
 import React from 'react';
-import { TextField } from '@mui/material';
-import { useField, useFormikContext } from 'formik';
+import { TextFieldComponent } from './TextFieldComponent';
 
 export interface DatePickerComponentProps {
   name: string;
@@ -11,6 +10,8 @@ export interface DatePickerComponentProps {
   size?: 'small' | 'medium';
   sx?: any;
   helperText?: string;
+  placeholder?: string;
+  required?: boolean;
 }
 
 export const DatePickerComponent: React.FC<DatePickerComponentProps> = ({
@@ -21,32 +22,36 @@ export const DatePickerComponent: React.FC<DatePickerComponentProps> = ({
   fullWidth = true,
   size = 'small',
   sx = {},
-  helperText
+  helperText,
+  placeholder,
+  required
 }) => {
-  const { setFieldValue } = useFormikContext<any>();
-  const [field, meta] = useField(name);
-
   return (
-    <TextField
+    <TextFieldComponent
       type="date"
-      label={label}
       name={name}
-      value={field.value || ''}
-      onChange={(e) => {
-        setFieldValue(name, e.target.value);
-        onChange && onChange(e.target.value);
-      }}
+      label={label}
       disabled={disabled}
       fullWidth={fullWidth}
       size={size}
-      slotProps={{
-        inputLabel: {
-          shrink: true
-        }
+      placeholder={placeholder}
+      required={required}
+      helperText={helperText}
+      sx={{
+        '& input[type="date"]::-webkit-calendar-picker-indicator': {
+          cursor: 'pointer',
+          opacity: 0.7,
+          transition: 'opacity 0.2s',
+          '&:hover': {
+            opacity: 1,
+          }
+        },
+        ...sx
       }}
-      error={Boolean(meta.touched && meta.error)}
-      helperText={meta.touched && meta.error ? meta.error : (helperText || '')}
-      sx={sx}
+      onChange={(e: any) => {
+        const val = e?.target ? e.target.value : e;
+        onChange && onChange(val);
+      }}
     />
   );
 };

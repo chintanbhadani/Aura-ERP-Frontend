@@ -550,6 +550,40 @@ export const createInvoice = async (data: any): Promise<any> => {
   return response.data;
 };
 
+export const fetchInvoiceById = async (id: string): Promise<any> => {
+  const response = await dataService.get(`/invoices/${id}`);
+  return response.data;
+};
+
+export const deleteInvoice = async (id: string): Promise<any> => {
+  const response = await dataService.delete(`/invoices/${id}`);
+  return response.data;
+};
+
+export interface AvailableBatch {
+  purchaseItemId: string;
+  poNumber: string;
+  date: string;
+  supplierName: string;
+  unitCost: number;
+  initialQuantity: number;
+  availableQuantity: number;
+}
+
+export interface ProductBatchData {
+  productId: string;
+  productName: string;
+  sku: string;
+  totalStock: number;
+  defaultSellingPrice: number;
+  batches: AvailableBatch[];
+}
+
+export const fetchAvailableBatches = async (productId: string): Promise<ProductBatchData> => {
+  const response = await dataService.get(`/invoices/available-batches/${productId}`);
+  return response.data;
+};
+
 export const fetchStockEntries = async (params?: Record<string, string>): Promise<any[]> => {
   const response = await dataService.get('/stock-entries', { params });
   return response.data;
@@ -1208,6 +1242,69 @@ export const fetchDailyCashFlow = async (startDate?: string, endDate?: string): 
   
   const url = `/reports/daily-cash-flow${params.toString() ? `?${params.toString()}` : ''}`;
   const response = await dataService.get(url);
+  return response.data;
+};
+
+export interface SalesReportBatch {
+  poNumber: string;
+  supplierName: string;
+  supplierId?: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  totalRevenue: number;
+  profit: number;
+}
+
+export interface SalesReportRow {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  date: string;
+  paymentType: string;
+  clientName: string;
+  clientContact?: string;
+  customerId?: string;
+  productId?: string;
+  itemCode: string;
+  itemName: string;
+  categoryName?: string;
+  uom: string;
+  quantity: number;
+  purchasePrice: number;
+  salesPrice: number;
+  totalCost: number;
+  totalSales: number;
+  grossProfit: number;
+  marginPct: number;
+  supplierName: string;
+  poReference: string;
+  batches: SalesReportBatch[];
+}
+
+export interface SalesReportSummary {
+  totalUnits: number;
+  totalRevenue: number;
+  totalCost: number;
+  totalProfit: number;
+  overallMargin: number;
+  totalInvoices: number;
+}
+
+export interface SalesReportResponse {
+  rows: SalesReportRow[];
+  summary: SalesReportSummary;
+}
+
+export const fetchSalesReport = async (params?: {
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  customerId?: string;
+  supplierId?: string;
+  productId?: string;
+}): Promise<SalesReportResponse> => {
+  const response = await dataService.get('/reports/sales-summary', { params });
   return response.data;
 };
 

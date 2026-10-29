@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, User } from 'lucide-react';
-import { Button } from '@mui/material';
+import { ChevronRight } from 'lucide-react';
+import { Button } from '../components/Button';
+import { DashboardLayout } from './DashboardLayout';
 
 export interface Breadcrumb {
   label: string;
@@ -21,6 +22,7 @@ export interface FormPageLayoutProps {
   onSave?: () => void;
   onCancel?: () => void;
   isSubmitting?: boolean;
+  isDirty?: boolean;
 }
 
 export const FormPageLayout: React.FC<FormPageLayoutProps> = ({
@@ -29,52 +31,57 @@ export const FormPageLayout: React.FC<FormPageLayoutProps> = ({
   children,
   onSave,
   onCancel,
-  isSubmitting = false
+  isSubmitting = false,
+  isDirty = false
 }) => {
   return (
-    <div className="w-full pb-12 flex justify-center">
-      {/* Main Content Area */}
-      <div className="w-full max-w-5xl min-w-0">
+    <DashboardLayout>
+      <div className="p-3 lg:p-4 space-y-4 w-full flex flex-col h-full bg-gray-50/30 font-sans overflow-y-auto">
         {/* Top Header & Breadcrumbs */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             {breadcrumbs && breadcrumbs.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500 mb-2">
+              <div className="flex flex-wrap items-center gap-2 text-[13px] text-gray-500 mb-1.5">
                 {breadcrumbs.map((bc, idx) => (
                   <React.Fragment key={idx}>
                     {bc.path ? (
-                      <Link to={bc.path} className="hover:text-primary transition-colors">
+                      <Link to={bc.path} className="hover:text-primary-600 transition-colors">
                         {bc.label}
                       </Link>
                     ) : (
                       <span className="text-gray-900 font-medium">{bc.label}</span>
                     )}
-                    {idx < breadcrumbs.length - 1 && <ChevronRight className="w-4 h-4 shrink-0" />}
+                    {idx < breadcrumbs.length - 1 && <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
                   </React.Fragment>
                 ))}
               </div>
             )}
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{title}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{title}</h1>
+              {isDirty && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-red-50 text-red-600 border border-red-200">
+                  Not Saved
+                </span>
+              )}
+            </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             {onCancel && (
               <Button 
-                variant="text" 
-                color="inherit" 
+                variant="outline" 
                 onClick={onCancel}
-                sx={{ px: 3, fontWeight: 600, color: 'text.secondary' }}
+                size="sm"
               >
                 Cancel
               </Button>
             )}
             {onSave && (
               <Button 
-                variant="contained" 
-                color="primary" 
+                variant="primary" 
                 onClick={onSave}
+                size="sm"
                 disabled={isSubmitting}
-                sx={{ px: 4, fontWeight: 600 }}
               >
                 {isSubmitting ? 'Saving...' : 'Save'}
               </Button>
@@ -83,13 +90,13 @@ export const FormPageLayout: React.FC<FormPageLayoutProps> = ({
         </div>
 
         {/* Form Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-1">
           {/* Form Content */}
-          <div className="p-3 sm:p-6 md:p-8">
+          <div className="p-4 md:p-6">
             {children}
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
