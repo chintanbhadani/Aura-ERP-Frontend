@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LineChart } from '@mui/x-charts/LineChart';
 import { 
   GripVertical, 
   Search, 
@@ -103,7 +104,6 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [compareDates, setCompareDates] = useState(false);
   const [activeMarketplace, setActiveMarketplace] = useState('All Channels (1)');
-  const [hoveredPointIdx, setHoveredPointIdx] = useState<number | null>(null);
 
   const [currentTime, setCurrentTime] = useState(() => {
     const now = new Date();
@@ -441,13 +441,6 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   const totalCost = useMemo(() => bucketData.reduce((acc, b) => acc + b.cost, 0), [bucketData]);
   const marginPct = totalSales > 0 ? ((totalSales - totalCost) / totalSales) * 100 : 0;
 
-  // Chart Geometry Calculations
-  const chartHeight = 160;
-  const paddingLeft = 55;
-  const paddingRight = 20;
-  const paddingTop = 20;
-  const paddingBottom = 30;
-
   const maxSales = useMemo(() => {
     const highest = Math.max(...bucketData.map(b => Math.max(b.sales, b.prevSales || 0)), 100);
     return Math.ceil(highest * 1.15);
@@ -470,33 +463,38 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
     all: 'All time',
   };
 
-  // Helper for generating SVG polyline path
-  const generatePath = (
-    pts: BucketPoint[],
-    valKey: 'sales' | 'units' | 'prevSales' | 'prevUnits',
-    max: number,
-    width: number
-  ) => {
-    if (pts.length === 0) return '';
-    const usableW = width - paddingLeft - paddingRight;
-    const usableH = chartHeight - paddingTop - paddingBottom;
+  const currentPeriodLabel =
+    dateRange === 'today'
+      ? 'Today so far'
+      : dateRange === 'yesterday'
+      ? 'Yesterday'
+      : dateRange === '7days'
+      ? 'Last 7 days'
+      : dateRange === '30days'
+      ? 'Last 30 days'
+      : dateRange === 'thisMonth'
+      ? 'This month'
+      : 'Current period';
 
-    const coords = pts.map((p, i) => {
-      const x = paddingLeft + (i / (pts.length - 1 || 1)) * usableW;
-      const rawVal = p[valKey] || 0;
-      const y = paddingTop + usableH - (rawVal / max) * usableH;
-      return { x, y };
-    });
-
-    return coords.reduce((acc, pt, i) => `${acc} ${i === 0 ? 'M' : 'L'} ${pt.x} ${pt.y}`, '');
-  };
+  const prevPeriodLabel =
+    dateRange === 'today'
+      ? 'Yesterday'
+      : dateRange === 'yesterday'
+      ? 'Same day last week'
+      : 'Previous period';
 
   // Format currency shorthand (₹0.00, ₹10k, etc.)
-  const formatYAxis = (val: number) => {
-    if (val === 0) return `${curSymbol}0.00`;
+  const formatSalesYAxis = (val: number | null) => {
+    if (val === null || val === 0) return `${curSymbol}0.00`;
     if (val >= 100000) return `${curSymbol}${(val / 100000).toFixed(1)}L`;
     if (val >= 1000) return `${curSymbol}${(val / 1000).toFixed(0)}k`;
     return `${curSymbol}${val}`;
+  };
+
+  const formatUnitsYAxis = (val: number | null) => {
+    if (val === null || val === 0) return '0';
+    if (val >= 1000) return `${(val / 1000).toFixed(0)}k`;
+    return `${val}`;
   };
 
   return (
@@ -644,325 +642,223 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
         </div>
       </div>
 
-      {/* 4. Side-by-Side Dual Real Sales Graphs: Sales (₹) on Left, Units on Right */}
+      {/* 4. Side-by-Side Dual Real Sales Graphs: Sales on Left, Units on Right via MUI LineChart */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
         {/* Left Chart: Ordered Product Sales */}
-        <div className="flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col justify-between bg-white rounded-2xl border border-gray-100 p-3 shadow-2xs">
+          <div className="flex items-center justify-between mb-1 px-2 pt-1">
             <span className="text-xs font-bold text-gray-700">Ordered Product Sales ({curSymbol})</span>
-            {hoveredPointIdx !== null && bucketData[hoveredPointIdx] && (
-              <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                {bucketData[hoveredPointIdx].label}: {format(bucketData[hoveredPointIdx].sales)}
-              </span>
-            )}
+            <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+              Total: {format(totalSales)}
+            </span>
           </div>
 
-          {/* SVG Line Graph */}
-          <div className="relative w-full h-44">
-            <svg
-              viewBox="0 0 500 160"
-              preserveAspectRatio="none"
-              className="w-full h-full overflow-visible"
-              onMouseLeave={() => setHoveredPointIdx(null)}
-            >
-              {/* Horizontal Gridlines & Y-Axis Labels */}
-              {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
-                const y = paddingTop + (chartHeight - paddingTop - paddingBottom) * (1 - pct);
-                const val = maxSales * pct;
-                return (
-                  <g key={i}>
-                    <line
-                      x1={paddingLeft}
-                      y1={y}
-                      x2={500 - paddingRight}
-                      y2={y}
-                      stroke="#e5e7eb"
-                      strokeWidth={1}
-                      strokeDasharray={pct === 0 ? 'none' : '3 3'}
-                    />
-                    <text
-                      x={paddingLeft - 8}
-                      y={y + 3}
-                      textAnchor="end"
-                      fill="#9ca3af"
-                      fontSize={9}
-                      fontFamily="monospace"
-                    >
-                      {formatYAxis(val)}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Previous Period Line (if compare dates is enabled) */}
-              {compareDates && (
-                <path
-                  d={generatePath(bucketData, 'prevSales', maxSales, 500)}
-                  fill="none"
-                  stroke="#9ca3af"
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                />
-              )}
-
-              {/* Main Sales Trend Line (Amazon Blue #007185 / #146eb4) */}
-              <path
-                d={generatePath(bucketData, 'sales', maxSales, 500)}
-                fill="none"
-                stroke="#146eb4"
-                strokeWidth={2.2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {/* Data points & hover interactive hit areas */}
-              {bucketData.map((pt, idx) => {
-                const usableW = 500 - paddingLeft - paddingRight;
-                const usableH = chartHeight - paddingTop - paddingBottom;
-                const x = paddingLeft + (idx / (bucketData.length - 1 || 1)) * usableW;
-                const y = paddingTop + usableH - (pt.sales / maxSales) * usableH;
-                const isHovered = hoveredPointIdx === idx;
-
-                return (
-                  <g key={idx} className="cursor-pointer" onMouseEnter={() => setHoveredPointIdx(idx)}>
-                    {/* Hover Vertical Line */}
-                    {isHovered && (
-                      <line
-                        x1={x}
-                        y1={paddingTop}
-                        x2={x}
-                        y2={chartHeight - paddingBottom}
-                        stroke="#146eb4"
-                        strokeWidth={1.5}
-                        strokeDasharray="2 2"
-                      />
-                    )}
-
-                    {/* Circle Point */}
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={isHovered ? 4.5 : pt.sales > 0 ? 3.5 : 2}
-                      fill={isHovered ? '#146eb4' : '#ffffff'}
-                      stroke="#146eb4"
-                      strokeWidth={isHovered ? 2 : 1.8}
-                    />
-
-                    {/* Invisible Hitbox */}
-                    <rect
-                      x={x - 12}
-                      y={0}
-                      width={24}
-                      height={chartHeight}
-                      fill="transparent"
-                    />
-
-                    {/* X-axis tick label (every 2-3 ticks if dense) */}
-                    {(bucketData.length <= 8 || idx % Math.ceil(bucketData.length / 8) === 0 || idx === bucketData.length - 1) && (
-                      <text
-                        x={x}
-                        y={chartHeight - 12}
-                        textAnchor="middle"
-                        fill="#6b7280"
-                        fontSize={9}
-                        fontWeight={isHovered ? 700 : 500}
-                      >
-                        {pt.label}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
+          <div className="w-full h-48">
+            <LineChart
+              xAxis={[
+                {
+                  data: bucketData.map(b => b.label),
+                  scaleType: 'point',
+                  tickLabelStyle: {
+                    fontSize: 9,
+                    fill: '#6b7280',
+                  },
+                  tickLabelInterval: (val, index) => {
+                    if (bucketData.length <= 8) return true;
+                    const step = Math.ceil(bucketData.length / 8);
+                    return index % step === 0 || index === bucketData.length - 1;
+                  },
+                },
+              ]}
+              yAxis={[
+                {
+                  valueFormatter: (value: number | null) => formatSalesYAxis(value),
+                  tickLabelStyle: {
+                    fontSize: 9,
+                    fill: '#9ca3af',
+                    fontFamily: 'monospace',
+                  },
+                  min: 0,
+                  max: maxSales,
+                },
+              ]}
+              series={[
+                {
+                  id: 'current-sales',
+                  data: bucketData.map(b => b.sales),
+                  label: currentPeriodLabel,
+                  color: '#146eb4',
+                  curve: 'linear' as const,
+                  showMark: true,
+                  valueFormatter: (val: number | null) => format(val ?? 0),
+                },
+                ...(compareDates
+                  ? [
+                      {
+                        id: 'prev-sales',
+                        data: bucketData.map(b => b.prevSales ?? 0),
+                        label: prevPeriodLabel,
+                        color: '#9ca3af',
+                        curve: 'linear' as const,
+                        showMark: false,
+                        valueFormatter: (val: number | null) => format(val ?? 0),
+                      },
+                    ]
+                  : []),
+              ]}
+              height={190}
+              margin={{ left: 55, right: 15, top: 15, bottom: 25 }}
+              grid={{ horizontal: true }}
+              sx={{
+                width: '100%',
+                '& .MuiChartsLegend-root': {
+                  display: 'none',
+                },
+                '& .MuiChartsGrid-line': {
+                  strokeDasharray: '3 3',
+                  stroke: '#e5e7eb',
+                },
+                '& .MuiChartsAxis-line': {
+                  stroke: '#e5e7eb',
+                },
+                '& .MuiChartsAxis-tick': {
+                  stroke: '#cbd5e1',
+                },
+                '& .MuiLineElement-root': {
+                  strokeWidth: 2.2,
+                },
+                '& .MuiLineElement-series-prev-sales': {
+                  strokeDasharray: '4 4',
+                  strokeWidth: 2,
+                },
+                '& .MuiMarkElement-root': {
+                  strokeWidth: 1.8,
+                  fill: '#ffffff',
+                },
+              }}
+            />
           </div>
 
           {/* Bottom Legend */}
-          <div className="flex items-center gap-4 text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-4 text-[11px] text-gray-500 mt-1 pt-2 border-t border-gray-100 px-2">
             <div className="flex items-center gap-1.5 font-medium">
               <span className="w-4 h-0.5 bg-[#146eb4] inline-block rounded" />
-              <span>
-                {dateRange === 'today'
-                  ? 'Today so far'
-                  : dateRange === 'yesterday'
-                  ? 'Yesterday'
-                  : dateRange === '7days'
-                  ? 'Last 7 days'
-                  : dateRange === '30days'
-                  ? 'Last 30 days'
-                  : dateRange === 'thisMonth'
-                  ? 'This month'
-                  : 'Current period'}
-              </span>
+              <span>{currentPeriodLabel}</span>
             </div>
             {compareDates && (
               <div className="flex items-center gap-1.5 text-gray-400">
                 <span className="w-4 h-0.5 border-t border-dashed border-gray-400 inline-block" />
-                <span>
-                  {dateRange === 'today'
-                    ? 'Yesterday'
-                    : dateRange === 'yesterday'
-                    ? 'Same day last week'
-                    : 'Previous period'}
-                </span>
+                <span>{prevPeriodLabel}</span>
               </div>
             )}
           </div>
         </div>
 
         {/* Right Chart: Units Ordered */}
-        <div className="flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col justify-between bg-white rounded-2xl border border-gray-100 p-3 shadow-2xs">
+          <div className="flex items-center justify-between mb-1 px-2 pt-1">
             <span className="text-xs font-bold text-gray-700">Units Ordered</span>
-            {hoveredPointIdx !== null && bucketData[hoveredPointIdx] && (
-              <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                {bucketData[hoveredPointIdx].label}: {bucketData[hoveredPointIdx].units.toLocaleString()} units
-              </span>
-            )}
+            <span className="text-xs font-mono font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+              Total: {totalUnits.toLocaleString()} units
+            </span>
           </div>
 
-          {/* SVG Line Graph for Units */}
-          <div className="relative w-full h-44">
-            <svg
-              viewBox="0 0 500 160"
-              preserveAspectRatio="none"
-              className="w-full h-full overflow-visible"
-              onMouseLeave={() => setHoveredPointIdx(null)}
-            >
-              {/* Horizontal Gridlines & Y-Axis Labels */}
-              {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
-                const y = paddingTop + (chartHeight - paddingTop - paddingBottom) * (1 - pct);
-                const val = Math.round(maxUnits * pct);
-                return (
-                  <g key={i}>
-                    <line
-                      x1={paddingLeft}
-                      y1={y}
-                      x2={500 - paddingRight}
-                      y2={y}
-                      stroke="#e5e7eb"
-                      strokeWidth={1}
-                      strokeDasharray={pct === 0 ? 'none' : '3 3'}
-                    />
-                    <text
-                      x={paddingLeft - 8}
-                      y={y + 3}
-                      textAnchor="end"
-                      fill="#9ca3af"
-                      fontSize={9}
-                      fontFamily="monospace"
-                    >
-                      {val}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Previous Period Line for Units */}
-              {compareDates && (
-                <path
-                  d={generatePath(bucketData, 'prevUnits', maxUnits, 500)}
-                  fill="none"
-                  stroke="#9ca3af"
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                />
-              )}
-
-              {/* Main Units Trend Line (Amazon Blue) */}
-              <path
-                d={generatePath(bucketData, 'units', maxUnits, 500)}
-                fill="none"
-                stroke="#146eb4"
-                strokeWidth={2.2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-
-              {/* Data points & hover interactive hit areas */}
-              {bucketData.map((pt, idx) => {
-                const usableW = 500 - paddingLeft - paddingRight;
-                const usableH = chartHeight - paddingTop - paddingBottom;
-                const x = paddingLeft + (idx / (bucketData.length - 1 || 1)) * usableW;
-                const y = paddingTop + usableH - (pt.units / maxUnits) * usableH;
-                const isHovered = hoveredPointIdx === idx;
-
-                return (
-                  <g key={idx} className="cursor-pointer" onMouseEnter={() => setHoveredPointIdx(idx)}>
-                    {isHovered && (
-                      <line
-                        x1={x}
-                        y1={paddingTop}
-                        x2={x}
-                        y2={chartHeight - paddingBottom}
-                        stroke="#146eb4"
-                        strokeWidth={1.5}
-                        strokeDasharray="2 2"
-                      />
-                    )}
-
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={isHovered ? 4.5 : pt.units > 0 ? 3.5 : 2}
-                      fill={isHovered ? '#146eb4' : '#ffffff'}
-                      stroke="#146eb4"
-                      strokeWidth={isHovered ? 2 : 1.8}
-                    />
-
-                    <rect
-                      x={x - 12}
-                      y={0}
-                      width={24}
-                      height={chartHeight}
-                      fill="transparent"
-                    />
-
-                    {(bucketData.length <= 8 || idx % Math.ceil(bucketData.length / 8) === 0 || idx === bucketData.length - 1) && (
-                      <text
-                        x={x}
-                        y={chartHeight - 12}
-                        textAnchor="middle"
-                        fill="#6b7280"
-                        fontSize={9}
-                        fontWeight={isHovered ? 700 : 500}
-                      >
-                        {pt.label}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
+          <div className="w-full h-48">
+            <LineChart
+              xAxis={[
+                {
+                  data: bucketData.map(b => b.label),
+                  scaleType: 'point',
+                  tickLabelStyle: {
+                    fontSize: 9,
+                    fill: '#6b7280',
+                  },
+                  tickLabelInterval: (val, index) => {
+                    if (bucketData.length <= 8) return true;
+                    const step = Math.ceil(bucketData.length / 8);
+                    return index % step === 0 || index === bucketData.length - 1;
+                  },
+                },
+              ]}
+              yAxis={[
+                {
+                  valueFormatter: (value: number | null) => formatUnitsYAxis(value),
+                  tickLabelStyle: {
+                    fontSize: 9,
+                    fill: '#9ca3af',
+                    fontFamily: 'monospace',
+                  },
+                  min: 0,
+                  max: maxUnits,
+                },
+              ]}
+              series={[
+                {
+                  id: 'current-units',
+                  data: bucketData.map(b => b.units),
+                  label: currentPeriodLabel,
+                  color: '#146eb4',
+                  curve: 'linear' as const,
+                  showMark: true,
+                  valueFormatter: (val: number | null) => `${(val ?? 0).toLocaleString()} units`,
+                },
+                ...(compareDates
+                  ? [
+                      {
+                        id: 'prev-units',
+                        data: bucketData.map(b => b.prevUnits ?? 0),
+                        label: prevPeriodLabel,
+                        color: '#9ca3af',
+                        curve: 'linear' as const,
+                        showMark: false,
+                        valueFormatter: (val: number | null) => `${(val ?? 0).toLocaleString()} units`,
+                      },
+                    ]
+                  : []),
+              ]}
+              height={190}
+              margin={{ left: 50, right: 15, top: 15, bottom: 25 }}
+              grid={{ horizontal: true }}
+              sx={{
+                width: '100%',
+                '& .MuiChartsLegend-root': {
+                  display: 'none',
+                },
+                '& .MuiChartsGrid-line': {
+                  strokeDasharray: '3 3',
+                  stroke: '#e5e7eb',
+                },
+                '& .MuiChartsAxis-line': {
+                  stroke: '#e5e7eb',
+                },
+                '& .MuiChartsAxis-tick': {
+                  stroke: '#cbd5e1',
+                },
+                '& .MuiLineElement-root': {
+                  strokeWidth: 2.2,
+                },
+                '& .MuiLineElement-series-prev-units': {
+                  strokeDasharray: '4 4',
+                  strokeWidth: 2,
+                },
+                '& .MuiMarkElement-root': {
+                  strokeWidth: 1.8,
+                  fill: '#ffffff',
+                },
+              }}
+            />
           </div>
 
           {/* Bottom Legend */}
-          <div className="flex items-center gap-4 text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-4 text-[11px] text-gray-500 mt-1 pt-2 border-t border-gray-100 px-2">
             <div className="flex items-center gap-1.5 font-medium">
               <span className="w-4 h-0.5 bg-[#146eb4] inline-block rounded" />
-              <span>
-                {dateRange === 'today'
-                  ? 'Today so far'
-                  : dateRange === 'yesterday'
-                  ? 'Yesterday'
-                  : dateRange === '7days'
-                  ? 'Last 7 days'
-                  : dateRange === '30days'
-                  ? 'Last 30 days'
-                  : dateRange === 'thisMonth'
-                  ? 'This month'
-                  : 'Current period'}
-              </span>
+              <span>{currentPeriodLabel}</span>
             </div>
             {compareDates && (
               <div className="flex items-center gap-1.5 text-gray-400">
                 <span className="w-4 h-0.5 border-t border-dashed border-gray-400 inline-block" />
-                <span>
-                  {dateRange === 'today'
-                    ? 'Yesterday'
-                    : dateRange === 'yesterday'
-                    ? 'Same day last week'
-                    : 'Previous period'}
-                </span>
+                <span>{prevPeriodLabel}</span>
               </div>
             )}
           </div>
