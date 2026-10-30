@@ -170,7 +170,6 @@ const navItems: NavItem[] = [
       { name: 'Suppliers', href: '/master/suppliers', icon: Truck, moduleName: ModuleName.SUPPLIERS, requiredPermission: Permission.LIST },
       { name: 'Customers', href: '/master/customers', icon: Users, moduleName: ModuleName.CLIENTS, requiredPermission: Permission.LIST },
       { name: 'Units', href: '/master/units', icon: Ruler, moduleName: ModuleName.MASTER_DATA, requiredPermission: Permission.LIST },
-      { name: 'Machines', href: '/master/machines', icon: Factory, moduleName: ModuleName.MASTER_DATA, requiredPermission: Permission.LIST },
       { name: 'Item Master', href: '/master/skus', icon: Tags, moduleName: ModuleName.INVENTORY_PRODUCTS, requiredPermission: Permission.LIST },
     ]
   },
