@@ -45,7 +45,7 @@ import { DashboardLayout } from '../../layouts/DashboardLayout';
 import { StatSparkCard } from '../../components/motion/StatSparkCard';
 import { PillTabs, type TabOption } from '../../components/motion/PillTabs';
 import { useCurrency } from '../../helper/currency';
-import { Select, type SelectOption } from '../../components/Select';
+import { StandaloneAutocomplete } from '../../components/input/index';
 
 const DATE_PRESET_TABS: TabOption[] = [
   { id: 'all', label: 'All History' },
@@ -54,7 +54,12 @@ const DATE_PRESET_TABS: TabOption[] = [
   { id: 'last_month', label: 'Last Month' },
 ];
 
-const MOVEMENT_TYPE_OPTIONS: SelectOption[] = [
+interface MovementTypeOption {
+  value: string;
+  label: string;
+}
+
+const MOVEMENT_TYPE_OPTIONS: MovementTypeOption[] = [
   { value: 'OPENING_BALANCE', label: '💰 Starting Opening Balance / Capital Inflow (Cash IN)' },
   { value: 'BANK_DEPOSIT', label: '🏦 Deposit Store Cash into Bank (Cash in Bank)' },
   { value: 'BANK_WITHDRAWAL', label: '💵 Withdraw Cash from Bank into Store (Cash out from Bank)' },
@@ -1225,13 +1230,18 @@ const CashBookPageBase: React.FC = () => {
               </div>
 
               <form onSubmit={handleSaveQuickEntry} className="space-y-4 text-xs">
-                <div>
-                  <Select
+                <div className="w-full pt-1">
+                  <StandaloneAutocomplete<MovementTypeOption>
                     label="Movement Type *"
-                    value={entryForm.type}
-                    onChange={e => setEntryForm({ ...entryForm, type: e.target.value })}
+                    placeholder="Select Movement Type..."
+                    value={MOVEMENT_TYPE_OPTIONS.find(opt => opt.value === entryForm.type) || null}
+                    onChange={(val) => {
+                      if (val) {
+                        setEntryForm(prev => ({ ...prev, type: val.value }));
+                      }
+                    }}
                     options={MOVEMENT_TYPE_OPTIONS}
-                    className="bg-gray-50 border-gray-200 text-xs font-bold text-gray-900 focus-visible:ring-emerald-500 h-10"
+                    getOptionLabel={(opt) => opt.label}
                   />
                 </div>
 
