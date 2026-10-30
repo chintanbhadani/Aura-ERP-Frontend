@@ -138,27 +138,30 @@ const SalesReportPageBase: React.FC = () => {
   const handleTimePresetChange = (tabId: string) => {
     setTimePreset(tabId);
     const today = new Date();
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const formatLocalDate = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
     if (tabId === 'today') {
-      const dStr = formatDate(today);
+      const dStr = formatLocalDate(today);
       setStartDate(dStr);
       setEndDate(dStr);
     } else if (tabId === 'yesterday') {
-      const y = new Date();
-      y.setDate(y.getDate() - 1);
-      const dStr = formatDate(y);
+      const y = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+      const dStr = formatLocalDate(y);
       setStartDate(dStr);
       setEndDate(dStr);
     } else if (tabId === 'last7') {
-      const past = new Date();
-      past.setDate(past.getDate() - 7);
-      setStartDate(formatDate(past));
-      setEndDate(formatDate(today));
+      const past = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6);
+      setStartDate(formatLocalDate(past));
+      setEndDate(formatLocalDate(today));
     } else if (tabId === 'thisMonth') {
       const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-      setStartDate(formatDate(firstDay));
-      setEndDate(formatDate(today));
+      setStartDate(formatLocalDate(firstDay));
+      setEndDate(formatLocalDate(today));
     } else {
       setStartDate('');
       setEndDate('');
@@ -461,6 +464,7 @@ const SalesReportPageBase: React.FC = () => {
         <AmazonSalesGraph
           rows={filteredAndSortedRows}
           currencySymbol={symbol}
+          presetRange={timePreset}
           onAnalyseClick={handlePrint}
         />
 

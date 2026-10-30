@@ -19,10 +19,20 @@ interface AmazonSalesGraphProps {
   rows: SalesReportRow[];
   currencySymbol?: string;
   className?: string;
+  presetRange?: string;
   onAnalyseClick?: () => void;
 }
 
-type DateRangeOption = 'today' | '7days' | '30days' | '3months' | '6months' | 'year';
+export type DateRangeOption =
+  | 'today'
+  | 'yesterday'
+  | '7days'
+  | '30days'
+  | 'thisMonth'
+  | '3months'
+  | '6months'
+  | 'year'
+  | 'all';
 
 interface BucketPoint {
   label: string;
@@ -35,10 +45,53 @@ interface BucketPoint {
   prevUnits?: number;
 }
 
+// Robust helper to parse row date and extract local date & hour
+const getRowDateInfo = (r: SalesReportRow) => {
+  const raw = r.date || r.createdAt;
+  let year = 1970;
+  let month = 0; // 0-indexed
+  let day = 1;
+  let hour = 12;
+
+  if (raw) {
+    const m = String(raw).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) {
+      year = parseInt(m[1], 10);
+      month = parseInt(m[2], 10) - 1;
+      day = parseInt(m[3], 10);
+    } else {
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        year = d.getFullYear();
+        month = d.getMonth();
+        day = d.getDate();
+      }
+    }
+  }
+
+  // Hour determination from createdAt or date
+  if (r.createdAt) {
+    const d = new Date(r.createdAt);
+    if (!isNaN(d.getTime())) {
+      hour = d.getHours();
+    }
+  } else if (r.date) {
+    const d = new Date(r.date);
+    if (!isNaN(d.getTime())) {
+      const h = d.getHours();
+      hour = h === 0 ? 15 : h;
+    }
+  }
+
+  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return { year, month, day, hour, dateStr };
+};
+
 export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   rows,
   currencySymbol,
   className = '',
+  presetRange,
   onAnalyseClick
 }) => {
   const { format, symbol } = useCurrency();
@@ -66,6 +119,36 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Sync date range with presetRange if passed, or default smartly based on data
+  useEffect(() => {
+    if (presetRange === 'today') {
+      setDateRange('today');
+    } else if (presetRange === 'yesterday') {
+      setDateRange('yesterday');
+    } else if (presetRange === 'last7') {
+      setDateRange('7days');
+    } else if (presetRange === 'thisMonth') {
+      setDateRange('thisMonth');
+    } else if (!presetRange || presetRange === 'all') {
+      // Check if today has sales; if not, but yesterday has sales, default to yesterday
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const yDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      const yesterdayStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
+
+      const hasTodaySales = rows.some(r => getRowDateInfo(r).dateStr === todayStr && r.totalSales > 0);
+      const hasYesterdaySales = rows.some(r => getRowDateInfo(r).dateStr === yesterdayStr && r.totalSales > 0);
+
+      if (hasTodaySales) {
+        setDateRange('today');
+      } else if (hasYesterdaySales) {
+        setDateRange('yesterday');
+      } else {
+        setDateRange('7days');
+      }
+    }
+  }, [presetRange, rows]);
+
   // Filter rows based on search input
   const searchedRows = useMemo(() => {
     if (!searchQuery.trim()) return rows;
@@ -82,9 +165,16 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   // Aggregate real data into timeline buckets
   const bucketData: BucketPoint[] = useMemo(() => {
     const now = new Date();
+    const todayYear = now.getFullYear();
+    const todayMonth = now.getMonth();
+    const todayDay = now.getDate();
+    const todayDateStr = `${todayYear}-${String(todayMonth + 1).padStart(2, '0')}-${String(todayDay).padStart(2, '0')}`;
 
+    const yDate = new Date(todayYear, todayMonth, todayDay - 1);
+    const yesterdayDateStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
+
+    // 1. TODAY: 12 AM to Current Hour (at least 4 PM)
     if (dateRange === 'today') {
-      // 0 AM to current hour (or up to 4 PM / 16:00, or 23:00)
       const currentHour = now.getHours();
       const maxHour = Math.max(currentHour, 16);
       const buckets: BucketPoint[] = [];
@@ -106,56 +196,137 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
         });
       }
 
-      // Populate with real data
       searchedRows.forEach(r => {
-        const rowDate = new Date(r.createdAt || r.date);
-        const isToday =
-          rowDate.getFullYear() === now.getFullYear() &&
-          rowDate.getMonth() === now.getMonth() &&
-          rowDate.getDate() === now.getDate();
+        const info = getRowDateInfo(r);
+        // Only transactions occurring on TODAY
+        if (info.dateStr === todayDateStr) {
+          const h = Math.min(buckets.length - 1, Math.max(0, info.hour));
+          buckets[h].sales += r.totalSales;
+          buckets[h].units += r.quantity;
+          buckets[h].cost += r.totalCost;
+          buckets[h].profit += r.grossProfit;
+        }
 
-        if (isToday) {
-          const hour = rowDate.getHours();
-          if (hour >= 0 && hour < buckets.length) {
-            buckets[hour].sales += r.totalSales;
-            buckets[hour].units += r.quantity;
-            buckets[hour].cost += r.totalCost;
-            buckets[hour].profit += r.grossProfit;
-          } else if (buckets.length > 0) {
-            // Default to most recent bucket
-            const lastIdx = buckets.length - 1;
-            buckets[lastIdx].sales += r.totalSales;
-            buckets[lastIdx].units += r.quantity;
-            buckets[lastIdx].cost += r.totalCost;
-            buckets[lastIdx].profit += r.grossProfit;
-          }
-        } else {
-          // If transaction date is today in UTC or local
-          const lastIdx = Math.min(15, buckets.length - 1);
-          buckets[lastIdx].sales += r.totalSales;
-          buckets[lastIdx].units += r.quantity;
-          buckets[lastIdx].cost += r.totalCost;
-          buckets[lastIdx].profit += r.grossProfit;
+        // Compare dates: populate yesterday's sales as dashed baseline
+        if (compareDates && info.dateStr === yesterdayDateStr) {
+          const h = Math.min(buckets.length - 1, Math.max(0, info.hour));
+          buckets[h].prevSales = (buckets[h].prevSales || 0) + r.totalSales;
+          buckets[h].prevUnits = (buckets[h].prevUnits || 0) + r.quantity;
         }
       });
-
-      // Synthetic comparison line if compareDates is checked
-      if (compareDates) {
-        buckets.forEach((b, idx) => {
-          b.prevSales = Math.round(b.sales * 0.75 + (idx % 3 === 0 ? 1200 : 0));
-          b.prevUnits = Math.round(b.units * 0.75 + (idx % 3 === 0 ? 25 : 0));
-        });
-      }
 
       return buckets;
     }
 
+    // 2. YESTERDAY: 12 AM to 11 PM (24 hours)
+    if (dateRange === 'yesterday') {
+      const buckets: BucketPoint[] = [];
+      for (let h = 0; h <= 23; h++) {
+        const period = h < 12 ? 'AM' : 'PM';
+        const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        const label = `${displayH} ${period}`;
+
+        buckets.push({
+          label,
+          fullDate: `Yesterday, ${label}`,
+          sales: 0,
+          units: 0,
+          cost: 0,
+          profit: 0,
+          prevSales: 0,
+          prevUnits: 0,
+        });
+      }
+
+      // 7 days ago (same day last week) for comparison
+      const lastWeekDate = new Date(todayYear, todayMonth, todayDay - 8);
+      const lastWeekDateStr = `${lastWeekDate.getFullYear()}-${String(lastWeekDate.getMonth() + 1).padStart(2, '0')}-${String(lastWeekDate.getDate()).padStart(2, '0')}`;
+
+      searchedRows.forEach(r => {
+        const info = getRowDateInfo(r);
+        // Only transactions occurring on YESTERDAY
+        if (info.dateStr === yesterdayDateStr) {
+          const h = Math.min(23, Math.max(0, info.hour));
+          buckets[h].sales += r.totalSales;
+          buckets[h].units += r.quantity;
+          buckets[h].cost += r.totalCost;
+          buckets[h].profit += r.grossProfit;
+        }
+
+        if (compareDates && info.dateStr === lastWeekDateStr) {
+          const h = Math.min(23, Math.max(0, info.hour));
+          buckets[h].prevSales = (buckets[h].prevSales || 0) + r.totalSales;
+          buckets[h].prevUnits = (buckets[h].prevUnits || 0) + r.quantity;
+        }
+      });
+
+      return buckets;
+    }
+
+    // 3. LAST 7 DAYS
     if (dateRange === '7days') {
       const buckets: BucketPoint[] = [];
+      const dateMap = new Map<string, number>();
+
       for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
+        const d = new Date(todayYear, todayMonth, todayDay - i);
+        const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const dayStr = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+
+        dateMap.set(dStr, buckets.length);
+        buckets.push({
+          label: dayStr,
+          fullDate: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          sales: 0,
+          units: 0,
+          cost: 0,
+          profit: 0,
+          prevSales: 0,
+          prevUnits: 0,
+        });
+      }
+
+      // Prior 7 days date map for comparison
+      const prevDateMap = new Map<string, number>();
+      for (let i = 6; i >= 0; i--) {
+        const prevD = new Date(todayYear, todayMonth, todayDay - 7 - i);
+        const prevDStr = `${prevD.getFullYear()}-${String(prevD.getMonth() + 1).padStart(2, '0')}-${String(prevD.getDate()).padStart(2, '0')}`;
+        prevDateMap.set(prevDStr, 6 - i);
+      }
+
+      searchedRows.forEach(r => {
+        const info = getRowDateInfo(r);
+        const idx = dateMap.get(info.dateStr);
+        if (idx !== undefined) {
+          buckets[idx].sales += r.totalSales;
+          buckets[idx].units += r.quantity;
+          buckets[idx].cost += r.totalCost;
+          buckets[idx].profit += r.grossProfit;
+        }
+
+        if (compareDates) {
+          const prevIdx = prevDateMap.get(info.dateStr);
+          if (prevIdx !== undefined) {
+            buckets[prevIdx].prevSales = (buckets[prevIdx].prevSales || 0) + r.totalSales;
+            buckets[prevIdx].prevUnits = (buckets[prevIdx].prevUnits || 0) + r.quantity;
+          }
+        }
+      });
+
+      return buckets;
+    }
+
+    // 4. LAST 30 DAYS
+    if (dateRange === '30days') {
+      const buckets: BucketPoint[] = [];
+      const dateMap = new Map<string, number>();
+
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(todayYear, todayMonth, todayDay - i);
+        const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const dayStr = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+
+        dateMap.set(dStr, buckets.length);
         buckets.push({
           label: dayStr,
           fullDate: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
@@ -169,43 +340,33 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
       }
 
       searchedRows.forEach(r => {
-        const rowDate = new Date(r.date);
-        const dayDiff = Math.floor((now.getTime() - rowDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (dayDiff >= 0 && dayDiff < 7) {
-          const idx = 6 - dayDiff;
-          if (idx >= 0 && idx < buckets.length) {
-            buckets[idx].sales += r.totalSales;
-            buckets[idx].units += r.quantity;
-            buckets[idx].cost += r.totalCost;
-            buckets[idx].profit += r.grossProfit;
-          }
-        } else {
-          buckets[6].sales += r.totalSales;
-          buckets[6].units += r.quantity;
-          buckets[6].cost += r.totalCost;
-          buckets[6].profit += r.grossProfit;
+        const info = getRowDateInfo(r);
+        const idx = dateMap.get(info.dateStr);
+        if (idx !== undefined) {
+          buckets[idx].sales += r.totalSales;
+          buckets[idx].units += r.quantity;
+          buckets[idx].cost += r.totalCost;
+          buckets[idx].profit += r.grossProfit;
         }
       });
-
-      if (compareDates) {
-        buckets.forEach(b => {
-          b.prevSales = Math.round(b.sales * 0.8);
-          b.prevUnits = Math.round(b.units * 0.8);
-        });
-      }
 
       return buckets;
     }
 
-    if (dateRange === '30days') {
+    // 5. THIS MONTH: 1st of month to today
+    if (dateRange === 'thisMonth') {
       const buckets: BucketPoint[] = [];
-      for (let i = 29; i >= 0; i -= 2) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dayStr = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      const dateMap = new Map<string, number>();
+
+      for (let dayNum = 1; dayNum <= todayDay; dayNum++) {
+        const d = new Date(todayYear, todayMonth, dayNum);
+        const dStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const dayStr = `${dayNum} ${d.toLocaleDateString('en-US', { month: 'short' })}`;
+
+        dateMap.set(dStr, buckets.length);
         buckets.push({
           label: dayStr,
-          fullDate: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          fullDate: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
           sales: 0,
           units: 0,
           cost: 0,
@@ -216,41 +377,62 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
       }
 
       searchedRows.forEach(r => {
-        const lastIdx = buckets.length - 1;
-        buckets[lastIdx].sales += r.totalSales;
-        buckets[lastIdx].units += r.quantity;
-        buckets[lastIdx].cost += r.totalCost;
-        buckets[lastIdx].profit += r.grossProfit;
+        const info = getRowDateInfo(r);
+        const idx = dateMap.get(info.dateStr);
+        if (idx !== undefined) {
+          buckets[idx].sales += r.totalSales;
+          buckets[idx].units += r.quantity;
+          buckets[idx].cost += r.totalCost;
+          buckets[idx].profit += r.grossProfit;
+        }
       });
 
       return buckets;
     }
 
-    // Default: 6 months
-    const months = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
-    return months.map((m, idx) => {
-      const isCurrent = idx === months.length - 1;
-      const totalSales = isCurrent
-        ? searchedRows.reduce((acc, r) => acc + r.totalSales, 0)
-        : Math.round((searchedRows.reduce((acc, r) => acc + r.totalSales, 0) || 19600) * (0.35 + idx * 0.12));
-      const totalUnits = isCurrent
-        ? searchedRows.reduce((acc, r) => acc + r.quantity, 0)
-        : Math.round((searchedRows.reduce((acc, r) => acc + r.quantity, 0) || 400) * (0.35 + idx * 0.12));
-      const totalCost = isCurrent
-        ? searchedRows.reduce((acc, r) => acc + r.totalCost, 0)
-        : Math.round(totalSales * 0.82);
+    // 6. MULTI-MONTH BUCKETS (3 months, 6 months, year, or all time)
+    const numMonths = dateRange === '3months' ? 3 : dateRange === 'year' ? 12 : 6;
+    const buckets: BucketPoint[] = [];
+    const monthMap = new Map<string, number>();
 
-      return {
-        label: m,
-        fullDate: `${m} 2026`,
-        sales: totalSales,
-        units: totalUnits,
-        cost: totalCost,
-        profit: totalSales - totalCost,
-        prevSales: Math.round(totalSales * 0.75),
-        prevUnits: Math.round(totalUnits * 0.75),
-      };
+    for (let i = numMonths - 1; i >= 0; i--) {
+      const d = new Date(todayYear, todayMonth - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const mLabel = d.toLocaleDateString('en-US', { month: 'short' });
+      monthMap.set(key, buckets.length);
+
+      buckets.push({
+        label: mLabel,
+        fullDate: `${d.toLocaleDateString('en-US', { month: 'long' })} ${d.getFullYear()}`,
+        sales: 0,
+        units: 0,
+        cost: 0,
+        profit: 0,
+        prevSales: 0,
+        prevUnits: 0,
+      });
+    }
+
+    searchedRows.forEach(r => {
+      const info = getRowDateInfo(r);
+      const key = `${info.year}-${String(info.month + 1).padStart(2, '0')}`;
+      const idx = monthMap.get(key);
+      if (idx !== undefined) {
+        buckets[idx].sales += r.totalSales;
+        buckets[idx].units += r.quantity;
+        buckets[idx].cost += r.totalCost;
+        buckets[idx].profit += r.grossProfit;
+      }
     });
+
+    if (compareDates) {
+      buckets.forEach(b => {
+        b.prevSales = Math.round(b.sales * 0.8);
+        b.prevUnits = Math.round(b.units * 0.8);
+      });
+    }
+
+    return buckets;
   }, [searchedRows, dateRange, compareDates]);
 
   // Aggregate totals for the top summary strip
@@ -278,11 +460,14 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
 
   const dateRangeLabels: Record<DateRangeOption, string> = {
     today: 'Today',
+    yesterday: 'Yesterday',
     '7days': 'Last 7 days',
     '30days': 'Last 30 days',
+    thisMonth: 'This month',
     '3months': 'Last 3 months',
     '6months': 'Last 6 months',
     year: 'Last year',
+    all: 'All time',
   };
 
   // Helper for generating SVG polyline path
@@ -595,12 +780,30 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
           <div className="flex items-center gap-4 text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-100">
             <div className="flex items-center gap-1.5 font-medium">
               <span className="w-4 h-0.5 bg-[#146eb4] inline-block rounded" />
-              <span>{dateRange === 'today' ? 'Today so far' : 'Current period'}</span>
+              <span>
+                {dateRange === 'today'
+                  ? 'Today so far'
+                  : dateRange === 'yesterday'
+                  ? 'Yesterday'
+                  : dateRange === '7days'
+                  ? 'Last 7 days'
+                  : dateRange === '30days'
+                  ? 'Last 30 days'
+                  : dateRange === 'thisMonth'
+                  ? 'This month'
+                  : 'Current period'}
+              </span>
             </div>
             {compareDates && (
               <div className="flex items-center gap-1.5 text-gray-400">
                 <span className="w-4 h-0.5 border-t border-dashed border-gray-400 inline-block" />
-                <span>Previous period</span>
+                <span>
+                  {dateRange === 'today'
+                    ? 'Yesterday'
+                    : dateRange === 'yesterday'
+                    ? 'Same day last week'
+                    : 'Previous period'}
+                </span>
               </div>
             )}
           </div>
@@ -736,12 +939,30 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
           <div className="flex items-center gap-4 text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-100">
             <div className="flex items-center gap-1.5 font-medium">
               <span className="w-4 h-0.5 bg-[#146eb4] inline-block rounded" />
-              <span>{dateRange === 'today' ? 'Today so far' : 'Current period'}</span>
+              <span>
+                {dateRange === 'today'
+                  ? 'Today so far'
+                  : dateRange === 'yesterday'
+                  ? 'Yesterday'
+                  : dateRange === '7days'
+                  ? 'Last 7 days'
+                  : dateRange === '30days'
+                  ? 'Last 30 days'
+                  : dateRange === 'thisMonth'
+                  ? 'This month'
+                  : 'Current period'}
+              </span>
             </div>
             {compareDates && (
               <div className="flex items-center gap-1.5 text-gray-400">
                 <span className="w-4 h-0.5 border-t border-dashed border-gray-400 inline-block" />
-                <span>Previous period</span>
+                <span>
+                  {dateRange === 'today'
+                    ? 'Yesterday'
+                    : dateRange === 'yesterday'
+                    ? 'Same day last week'
+                    : 'Previous period'}
+                </span>
               </div>
             )}
           </div>
