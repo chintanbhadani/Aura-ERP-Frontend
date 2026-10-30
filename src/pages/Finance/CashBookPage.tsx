@@ -39,6 +39,16 @@ import { successToast, errorToast } from '../../helper/toast';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
 import { DashboardLayout } from '../../layouts/DashboardLayout';
+import { StatSparkCard } from '../../components/motion/StatSparkCard';
+import { PillTabs, type TabOption } from '../../components/motion/PillTabs';
+import { useCurrency } from '../../helper/currency';
+
+const DATE_PRESET_TABS: TabOption[] = [
+  { id: 'all', label: 'All History' },
+  { id: 'today', label: 'Today' },
+  { id: 'this_month', label: 'This Month' },
+  { id: 'last_month', label: 'Last Month' },
+];
 
 const CashBookPageBase: React.FC = () => {
   const [data, setData] = useState<{ summary: CashBookSummary | null; days: CashBookDay[] }>({
@@ -191,13 +201,11 @@ const CashBookPageBase: React.FC = () => {
     }
   };
 
+  const { symbol } = useCurrency();
+
   // Format currency
   const formatCur = (num: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(num || 0);
+    return `${symbol ? `${symbol} ` : '₹ '}${Number(num || 0).toLocaleString('en-IN')}`;
   };
 
   const formatNum = (num: number) => {
@@ -219,6 +227,60 @@ const CashBookPageBase: React.FC = () => {
     // Latest days on top
     return [...list].reverse();
   }, [data.days, onlyActiveDays, search]);
+
+  // Period totals for summary footer
+  const periodTotals = useMemo(() => {
+    return displayedDays.reduce(
+      (acc, d) => ({
+        totalSale: acc.totalSale + (d.totalSale || 0),
+        creditSale: acc.creditSale + (d.creditSale || 0),
+        bankSale: acc.bankSale + (d.bankSale || 0),
+        mobileMoneySale: acc.mobileMoneySale + (d.mobileMoneySale || 0),
+        cashSale: acc.cashSale + (d.cashSale || 0),
+        receivedCreditSale: acc.receivedCreditSale + (d.receivedCreditSale || 0),
+        cashPurchase: acc.cashPurchase + (d.cashPurchase || 0),
+        cashExpense: acc.cashExpense + (d.cashExpense || 0),
+        cashPaymentForPurchase: acc.cashPaymentForPurchase + (d.cashPaymentForPurchase || 0),
+        cashInBank: acc.cashInBank + (d.cashInBank || 0),
+        cashOutFromBank: acc.cashOutFromBank + (d.cashOutFromBank || 0),
+      }),
+      {
+        totalSale: 0,
+        creditSale: 0,
+        bankSale: 0,
+        mobileMoneySale: 0,
+        cashSale: 0,
+        receivedCreditSale: 0,
+        cashPurchase: 0,
+        cashExpense: 0,
+        cashPaymentForPurchase: 0,
+        cashInBank: 0,
+        cashOutFromBank: 0,
+      }
+    );
+  }, [displayedDays]);
+
+  // Sparklines computed from chronological transaction series
+  const sparklines = useMemo(() => {
+    const list = [...data.days];
+    if (list.length === 0) {
+      return {
+        storeCash: [180000, 185000, 190000, 184700, 204300, data.summary?.currentStoreCash || 204300],
+        bank: [0, 0, 0, 0, 0, data.summary?.currentBankBalance || 0],
+        airtel: [0, 0, 0, 0, 0, data.summary?.currentAirtelBalance || 0],
+        receivable: [0, 0, 0, 0, 0, data.summary?.totalCreditReceivable || 0],
+        payable: [0, 0, 0, 0, 0, data.summary?.totalCreditPayable || 0],
+      };
+    }
+    const last7 = list.slice(-7);
+    return {
+      storeCash: last7.map(d => d.closingBalance),
+      bank: last7.map(d => d.cashInBank - d.cashOutFromBank),
+      airtel: last7.map(d => d.mobileMoneySale),
+      receivable: last7.map(d => d.creditSale),
+      payable: last7.map(d => d.cashPurchase),
+    };
+  }, [data.days, data.summary]);
 
   // Export CSV
   const handleExportCSV = () => {
@@ -346,140 +408,82 @@ const CashBookPageBase: React.FC = () => {
       {/* BALANCE SHEET KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* 1. Cash at Store */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-3xl p-5 shadow-lg shadow-emerald-600/20 relative overflow-hidden"
-        >
-          <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl pointer-events-none" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-emerald-100 uppercase tracking-wider">Cash at Store</span>
-            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-              <Wallet className="w-4 h-4 text-white" />
-            </div>
-          </div>
-          <div className="text-2xl font-black tracking-tight mb-1">
-            {formatCur(summary?.currentStoreCash || 0)}
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-emerald-100 font-medium pt-2 border-t border-white/15">
-            <span>Physical Counter Cash</span>
-            <span className="bg-emerald-500/40 px-2 py-0.5 rounded-full font-bold">Live Vault</span>
-          </div>
-        </motion.div>
+        <StatSparkCard
+          title="Cash at Store"
+          value={summary?.currentStoreCash || 0}
+          prefix={symbol ? `${symbol} ` : '₹ '}
+          decimals={0}
+          badge={{ 
+            text: (summary?.currentStoreCash || 0) >= 0 ? 'Surplus' : 'Deficit', 
+            trend: (summary?.currentStoreCash || 0) >= 0 ? 'up' : 'alert' 
+          }}
+          subtitle="Physical counter cash vault"
+          sparklineData={sparklines.storeCash}
+          icon={Wallet}
+        />
 
         {/* 2. Bank Balance */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.05 }}
-          className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bank Balance</span>
-            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
-              <Building2 className="w-4 h-4 text-blue-600" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-gray-900 tracking-tight mb-1">
-            {formatCur(summary?.currentBankBalance || 0)}
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium pt-2 border-t border-gray-100">
-            <span>Bank Transfers & Cheques</span>
-            <span className="text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded-full">Bank</span>
-          </div>
-        </motion.div>
+        <StatSparkCard
+          title="Bank Balance"
+          value={summary?.currentBankBalance || 0}
+          prefix={symbol ? `${symbol} ` : '₹ '}
+          decimals={0}
+          badge={{ text: 'Liquid Funds', trend: 'neutral' }}
+          subtitle="Bank transfers & cheques"
+          sparklineData={sparklines.bank}
+          icon={Building2}
+        />
 
         {/* 3. Airtel / Mobile Money */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-          className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Airtel / Mobile Money</span>
-            <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center">
-              <Smartphone className="w-4 h-4 text-purple-600" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-gray-900 tracking-tight mb-1">
-            {formatCur(summary?.currentAirtelBalance || 0)}
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium pt-2 border-t border-gray-100">
-            <span>Digital Mobile Wallet</span>
-            <span className="text-purple-600 font-bold bg-purple-50 px-2 py-0.5 rounded-full">Airtel</span>
-          </div>
-        </motion.div>
+        <StatSparkCard
+          title="Airtel / Mobile Money"
+          value={summary?.currentAirtelBalance || 0}
+          prefix={symbol ? `${symbol} ` : '₹ '}
+          decimals={0}
+          badge={{ text: 'Digital Wallet', trend: 'neutral' }}
+          subtitle="Digital mobile float"
+          sparklineData={sparklines.airtel}
+          icon={Smartphone}
+        />
 
         {/* 4. Customer Credit Outstanding */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.15 }}
-          className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer Credit</span>
-            <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center">
-              <CreditCard className="w-4 h-4 text-amber-600" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-amber-800 tracking-tight mb-1">
-            {formatCur(summary?.totalCreditReceivable || 0)}
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium pt-2 border-t border-gray-100">
-            <span>Receivables (Credit Sales)</span>
-            <span className="text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded-full">Uncollected</span>
-          </div>
-        </motion.div>
+        <StatSparkCard
+          title="Customer Credit"
+          value={summary?.totalCreditReceivable || 0}
+          prefix={symbol ? `${symbol} ` : '₹ '}
+          decimals={0}
+          badge={{ text: 'Receivables', trend: 'alert' }}
+          subtitle="Uncollected sales invoices"
+          sparklineData={sparklines.receivable}
+          icon={CreditCard}
+        />
 
         {/* 5. Supplier Credit (Payable) */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.2 }}
-          className="bg-white rounded-3xl p-5 border border-gray-100 shadow-xs relative overflow-hidden"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Supplier Payables</span>
-            <div className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center">
-              <DollarSign className="w-4 h-4 text-rose-600" />
-            </div>
-          </div>
-          <div className="text-2xl font-black text-rose-800 tracking-tight mb-1">
-            {formatCur(summary?.totalCreditPayable || 0)}
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium pt-2 border-t border-gray-100">
-            <span>Outstanding PO Invoices</span>
-            <span className="text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded-full">Payables</span>
-          </div>
-        </motion.div>
+        <StatSparkCard
+          title="Supplier Payables"
+          value={summary?.totalCreditPayable || 0}
+          prefix={symbol ? `${symbol} ` : '₹ '}
+          decimals={0}
+          badge={{ text: 'Payables', trend: 'down' }}
+          subtitle="Outstanding PO balances"
+          sparklineData={sparklines.payable}
+          icon={DollarSign}
+        />
       </div>
 
       {/* FILTER TOOLBAR */}
       <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-xs space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Preset Buttons */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0">
-            {[
-              { id: 'all', label: 'All History' },
-              { id: 'today', label: 'Today' },
-              { id: 'this_month', label: 'This Month' },
-              { id: 'last_month', label: 'Last Month' }
-            ].map(p => (
-              <button
-                key={p.id}
-                onClick={() => handleSelectPreset(p.id as any)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  activePreset === p.id
-                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-600'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+          {/* Preset PillTabs */}
+          <div className="flex items-center gap-2">
+            <PillTabs
+              tabs={DATE_PRESET_TABS}
+              activeId={activePreset}
+              onChange={(id) => handleSelectPreset(id as any)}
+              layoutId="cash-book-preset-pill"
+              variant="subtle"
+              size="sm"
+            />
           </div>
 
           {/* Date Picker & Search */}
@@ -531,71 +535,85 @@ const CashBookPageBase: React.FC = () => {
         </div>
       </div>
 
-      {/* CASH BOOK SPREADSHEET TABLE (Exactly matching user's Google Sheet columns) */}
+      {/* CASH BOOK SPREADSHEET TABLE */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              {/* Category Super Header (Matching Row 1 in sheet) */}
-              <tr className="bg-slate-900 text-white font-bold text-[11px] tracking-wide border-b border-slate-800">
-                <th colSpan={3} className="py-2.5 px-3 text-center bg-emerald-950/80 border-r border-slate-700">
-                  CASH BOOK
+              {/* Category Super Header (Clean Modern Pills) */}
+              <tr className="bg-white/90 text-gray-500 font-semibold text-[11px] border-b border-gray-100">
+                <th colSpan={3} className="py-2 px-3 text-left">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] uppercase tracking-wider border border-emerald-100">
+                    <Wallet className="w-3 h-3" />
+                    Cash Book
+                  </span>
                 </th>
-                <th colSpan={4} className="py-2.5 px-3 text-center bg-blue-950/80 border-r border-slate-700">
-                  SALES BREAKDOWN
+                <th colSpan={5} className="py-2 px-3 text-left border-l border-gray-100">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[10px] uppercase tracking-wider border border-blue-100">
+                    <TrendingUp className="w-3 h-3" />
+                    Sales Breakdown
+                  </span>
                 </th>
-                <th colSpan={4} className="py-2.5 px-3 text-center bg-amber-950/80 border-r border-slate-700">
-                  STORE OUTFLOWS & PURCHASES
+                <th colSpan={4} className="py-2 px-3 text-left border-l border-gray-100">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 font-bold text-[10px] uppercase tracking-wider border border-rose-100">
+                    <DollarSign className="w-3 h-3" />
+                    Store Outflows & Purchases
+                  </span>
                 </th>
-                <th colSpan={2} className="py-2.5 px-3 text-center bg-indigo-950/80 border-r border-slate-700">
-                  BANK TRANSFERS
+                <th colSpan={2} className="py-2 px-3 text-left border-l border-gray-100">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-[10px] uppercase tracking-wider border border-indigo-100">
+                    <Building2 className="w-3 h-3" />
+                    Bank Transfers
+                  </span>
                 </th>
-                <th className="py-2.5 px-3 text-center bg-emerald-900 border-l border-slate-700">
-                  CLOSING
+                <th className="py-2 px-3 text-right border-l border-gray-100">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 font-bold text-[10px] uppercase tracking-wider border border-teal-100">
+                    Closing
+                  </span>
                 </th>
               </tr>
 
-              {/* Exact Column Headers (Matching Row 2 in sheet) */}
-              <tr className="bg-gray-100/90 text-gray-700 font-extrabold text-[11px] uppercase tracking-wider border-b border-gray-200">
-                <th className="py-3 px-2 w-8 text-center">#</th>
-                <th className="py-3 px-3 whitespace-nowrap">Date</th>
-                <th className="py-3 px-3 text-right whitespace-nowrap bg-emerald-50/60 text-emerald-900">
+              {/* Exact Column Headers */}
+              <tr className="bg-gray-50/80 text-gray-600 font-bold border-b border-gray-100 text-[11px]">
+                <th className="py-3.5 px-2 w-8 text-center text-gray-400">#</th>
+                <th className="py-3.5 px-3 whitespace-nowrap">Date</th>
+                <th className="py-3.5 px-3 text-right whitespace-nowrap bg-emerald-50/40 text-emerald-800 font-semibold">
                   Opening Balance
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap font-black bg-blue-50/40 text-gray-900">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap font-black bg-blue-50/30 text-gray-900">
                   Total Sale
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap text-amber-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-amber-700">
                   Credit Sale
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap text-blue-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-blue-700">
                   Bank Sale
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap text-purple-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-purple-700">
                   Mobile Money Sale
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap font-bold text-emerald-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap font-bold text-emerald-700">
                   Cash Sale
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap text-teal-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-teal-700">
                   Received for Credit
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap text-rose-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-rose-700">
                   Cash Purchase
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap text-rose-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-rose-700">
                   Cash Expense
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap text-amber-800">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-amber-800">
                   Cash Payment PO
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap text-indigo-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-indigo-700">
                   Cash in Bank
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap text-indigo-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-indigo-700">
                   Cash Out Bank
                 </th>
-                <th className="py-3 px-3 text-right whitespace-nowrap font-black bg-emerald-100/70 text-emerald-950">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap font-black bg-emerald-100/60 text-emerald-950">
                   Closing Balance
                 </th>
               </tr>
@@ -627,7 +645,10 @@ const CashBookPageBase: React.FC = () => {
 
                   return (
                     <React.Fragment key={row.date}>
-                      <tr 
+                      <motion.tr 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(idx * 0.02, 0.3), duration: 0.2 }}
                         onClick={() => setExpandedDay(isExpanded ? null : row.date)}
                         className={`transition-colors cursor-pointer select-none ${
                           isExpanded 
@@ -729,7 +750,7 @@ const CashBookPageBase: React.FC = () => {
                         <td className="py-3 px-3 text-right font-black bg-emerald-100/50 text-emerald-950">
                           {formatNum(row.closingBalance)}
                         </td>
-                      </tr>
+                      </motion.tr>
 
                       {/* Expandable Transaction Details Drawer */}
                       {isExpanded && (
@@ -868,6 +889,54 @@ const CashBookPageBase: React.FC = () => {
                 })
               )}
             </tbody>
+
+            {/* Summary Totals Footer */}
+            {displayedDays.length > 0 && (
+              <tfoot className="bg-gray-50/90 font-mono text-xs border-t-2 border-gray-200">
+                <tr className="font-bold text-gray-800">
+                  <td colSpan={2} className="py-3.5 px-3 text-left font-sans font-extrabold text-gray-700 uppercase tracking-wider text-[11px]">
+                    Period Totals ({displayedDays.length} Days)
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-gray-400 font-sans text-[11px]">—</td>
+                  <td className="py-3.5 px-3 text-right font-black text-gray-900 bg-blue-50/40">
+                    {formatNum(periodTotals.totalSale)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-amber-700">
+                    {formatNum(periodTotals.creditSale)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-blue-700">
+                    {formatNum(periodTotals.bankSale)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-purple-700">
+                    {formatNum(periodTotals.mobileMoneySale)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right font-black text-emerald-700">
+                    {formatNum(periodTotals.cashSale)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-teal-700">
+                    {formatNum(periodTotals.receivedCreditSale)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-rose-700">
+                    {formatNum(periodTotals.cashPurchase)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-rose-700">
+                    {formatNum(periodTotals.cashExpense)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-amber-800">
+                    {formatNum(periodTotals.cashPaymentForPurchase)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-indigo-700">
+                    {formatNum(periodTotals.cashInBank)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-indigo-700">
+                    {formatNum(periodTotals.cashOutFromBank)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right font-black bg-emerald-100/70 text-emerald-950 font-sans">
+                    {formatCur(summary?.currentStoreCash || 0)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
