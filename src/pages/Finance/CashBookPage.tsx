@@ -87,7 +87,7 @@ const CashBookPageBase: React.FC = () => {
   // Modals
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [configForm, setConfigForm] = useState({
-    initialOpeningCash: 201000,
+    initialOpeningCash: 0,
     initialOpeningBank: 0,
     initialOpeningAirtel: 0,
     notes: ''
@@ -1144,7 +1144,7 @@ const CashBookPageBase: React.FC = () => {
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-900 outline-none focus:border-emerald-500 font-mono font-bold"
                   />
                   <span className="text-[11px] text-gray-400 mt-0.5 block">
-                    Starting cash balance before earliest transaction (e.g. 201,000 as per your sheet).
+                    Starting cash balance before earliest transaction (defaults to 0 unless configured).
                   </span>
                 </div>
 
