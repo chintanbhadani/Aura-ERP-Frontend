@@ -95,7 +95,7 @@ export const generateInvoiceHtml = (invoice: Invoice, currency?: CurrencySetting
       <style>
         @page {
           size: A4 portrait;
-          margin: 14mm;
+          margin: 0;
         }
         * {
           box-sizing: border-box;
@@ -109,11 +109,13 @@ export const generateInvoiceHtml = (invoice: Invoice, currency?: CurrencySetting
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
           line-height: 1.4;
+          margin: 0;
+          padding: 14mm 16mm;
         }
         .invoice-card {
-          max-width: 800px;
+          max-width: 100%;
           margin: 0 auto;
-          padding: 24px;
+          padding: 0;
           background: #ffffff;
         }
         .header {

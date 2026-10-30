@@ -385,7 +385,7 @@ export const GrnPrintModal: React.FC<GrnPrintModalProps> = ({
           }
           @page {
             size: A4 portrait;
-            margin: 8mm;
+            margin: 0mm;
           }
         }
       `}</style>

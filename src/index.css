@@ -94,3 +94,10 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Global Print Styles - Suppress browser-injected header (title/date) and footer (URL/pages) */
+@media print {
+  @page {
+    margin: 0;
+  }
+}

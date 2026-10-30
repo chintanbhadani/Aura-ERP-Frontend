@@ -360,6 +360,10 @@ export const ItemPrintModal: React.FC<ItemPrintModalProps> = ({ isOpen, onClose,
       {/* Styles specifically for Print Output */}
       <style>{`
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0mm;
+          }
           body * {
             visibility: hidden !important;
           }

@@ -632,7 +632,7 @@ export const PurchaseOrderPrintModal: React.FC<PurchaseOrderPrintModalProps> = (
           }
           @page {
             size: A4 portrait;
-            margin: 8mm;
+            margin: 0mm;
           }
         }
       `}</style>
