@@ -53,6 +53,7 @@ export interface StockLedgerItem {
     supplier?: { name: string };
   } | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 const QUICK_FILTER_FIELDS: QuickFilterField[] = [
@@ -69,7 +70,8 @@ const FILTER_RULE_FIELDS = [
   'Transaction Type',
   'Action (Credited/Debited)',
   'Reference',
-  'Date'
+  'Date',
+  'Updated At'
 ];
 
 function StockLedgerListBase() {
@@ -86,7 +88,7 @@ function StockLedgerListBase() {
   const [createdByFilter, setCreatedByFilter] = useState('');
   const [tagFilter, setTagFilter] = useState('');
   const [showTags, setShowTags] = useState(false);
-  const [sortField, setSortField] = useState('Date');
+  const [sortField, setSortField] = useState('Last Updated On');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Custom Sidebar Filters
@@ -213,8 +215,28 @@ function StockLedgerListBase() {
       }
 
       return true;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      if (sortField === 'Date') {
+        comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+      } else if (sortField === 'Item Name') {
+        comparison = (a.product?.name || '').localeCompare(b.product?.name || '');
+      } else if (sortField === 'Item SKU / Code') {
+        comparison = (a.product?.sku || '').localeCompare(b.product?.sku || '');
+      } else if (sortField === 'Quantity Change') {
+        comparison = a.quantityChange - b.quantityChange;
+      } else if (sortField === 'Running Balance') {
+        comparison = a.runningBalance - b.runningBalance;
+      } else {
+        // 'Last Updated On' / 'Updated At' default
+        const timeA = new Date(a.updatedAt || a.createdAt || a.date).getTime();
+        const timeB = new Date(b.updatedAt || b.createdAt || b.date).getTime();
+        comparison = timeA - timeB;
+      }
+      return sortOrder === 'desc' ? -comparison : comparison;
     });
-  }, [ledgers, globalSearch, actionFilter, typeFilter, quickFilters]);
+  }, [ledgers, globalSearch, actionFilter, typeFilter, quickFilters, sortField, sortOrder]);
 
   // Summaries
   const totalCreditedQty = useMemo(() => {
@@ -233,7 +255,7 @@ function StockLedgerListBase() {
     {
       key: 'date',
       title: 'Date',
-      width: '130px',
+      width: '120px',
       sortable: true,
       render: (_, row) => (
         <div 
@@ -252,6 +274,32 @@ function StockLedgerListBase() {
           </span>
         </div>
       )
+    },
+    {
+      key: 'updatedAt',
+      title: 'Updated At',
+      width: '130px',
+      sortable: true,
+      render: (_, row) => {
+        const d = row.updatedAt ? new Date(row.updatedAt) : (row.createdAt ? new Date(row.createdAt) : new Date(row.date));
+        return (
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNavigateVoucher(row);
+            }}
+            className="cursor-pointer group"
+            title="Click to open linked record"
+          >
+            <span className="font-semibold text-gray-900 group-hover:text-emerald-700 block text-xs transition-colors">
+              {d.toLocaleDateString()}
+            </span>
+            <span className="text-[10px] text-gray-400 group-hover:text-emerald-600 font-mono transition-colors">
+              {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        );
+      }
     },
     {
       key: 'reference',
@@ -492,6 +540,15 @@ function StockLedgerListBase() {
         setQuickFilters({});
         setFilterRules([]);
       }}
+
+      // Sorting
+      sortField={sortField}
+      sortOrder={sortOrder}
+      onSortChange={(field, order) => {
+        setSortField(field);
+        setSortOrder(order);
+      }}
+      sortOptions={['Last Updated On', 'Date', 'Item Name', 'Item SKU / Code', 'Quantity Change', 'Running Balance']}
 
       // Table & Selection Data
       data={filteredLedgers}
