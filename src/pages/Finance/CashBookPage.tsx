@@ -45,12 +45,21 @@ import { DashboardLayout } from '../../layouts/DashboardLayout';
 import { StatSparkCard } from '../../components/motion/StatSparkCard';
 import { PillTabs, type TabOption } from '../../components/motion/PillTabs';
 import { useCurrency } from '../../helper/currency';
+import { Select, type SelectOption } from '../../components/Select';
 
 const DATE_PRESET_TABS: TabOption[] = [
   { id: 'all', label: 'All History' },
   { id: 'today', label: 'Today' },
   { id: 'this_month', label: 'This Month' },
   { id: 'last_month', label: 'Last Month' },
+];
+
+const MOVEMENT_TYPE_OPTIONS: SelectOption[] = [
+  { value: 'OPENING_BALANCE', label: '💰 Starting Opening Balance / Capital Inflow (Cash IN)' },
+  { value: 'BANK_DEPOSIT', label: '🏦 Deposit Store Cash into Bank (Cash in Bank)' },
+  { value: 'BANK_WITHDRAWAL', label: '💵 Withdraw Cash from Bank into Store (Cash out from Bank)' },
+  { value: 'CREDIT_COLLECTION', label: '👥 Received Cash for Credit Sale (Customer Payment)' },
+  { value: 'CREDIT_PAYMENT', label: '🤝 Cash Payment for Purchase (Supplier Payout)' },
 ];
 
 const CashBookPageBase: React.FC = () => {
@@ -1120,7 +1129,7 @@ const CashBookPageBase: React.FC = () => {
               <form onSubmit={handleSaveConfig} className="space-y-4 text-xs">
                 <div>
                   <label className="block text-gray-700 font-bold mb-1">
-                    Initial Cash at Store Opening Balance (₹) *
+                    Initial Cash at Store Opening Balance ({symbol}) *
                   </label>
                   <input
                     type="number"
@@ -1136,7 +1145,7 @@ const CashBookPageBase: React.FC = () => {
 
                 <div>
                   <label className="block text-gray-700 font-bold mb-1">
-                    Initial Bank Account Balance (₹)
+                    Initial Bank Account Balance ({symbol})
                   </label>
                   <input
                     type="number"
@@ -1148,7 +1157,7 @@ const CashBookPageBase: React.FC = () => {
 
                 <div>
                   <label className="block text-gray-700 font-bold mb-1">
-                    Initial Airtel / Mobile Money Balance (₹)
+                    Initial Airtel / Mobile Money Balance ({symbol})
                   </label>
                   <input
                     type="number"
@@ -1217,19 +1226,13 @@ const CashBookPageBase: React.FC = () => {
 
               <form onSubmit={handleSaveQuickEntry} className="space-y-4 text-xs">
                 <div>
-                  <label className="block text-gray-700 font-bold mb-1">
-                    Movement Type *
-                  </label>
-                  <select
+                  <Select
+                    label="Movement Type *"
                     value={entryForm.type}
                     onChange={e => setEntryForm({ ...entryForm, type: e.target.value })}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs text-gray-900 font-bold outline-none focus:border-emerald-500"
-                  >
-                    <option value="BANK_DEPOSIT">🏦 Deposit Store Cash into Bank (Cash in Bank)</option>
-                    <option value="BANK_WITHDRAWAL">💵 Withdraw Cash from Bank into Store (Cash out from Bank)</option>
-                    <option value="CREDIT_COLLECTION">👥 Received Cash for Credit Sale (Customer Payment)</option>
-                    <option value="CREDIT_PAYMENT">🤝 Cash Payment for Purchase (Supplier Payout)</option>
-                  </select>
+                    options={MOVEMENT_TYPE_OPTIONS}
+                    className="bg-gray-50 border-gray-200 text-xs font-bold text-gray-900 focus-visible:ring-emerald-500 h-10"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -1248,7 +1251,7 @@ const CashBookPageBase: React.FC = () => {
 
                   <div>
                     <label className="block text-gray-700 font-bold mb-1">
-                      Amount (₹) *
+                      Amount ({symbol}) *
                     </label>
                     <input
                       type="number"
