@@ -16,11 +16,13 @@ import {
 import type { SalesReportRow } from '../../services/api';
 import { useCurrency } from '../../helper/currency';
 
-interface AmazonSalesGraphProps {
+export interface AmazonSalesGraphProps {
   rows: SalesReportRow[];
   currencySymbol?: string;
   className?: string;
   presetRange?: string;
+  selectedRange?: DateRangeOption;
+  onDateRangeChange?: (range: DateRangeOption, startDate: string, endDate: string) => void;
   onAnalyseClick?: () => void;
 }
 
@@ -33,6 +35,53 @@ export type DateRangeOption =
   | '6months'
   | 'year'
   | 'all';
+
+export const getDateRangeBounds = (
+  range: DateRangeOption
+): { startDate: string; endDate: string } => {
+  const now = new Date();
+  const formatYMD = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayStr = formatYMD(now);
+
+  switch (range) {
+    case 'today':
+      return { startDate: todayStr, endDate: todayStr };
+    case '7days': {
+      const past = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+      return { startDate: formatYMD(past), endDate: todayStr };
+    }
+    case '30days': {
+      const past = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29);
+      return { startDate: formatYMD(past), endDate: todayStr };
+    }
+    case 'thisMonth': {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { startDate: formatYMD(firstDay), endDate: todayStr };
+    }
+    case '3months': {
+      const past = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+      return { startDate: formatYMD(past), endDate: todayStr };
+    }
+    case '6months': {
+      const past = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      return { startDate: formatYMD(past), endDate: todayStr };
+    }
+    case 'year': {
+      const past = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      return { startDate: formatYMD(past), endDate: todayStr };
+    }
+    case 'all':
+      return { startDate: '', endDate: '' };
+    default:
+      return { startDate: '', endDate: '' };
+  }
+};
 
 interface BucketPoint {
   label: string;
@@ -92,14 +141,17 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   currencySymbol,
   className = '',
   presetRange,
+  selectedRange,
+  onDateRangeChange,
   onAnalyseClick
 }) => {
   const { format, symbol } = useCurrency();
   const curSymbol = currencySymbol || symbol || '₹';
 
   // Amazon Seller controls
-  const [dateRange, setDateRange] = useState<DateRangeOption>('today');
+  const [dateRange, setDateRange] = useState<DateRangeOption>(selectedRange || 'today');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [compareDates, setCompareDates] = useState(false);
   const [activeMarketplace, setActiveMarketplace] = useState('All Channels (1)');
@@ -118,18 +170,35 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Sync date range with presetRange if passed, otherwise default is always 'today'
+  // Close dropdown on outside click
   useEffect(() => {
-    if (presetRange === 'today') {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    if (dropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [dropdownOpen]);
+
+  // Sync date range with presetRange or selectedRange if passed
+  useEffect(() => {
+    if (selectedRange) {
+      setDateRange(selectedRange);
+    } else if (presetRange === 'today') {
       setDateRange('today');
     } else if (presetRange === 'last7') {
       setDateRange('7days');
     } else if (presetRange === 'thisMonth') {
       setDateRange('thisMonth');
-    } else {
-      setDateRange('today');
+    } else if (presetRange === 'all') {
+      setDateRange('all');
     }
-  }, [presetRange]);
+  }, [selectedRange, presetRange]);
 
   // Filter rows based on search input
   const searchedRows = useMemo(() => {
@@ -472,7 +541,7 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Date Range Dropdown */}
-          <div className="relative">
+          <div className="relative" ref={dropdownRef}>
             <button
               type="button"
               onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -491,6 +560,8 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
                     onClick={() => {
                       setDateRange(key);
                       setDropdownOpen(false);
+                      const bounds = getDateRangeBounds(key);
+                      onDateRangeChange?.(key, bounds.startDate, bounds.endDate);
                     }}
                     className="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-700 flex items-center justify-between cursor-pointer"
                   >

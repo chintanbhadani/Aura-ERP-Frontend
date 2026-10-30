@@ -42,10 +42,10 @@ import { RadialGauge } from '../../components/motion/RadialGauge';
 import { AmazonSalesGraph } from '../../components/motion/AmazonSalesGraph';
 
 const TIME_PRESET_TABS: TabOption[] = [
-  { id: 'all', label: 'All Time' },
   { id: 'today', label: 'Today' },
   { id: 'last7', label: 'Last 7 Days' },
   { id: 'thisMonth', label: 'This Month' },
+  { id: 'all', label: 'All Time' },
 ];
 
 const VIEW_SEGMENT_TABS: TabOption[] = [
@@ -54,6 +54,13 @@ const VIEW_SEGMENT_TABS: TabOption[] = [
   { id: 'multi-batch', label: 'Multi-Batch POs' },
   { id: 'cash', label: 'Cash Sales' },
 ];
+
+const formatLocalDate = (d: Date) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const SalesReportPageBase: React.FC = () => {
   const navigate = useNavigate();
@@ -70,14 +77,15 @@ const SalesReportPageBase: React.FC = () => {
     totalInvoices: 0
   });
 
-  // Time preset pill tab
-  const [timePreset, setTimePreset] = useState('all');
+  // Default date filter is today
+  const todayStr = useMemo(() => formatLocalDate(new Date()), []);
+  const [timePreset, setTimePreset] = useState('today');
   const [viewSegment, setViewSegment] = useState('all');
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(todayStr);
+  const [endDate, setEndDate] = useState(todayStr);
   const [selectedClient, setSelectedClient] = useState('ALL');
   const [selectedSupplier, setSelectedSupplier] = useState('ALL');
   const [sortField, setSortField] = useState<'date' | 'totalSales' | 'grossProfit' | 'marginPct'>('date');
@@ -137,12 +145,6 @@ const SalesReportPageBase: React.FC = () => {
   const handleTimePresetChange = (tabId: string) => {
     setTimePreset(tabId);
     const today = new Date();
-    const formatLocalDate = (d: Date) => {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
 
     if (tabId === 'today') {
       const dStr = formatLocalDate(today);
@@ -459,6 +461,15 @@ const SalesReportPageBase: React.FC = () => {
           rows={filteredAndSortedRows}
           currencySymbol={symbol}
           presetRange={timePreset}
+          onDateRangeChange={(range, sDate, eDate) => {
+            setStartDate(sDate);
+            setEndDate(eDate);
+            if (range === 'today') setTimePreset('today');
+            else if (range === '7days') setTimePreset('last7');
+            else if (range === 'thisMonth') setTimePreset('thisMonth');
+            else if (range === 'all') setTimePreset('all');
+            else setTimePreset('');
+          }}
           onAnalyseClick={handlePrint}
         />
 
@@ -515,7 +526,10 @@ const SalesReportPageBase: React.FC = () => {
               <input
                 type="date"
                 value={startDate}
-                onChange={e => setStartDate(e.target.value)}
+                onChange={e => {
+                  setStartDate(e.target.value);
+                  setTimePreset('');
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none bg-gray-50"
                 title="From Date"
               />
@@ -523,7 +537,10 @@ const SalesReportPageBase: React.FC = () => {
               <input
                 type="date"
                 value={endDate}
-                onChange={e => setEndDate(e.target.value)}
+                onChange={e => {
+                  setEndDate(e.target.value);
+                  setTimePreset('');
+                }}
                 className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none bg-gray-50"
                 title="To Date"
               />
