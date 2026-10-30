@@ -42,19 +42,6 @@ const AVAILABLE_ROLES = [
   'Production Manager'
 ];
 
-const INITIAL_USERS: UserRecord[] = [
-  { id: 'usr-1', employeeId: 'ADM001', username: 'admin', fullName: 'System Admin', role: 'Admin', contactNumber: '9876543201', email: 'admin@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() },
-  { id: 'usr-2', employeeId: 'STM001', username: 'storemanager', fullName: 'Suresh Patel', role: 'Store Manager', contactNumber: '9876543202', email: 'store.manager@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() },
-  { id: 'usr-3', employeeId: 'STE001', username: 'storeexec', fullName: 'Ramesh Kumar', role: 'Store Executive', contactNumber: '9876543203', email: 'store.exec@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() },
-  { id: 'usr-4', employeeId: 'PURM001', username: 'purchasemanager', fullName: 'Vikram Shah', role: 'Purchase Manager', contactNumber: '9876543204', email: 'purchase.manager@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() },
-  { id: 'usr-5', employeeId: 'PURE001', username: 'purchaseexec', fullName: 'Amit Sharma', role: 'Purchase Executive', contactNumber: '9876543205', email: 'purchase.exec@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() },
-  { id: 'usr-6', employeeId: 'SLSM001', username: 'salesmanager', fullName: 'Rahul Mehta', role: 'Sales Manager', contactNumber: '9876543206', email: 'sales.manager@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() },
-  { id: 'usr-7', employeeId: 'SLSE001', username: 'salesexec', fullName: 'Priya Verma', role: 'Sales Executive', contactNumber: '9876543207', email: 'sales.exec@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() },
-  { id: 'usr-8', employeeId: 'QCM001', username: 'qcmanager', fullName: 'Hardik Dave', role: 'QC Manager', contactNumber: '9876543208', email: 'qc.manager@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() },
-  { id: 'usr-9', employeeId: 'QCI001', username: 'qcinspector', fullName: 'Harmindar Singh', role: 'QC Inspector', contactNumber: '9876543209', email: 'qc.inspector@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() },
-  { id: 'usr-10', employeeId: 'PRDM001', username: 'productionmanager', fullName: 'Manish Joshi', role: 'Production Manager', contactNumber: '9876543210', email: 'production.manager@patelstrap.com', status: 'Active', isBlock: false, updatedAt: new Date().toISOString() }
-];
-
 const QUICK_FILTER_FIELDS: QuickFilterField[] = [
   { key: 'employeeId', placeholder: 'Employee ID', className: 'w-24 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-2.5 py-1 text-xs outline-none' },
   { key: 'username', placeholder: 'User Name', className: 'w-28 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-2.5 py-1 text-xs outline-none' },
@@ -104,14 +91,11 @@ const UserManagementListBase: React.FC<UserManagementListProps> = () => {
     setLoading(true);
     try {
       const data = await fetchUsers();
-      if (Array.isArray(data) && data.length > 0) {
-        setUsers(data);
-      } else {
-        setUsers(INITIAL_USERS);
-      }
-    } catch (err) {
-      console.warn('Backend API unavailable, using sample users:', err);
-      setUsers(INITIAL_USERS);
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error('Failed to load users from API:', err);
+      errorToast(err.response?.data?.error || 'Failed to load users from server');
+      setUsers([]);
     } finally {
       setLoading(false);
     }

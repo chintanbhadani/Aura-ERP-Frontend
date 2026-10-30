@@ -24,19 +24,6 @@ import {
 } from 'lucide-react';
 import { formatFullDateTime } from '../../helper/helper';
 
-const INITIAL_ROLES: RoleRecord[] = [
-  { id: '1', name: 'Admin', code: 'ADMIN', description: 'Full access to all system modules, configurations, user management, and settings.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() },
-  { id: '2', name: 'Store Manager', code: 'STORE_MANAGER', description: 'Manages overall inventory, stock entries, GRN verification, and warehouse operations.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() },
-  { id: '3', name: 'Store Executive', code: 'STORE_EXEC', description: 'Handles day-to-day stock receipts, material movements, and inventory logs.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() },
-  { id: '4', name: 'Purchase Manager', code: 'PURCHASE_MANAGER', description: 'Oversees procurement operations, vendor relations, and approves purchase orders.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() },
-  { id: '5', name: 'Purchase Executive', code: 'PURCHASE_EXEC', description: 'Creates material requisitions, purchase orders, and supplier communication.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() },
-  { id: '6', name: 'Sales Manager', code: 'SALES_MANAGER', description: 'Manages sales targets, CRM leads, customer accounts, and sales approvals.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() },
-  { id: '7', name: 'Sales Executive', code: 'SALES_EXEC', description: 'Creates client inquiries, quotations, proforma invoices, and customer follow-ups.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() },
-  { id: '8', name: 'QC Manager', code: 'QC_MANAGER', description: 'Defines quality standards, approves incoming inspection reports, and manages QC workflows.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() },
-  { id: '9', name: 'QC Inspector', code: 'QC_INSPECTOR', description: 'Conducts physical inspections, quality tests, roll testing, and records QC logs.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() },
-  { id: '10', name: 'Production Manager', code: 'PRODUCTION_MANAGER', description: 'Schedules manufacturing shifts, machine assignments, and monitors daily production outputs.', status: 'Active', userCount: 1, updatedAt: new Date().toISOString() }
-];
-
 const QUICK_FILTER_FIELDS: QuickFilterField[] = [
   { key: 'name', placeholder: 'Role Name', className: 'w-36 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-2.5 py-1 text-xs outline-none' },
   { key: 'code', placeholder: 'Role Code', className: 'w-32 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-2.5 py-1 text-xs outline-none' },
@@ -85,14 +72,11 @@ const RoleManagementListBase: React.FC<RoleManagementListProps> = () => {
     setLoading(true);
     try {
       const data = await fetchRoles();
-      if (Array.isArray(data) && data.length > 0) {
-        setRoles(data);
-      } else {
-        setRoles(INITIAL_ROLES);
-      }
-    } catch (err) {
-      console.warn('Backend API unavailable, using sample roles:', err);
-      setRoles(INITIAL_ROLES);
+      setRoles(Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      console.error('Failed to load roles from API:', err);
+      errorToast(err.response?.data?.error || 'Failed to load roles from server');
+      setRoles([]);
     } finally {
       setLoading(false);
     }

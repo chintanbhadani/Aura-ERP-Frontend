@@ -169,105 +169,7 @@ export const generateGinningStickerCode = (
   return `${prefix6}${lengthCode}${encodedWeight}${unitCode}${suf}`;
 };
 
-// Initial Mock Data
-const INITIAL_WEIGHMENTS: WeighmentRecord[] = [
-  {
-    id: 'WGH-001',
-    rollStickerCode: 'A09JZD1',
-    ginningStickerCode: 'A09JZD10CFJM1',
-    productionOrderNo: 'PO-2026-001',
-    customerName: 'Reliance Industries Ltd',
-    finishedGoodName: 'PET Strap 12mm x 0.60mm Green',
-    finishedGoodSku: 'PET-1206-GRN',
-    machineCode: 'EXT-01',
-    machineLetter: 'A',
-    machineName: 'Machine 1 (High-Speed Line)',
-    rollGrade: 'Grade A',
-    grossWeightKg: 21.00,
-    tareWeightKg: 0.80,
-    actualNetWeightKg: 20.20,
-    billedWeightKg: 20.00,
-    giveawayWeightKg: 0.20,
-    netWeightKg: 20.00,
-    strapLengthMeters: 1000,
-    shift: 'D',
-    manualSuffix: '1',
-    operatorName: 'Ramesh Patel',
-    createdAt: '2026-10-09T08:30:00Z'
-  },
-  {
-    id: 'WGH-002',
-    rollStickerCode: 'A09JZD2',
-    ginningStickerCode: 'A09JZD10CFJM2',
-    productionOrderNo: 'PO-2026-001',
-    customerName: 'Reliance Industries Ltd',
-    finishedGoodName: 'PET Strap 12mm x 0.60mm Green',
-    finishedGoodSku: 'PET-1206-GRN',
-    machineCode: 'EXT-01',
-    machineLetter: 'A',
-    machineName: 'Machine 1 (High-Speed Line)',
-    rollGrade: 'Grade A',
-    grossWeightKg: 21.10,
-    tareWeightKg: 0.80,
-    actualNetWeightKg: 20.30,
-    billedWeightKg: 20.00,
-    giveawayWeightKg: 0.30,
-    netWeightKg: 20.00,
-    strapLengthMeters: 1000,
-    shift: 'D',
-    manualSuffix: '2',
-    operatorName: 'Ramesh Patel',
-    createdAt: '2026-10-09T09:15:00Z'
-  },
-  {
-    id: 'WGH-003',
-    rollStickerCode: 'B09JZD1',
-    ginningStickerCode: 'B09JZD15CGJM1',
-    productionOrderNo: 'PO-2026-002',
-    customerName: 'Tata Motors Ltd',
-    finishedGoodName: 'PET Strap 15mm x 0.80mm Heavy Duty Black',
-    finishedGoodSku: 'PET-1508-BLK',
-    machineCode: 'EXT-02',
-    machineLetter: 'B',
-    machineName: 'Machine 2 (Heavy Duty Line)',
-    rollGrade: 'Grade B',
-    grossWeightKg: 26.00,
-    tareWeightKg: 1.00,
-    actualNetWeightKg: 25.00,
-    billedWeightKg: 24.50,
-    giveawayWeightKg: 0.50,
-    netWeightKg: 24.50,
-    strapLengthMeters: 1500,
-    shift: 'D',
-    manualSuffix: '1',
-    operatorName: 'Suresh Kumar',
-    createdAt: '2026-10-09T10:00:00Z'
-  },
-  {
-    id: 'WGH-004',
-    rollStickerCode: 'A09JZN1',
-    ginningStickerCode: 'A09JZN05JBEKM1',
-    productionOrderNo: 'PO-2026-001',
-    customerName: 'Reliance Industries Ltd',
-    finishedGoodName: 'PET Strap 12mm x 0.60mm Green',
-    finishedGoodSku: 'PET-1206-GRN',
-    machineCode: 'EXT-01',
-    machineLetter: 'A',
-    machineName: 'Machine 1 (High-Speed Line)',
-    rollGrade: 'Grade C',
-    grossWeightKg: 14.00,
-    tareWeightKg: 0.80,
-    actualNetWeightKg: 13.20,
-    billedWeightKg: 13.00,
-    giveawayWeightKg: 0.20,
-    netWeightKg: 13.00,
-    strapLengthMeters: 500,
-    shift: 'N',
-    manualSuffix: '1',
-    operatorName: 'Mahesh Shah',
-    createdAt: '2026-10-09T11:45:00Z'
-  }
-];
+const INITIAL_WEIGHMENTS: WeighmentRecord[] = [];
 
 const QUICK_FILTER_FIELDS: QuickFilterField[] = [
   { key: 'productionOrderNo', placeholder: 'Order PO #', className: 'w-36 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-3 py-1.5 text-sm outline-none' },
@@ -286,7 +188,7 @@ const ProductionWeighingLedgerBase: React.FC = () => {
     if (saved) {
       try { return JSON.parse(saved); } catch (e) { console.error(e); }
     }
-    return INITIAL_WEIGHMENTS;
+    return [];
   });
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
