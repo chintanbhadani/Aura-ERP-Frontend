@@ -139,6 +139,7 @@ const navItems: NavItem[] = [
     children: [
       { name: 'Expenses', href: '/expenses', icon: Wallet, moduleName: ModuleName.EXPENSES, requiredPermission: Permission.LIST },
       { name: 'Sales Report', href: '/finance/sales-report', icon: TrendingUp, moduleName: ModuleName.TAX_INVOICES, requiredPermission: Permission.LIST },
+      { name: 'Cash Book & Balance Sheet', href: '/finance/cash-book', icon: Scale, moduleName: ModuleName.EXPENSES, requiredPermission: Permission.LIST },
     ]
   },
   { 

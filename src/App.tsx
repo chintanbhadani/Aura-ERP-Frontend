@@ -17,6 +17,7 @@ import MasterData from './components/MasterData';
 import { ExpenseListPage } from './pages/Finance/ExpenseListPage';
 import { ExpenseFormPage } from './pages/Finance/ExpenseFormPage';
 import { SalesReportPage } from './pages/Finance/SalesReportPage';
+import { CashBookPage } from './pages/Finance/CashBookPage';
 import { CategoryList } from './pages/Master/CategoryList';
 import { CategoryFormPage } from './pages/Master/CategoryFormPage';
 import { PartOfList } from './pages/Master/PartOfList';
@@ -184,6 +185,10 @@ function App() {
         <Route path="/finance/expenses/:id" element={<ExpenseFormPage />} />
         <Route path="/finance/sales-report" element={<SalesReportPage />} />
         <Route path="/sales-report" element={<SalesReportPage />} />
+        <Route path="/finance/cash-book" element={<CashBookPage />} />
+        <Route path="/cash-book" element={<CashBookPage />} />
+        <Route path="/finance/balance-sheet" element={<CashBookPage />} />
+        <Route path="/balance-sheet" element={<CashBookPage />} />
         <Route path="/invoices" element={<InvoiceList />} />
         <Route path="/invoices/sales" element={<InvoiceList fixedType="SALES" />} />
         <Route path="/invoices/purchase" element={<InvoiceList fixedType="PURCHASE" />} />

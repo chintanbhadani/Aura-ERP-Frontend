@@ -1309,3 +1309,99 @@ export const fetchSalesReport = async (params?: {
   return response.data;
 };
 
+export interface CashBookDay {
+  date: string;
+  openingBalance: number;
+  totalSale: number;
+  creditSale: number;
+  bankSale: number;
+  mobileMoneySale: number;
+  cashSale: number;
+  receivedCreditSale: number;
+  cashPurchase: number;
+  cashExpense: number;
+  cashPaymentForPurchase: number;
+  cashInBank: number;
+  cashOutFromBank: number;
+  closingBalance: number;
+  hasActivity: boolean;
+  details?: {
+    sales: any[];
+    purchases: any[];
+    expenses: any[];
+    payments: any[];
+  };
+}
+
+export interface CashBookSummary {
+  currentStoreCash: number;
+  currentBankBalance: number;
+  currentAirtelBalance: number;
+  totalCreditReceivable: number;
+  totalCreditPayable: number;
+  initialCash: number;
+  initialBank: number;
+  initialAirtel: number;
+  periodTotals: {
+    totalSale: number;
+    creditSale: number;
+    bankSale: number;
+    mobileMoneySale: number;
+    cashSale: number;
+    receivedCreditSale: number;
+    cashPurchase: number;
+    cashExpense: number;
+    cashPaymentForPurchase: number;
+    cashInBank: number;
+    cashOutFromBank: number;
+  };
+}
+
+export interface CashBookResponse {
+  summary: CashBookSummary;
+  days: CashBookDay[];
+}
+
+export interface CashBookConfig {
+  id: string;
+  key: string;
+  initialOpeningCash: number;
+  initialOpeningBank: number;
+  initialOpeningAirtel: number;
+  notes?: string;
+  updatedAt?: string;
+}
+
+export const fetchCashBookReport = async (params?: {
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+}): Promise<CashBookResponse> => {
+  const response = await dataService.get('/reports/cash-book', { params });
+  return response.data;
+};
+
+export const fetchCashBookConfig = async (): Promise<CashBookConfig> => {
+  const response = await dataService.get('/reports/cash-book/config');
+  return response.data;
+};
+
+export const updateCashBookConfig = async (data: Partial<CashBookConfig>): Promise<CashBookConfig> => {
+  const response = await dataService.post('/reports/cash-book/config', data);
+  return response.data;
+};
+
+export const createCashQuickEntry = async (data: {
+  type: 'BANK_DEPOSIT' | 'BANK_WITHDRAWAL' | 'CREDIT_COLLECTION' | 'CREDIT_PAYMENT' | string;
+  amount: number;
+  date?: string;
+  description?: string;
+  customerId?: string;
+  supplierId?: string;
+  paymentType?: string;
+}): Promise<any> => {
+  const response = await dataService.post('/reports/cash-book/quick-entry', data);
+  return response.data;
+};
+
+
