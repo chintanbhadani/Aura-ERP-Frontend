@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
+import { formatFullDateTime } from '../../helper/helper';
 
 export interface InquiryRecord {
   id: string;
@@ -408,6 +409,16 @@ function InquiriesBase() {
           <Calendar className="w-3.5 h-3.5 text-gray-400" />
           <span>{new Date(val).toLocaleDateString()}</span>
         </div>
+      )
+    },
+    {
+      key: 'updatedAt',
+      title: 'Updated At',
+      width: '180px',
+      render: (_, row) => (
+        <span className="text-xs text-gray-600 font-mono font-medium">
+          {formatFullDateTime((row as any).updatedAt || row.createdAt)}
+        </span>
       )
     },
     {

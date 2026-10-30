@@ -297,57 +297,24 @@ const RoleManagementListBase: React.FC<RoleManagementListProps> = () => {
       )
     },
     {
-      key: 'meta',
+      key: 'actions',
       title: '',
       align: 'right',
-      width: '90px',
-      headerRender: ({ currentPageCount, totalCount }) => (
-        <div className="flex items-center justify-end gap-2 font-normal text-gray-500 lowercase text-xs select-none">
-          <span>{currentPageCount} of {totalCount.toLocaleString()}</span>
+      width: '50px',
+      render: (_, row) => (
+        <div className="flex items-center justify-end text-gray-500 text-xs select-none">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setHeaderFavorite(!headerFavorite);
+              if (row.id) handleDeleteRole(row.id);
             }}
-            className="focus:outline-none p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-            title={headerFavorite ? "Remove Favorite Filter" : "Filter Favorites"}
+            className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
+            title="Delete Role"
           >
-            <Heart className={`w-3.5 h-3.5 transition-all ${headerFavorite ? 'text-red-500 fill-red-500 scale-110' : 'text-gray-400 hover:text-red-500'}`} />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
-      ),
-      render: (_, row) => {
-        const isFav = favorites[row.id!];
-        return (
-          <div className="flex items-center justify-end gap-2 text-gray-500 text-xs select-none">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (row.id) handleDeleteRole(row.id);
-              }}
-              className="p-1 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-red-600 transition-colors cursor-pointer"
-              title="Delete Role"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                if (row.id) toggleFavorite(row.id);
-                if (!isFav) {
-                  successToast(`Marked "${row.name}" as favorite`);
-                } else {
-                  successToast(`Removed "${row.name}" from favorites`);
-                }
-              }} 
-              className="focus:outline-none p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-              title={isFav ? "Remove Favorite" : "Add Favorite"}
-            >
-              <Heart className={`w-3.5 h-3.5 transition-all ${isFav ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-400 hover:text-red-500'}`} />
-            </button>
-          </div>
-        );
-      }
+      )
     }
   ];
 

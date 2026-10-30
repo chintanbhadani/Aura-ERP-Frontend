@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
+import { formatFullDateTime } from '../../helper/helper';
 
 export interface ClientRecord {
   id: string | number;
@@ -391,6 +392,15 @@ function ClientsBase() {
           </span>
         );
       }
+    },
+    {
+      key: 'updatedAt',
+      title: 'Updated At',
+      render: (_, row) => (
+        <span className="text-xs text-gray-600 font-mono font-medium">
+          {formatFullDateTime((row as any).updatedAt || (row as any).createdAt)}
+        </span>
+      )
     },
     {
       key: 'actions',

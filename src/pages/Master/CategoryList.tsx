@@ -386,53 +386,6 @@ const CategoryListBase: React.FC = () => {
           {formatFullDateTime(row.updatedAt)}
         </span>
       )
-    },
-    {
-      key: 'meta',
-      title: '',
-      align: 'right',
-      width: '90px',
-      headerRender: ({ currentPageCount, totalCount }) => (
-        <div className="flex items-center justify-end gap-2 font-normal text-gray-500 lowercase text-xs select-none">
-          <span>{currentPageCount} of {totalCount.toLocaleString()}</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setHeaderFavorite(!headerFavorite);
-            }}
-            className="focus:outline-none p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-            title={headerFavorite ? "Remove Favorite Filter" : "Filter Favorites"}
-          >
-            <Heart className={`w-3.5 h-3.5 transition-all ${headerFavorite ? 'text-red-500 fill-red-500 scale-110' : 'text-gray-400 hover:text-red-500'}`} />
-          </button>
-        </div>
-      ),
-      render: (_, row) => {
-        const isFav = favorites[row.id];
-        return (
-          <div className="flex items-center justify-end gap-3 text-gray-500 text-xs select-none">
-            <div className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors" title="Comments">
-              <MessageSquare className="w-3 h-3 text-gray-400" />
-              <span>0</span>
-            </div>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFavorite(row.id);
-                if (!isFav) {
-                  successToast(`Marked "${row.name}" as favorite`);
-                } else {
-                  successToast(`Removed "${row.name}" from favorites`);
-                }
-              }} 
-              className="focus:outline-none p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-              title={isFav ? "Remove Favorite" : "Add Favorite"}
-            >
-              <Heart className={`w-3.5 h-3.5 transition-all ${isFav ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-400 hover:text-red-500'}`} />
-            </button>
-          </div>
-        );
-      }
     }
   ];
 

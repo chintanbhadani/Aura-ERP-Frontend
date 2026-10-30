@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
+import { formatFullDateTime } from '../../helper/helper';
 
 export interface ProformaRecord {
   id: string;
@@ -412,6 +413,16 @@ function ProformaInvoicesBase() {
           <Calendar className="w-3.5 h-3.5 text-gray-400" />
           <span>{val || '-'}</span>
         </div>
+      )
+    },
+    {
+      key: 'updatedAt',
+      title: 'Updated At',
+      width: '180px',
+      render: (_, row) => (
+        <span className="text-xs text-gray-600 font-mono font-medium">
+          {formatFullDateTime((row as any).updatedAt || (row as any).createdAt || row.piDate)}
+        </span>
       )
     },
     {

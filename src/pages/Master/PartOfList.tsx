@@ -20,6 +20,7 @@ import {
   Trash2, 
   Edit3 
 } from 'lucide-react';
+import { formatFullDateTime } from '../../helper/helper';
 
 const QUICK_FILTER_FIELDS: QuickFilterField[] = [
   { key: 'id', placeholder: 'ID', className: 'w-24 bg-gray-100 focus:bg-white border border-transparent focus:border-gray-300 rounded-md px-2.5 py-1 text-xs outline-none' },
@@ -128,6 +129,10 @@ const PartOfListBase: React.FC = () => {
         comparison = a.name.localeCompare(b.name);
       } else if (sortField === 'ID') {
         comparison = String(a.id).localeCompare(String(b.id));
+      } else {
+        const dateA = new Date((a as any).updatedAt || (a as any).createdAt || 0).getTime();
+        const dateB = new Date((b as any).updatedAt || (b as any).createdAt || 0).getTime();
+        comparison = dateA - dateB;
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
@@ -216,26 +221,14 @@ const PartOfListBase: React.FC = () => {
       )
     },
     {
-      key: 'meta',
-      title: '',
-      align: 'right',
-      width: '130px',
-      render: (_, row) => {
-        const isFav = favorites[row.id];
-        return (
-          <div className="flex items-center justify-end gap-3 text-gray-500 text-xs select-none">
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFavorite(row.id);
-              }} 
-              className="focus:outline-none p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-            >
-              <Heart className={`w-3.5 h-3.5 transition-all ${isFav ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-400 hover:text-red-500'}`} />
-            </button>
-          </div>
-        );
-      }
+      key: 'updatedAt',
+      title: 'Updated At',
+      width: '240px',
+      render: (_, row) => (
+        <span className="text-xs text-gray-600 font-mono font-medium">
+          {formatFullDateTime((row as any).updatedAt || (row as any).createdAt)}
+        </span>
+      )
     }
   ];
 

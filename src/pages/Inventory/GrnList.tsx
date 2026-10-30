@@ -25,6 +25,7 @@ import {
 import { GrnPrintModal } from '../../components/GrnPrintModal';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
+import { formatFullDateTime } from '../../helper/helper';
 
 const INITIAL_GRNS: GrnRecord[] = [];
 
@@ -171,6 +172,10 @@ function GrnListBase() {
     if (quickFilters.company && !(item.company || '').toLowerCase().includes(quickFilters.company.toLowerCase())) return false;
 
     return true;
+  }).sort((a, b) => {
+    const timeA = new Date((a as any).updatedAt || a.postingDate || 0).getTime();
+    const timeB = new Date((b as any).updatedAt || b.postingDate || 0).getTime();
+    return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
   });
 
   const columns: ColumnDef<GrnRecord>[] = [
@@ -267,6 +272,16 @@ function GrnListBase() {
           </span>
         );
       }
+    },
+    {
+      key: 'updatedAt',
+      title: 'Updated At',
+      width: '180px',
+      render: (_, row) => (
+        <span className="text-xs text-gray-600 font-mono font-medium">
+          {formatFullDateTime((row as any).updatedAt || row.postingDate)}
+        </span>
+      )
     },
     {
       key: 'actions',

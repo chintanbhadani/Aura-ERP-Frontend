@@ -6,6 +6,7 @@ import { fetchBinReport, type BinReportItem } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
+import { formatFullDateTime } from '../../helper/helper';
 import { 
   Boxes, 
   FileSpreadsheet, 
@@ -238,6 +239,16 @@ function BinReportListBase() {
         <span className="inline-flex items-center gap-1.5 text-xs text-gray-700 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-200">
           <Building2 className="w-3 h-3 text-slate-400" />
           {val || row.warehouse}
+        </span>
+      )
+    },
+    {
+      key: 'updatedAt',
+      title: 'Updated At',
+      width: '180px',
+      render: (_, row) => (
+        <span className="text-xs text-gray-600 font-mono font-medium">
+          {formatFullDateTime((row as any).updatedAt || (row as any).createdAt)}
         </span>
       )
     }

@@ -378,76 +378,43 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
     {
       key: 'updatedAt',
       title: 'UPDATED AT',
+      width: '180px',
+      sortable: true,
+      render: (_, row) => (
+        <span className="text-xs text-gray-600 font-mono font-medium">
+          {formatFullDateTime((row as any).updatedAt || row.date)}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      title: '',
       align: 'right',
-      width: '140px',
-      headerRender: ({ currentPageCount, totalCount }) => (
-        <div className="flex items-center justify-end gap-2 font-normal text-gray-500 lowercase text-xs select-none">
-          <span>{currentPageCount} of {totalCount.toLocaleString()}</span>
+      width: '80px',
+      render: (_, row) => (
+        <div className="flex items-center justify-end gap-2 text-gray-500 text-xs select-none">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setHeaderFavorite(!headerFavorite);
+              printInvoice(row);
             }}
-            className="focus:outline-none p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-            title={headerFavorite ? "Remove Favorite Filter" : "Filter Favorites"}
+            className="p-1 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+            title="Print Invoice"
           >
-            <Heart className={`w-3.5 h-3.5 transition-all ${headerFavorite ? 'text-red-500 fill-red-500 scale-110' : 'text-gray-400 hover:text-red-500'}`} />
+            <Printer className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              downloadInvoicePdf(row);
+            }}
+            className="p-1 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+            title="Download PDF"
+          >
+            <Download className="w-3.5 h-3.5" />
           </button>
         </div>
-      ),
-      render: (_, row) => {
-        const isFav = favorites[row.id];
-        return (
-          <div className="flex items-center justify-end gap-2 text-gray-500 text-xs select-none">
-            {/* Print icon */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                printInvoice(row);
-              }}
-              className="p-1 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
-              title="Print Invoice"
-            >
-              <Printer className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Download PDF */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                downloadInvoicePdf(row);
-              }}
-              className="p-1 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
-              title="Download PDF"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Comments Counter */}
-            <div className="flex items-center gap-1 text-[11px] text-gray-400 hover:text-gray-600 transition-colors" title="Comments">
-              <MessageSquare className="w-3 h-3 text-gray-400" />
-              <span>0</span>
-            </div>
-
-            {/* Favorite toggle */}
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleFavorite(row.id);
-                if (!isFav) {
-                  successToast(`Marked ${row.invoiceNumber} as favorite`);
-                } else {
-                  successToast(`Removed ${row.invoiceNumber} from favorites`);
-                }
-              }} 
-              className="focus:outline-none p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-              title={isFav ? "Remove Favorite" : "Add Favorite"}
-            >
-              <Heart className={`w-3.5 h-3.5 transition-all ${isFav ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-400 hover:text-red-500'}`} />
-            </button>
-          </div>
-        );
-      }
+      )
     }
   ];
 

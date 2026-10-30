@@ -6,6 +6,7 @@ import { fetchStockEntries } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
+import { formatFullDateTime } from '../../helper/helper';
 import { 
   History, 
   ArrowDownLeft, 
@@ -461,6 +462,16 @@ function StockLedgerListBase() {
           </span>
         );
       }
+    },
+    {
+      key: 'updatedAt',
+      title: 'Updated At',
+      width: '180px',
+      render: (_, row) => (
+        <span className="text-xs text-gray-600 font-mono font-medium">
+          {formatFullDateTime((row as any).updatedAt || (row as any).createdAt || row.date)}
+        </span>
+      )
     }
   ];
 
