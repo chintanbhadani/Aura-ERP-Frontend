@@ -712,21 +712,41 @@ const SalesReportPageBase: React.FC = () => {
                           </td>
 
                           {/* Supplier Name */}
-                          <td className="py-3.5 px-3">
-                            <div className="flex flex-wrap gap-1">
-                              {row.supplierName.split(',').map((sup, sIdx) => {
-                                const sTrim = sup.trim();
-                                return (
-                                  <span
-                                    key={sIdx}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-900 border border-amber-200"
-                                  >
-                                    <Truck className="w-3 h-3 text-amber-600 shrink-0" />
-                                    <span>{sTrim}</span>
+                          <td className="py-3.5 px-3 whitespace-nowrap">
+                            {(() => {
+                              const suppliers = (row.supplierName || '')
+                                .split(',')
+                                .map(s => s.trim())
+                                .filter(Boolean);
+                              const primarySupplier = suppliers[0];
+                              const extraCount = suppliers.length - 1;
+
+                              if (!primarySupplier) {
+                                return <span className="text-gray-400 font-mono">—</span>;
+                              }
+
+                              return (
+                                <div className="flex items-center gap-1.5">
+                                  <Truck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                  <span className="font-semibold text-gray-900 text-xs">
+                                    {primarySupplier}
                                   </span>
-                                );
-                              })}
-                            </div>
+                                  {extraCount > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleRow(row.id);
+                                      }}
+                                      className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 cursor-pointer transition-all shadow-2xs hover:scale-102"
+                                      title={`All Suppliers (${suppliers.length}):\n${suppliers.map((s, i) => `${i + 1}. ${s}`).join('\n')}\nClick to toggle batch breakdown.`}
+                                    >
+                                      +{extraCount} more
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           {/* PO Reference */}
