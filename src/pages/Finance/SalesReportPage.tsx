@@ -42,10 +42,10 @@ import { RadialGauge } from '../../components/motion/RadialGauge';
 import { AmazonSalesGraph } from '../../components/motion/AmazonSalesGraph';
 
 const TIME_PRESET_TABS: TabOption[] = [
+  { id: 'all', label: 'All Time' },
   { id: 'today', label: 'Today' },
   { id: 'last7', label: 'Last 7 Days' },
   { id: 'thisMonth', label: 'This Month' },
-  { id: 'all', label: 'All Time' },
 ];
 
 const VIEW_SEGMENT_TABS: TabOption[] = [
@@ -77,15 +77,14 @@ const SalesReportPageBase: React.FC = () => {
     totalInvoices: 0
   });
 
-  // Default date filter is today
-  const todayStr = useMemo(() => formatLocalDate(new Date()), []);
-  const [timePreset, setTimePreset] = useState('today');
+  // Default date filter is all time so all sales invoices show by default
+  const [timePreset, setTimePreset] = useState('all');
   const [viewSegment, setViewSegment] = useState('all');
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState(todayStr);
-  const [endDate, setEndDate] = useState(todayStr);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [selectedClient, setSelectedClient] = useState('ALL');
   const [selectedSupplier, setSelectedSupplier] = useState('ALL');
   const [sortField, setSortField] = useState<'date' | 'totalSales' | 'grossProfit' | 'marginPct'>('date');

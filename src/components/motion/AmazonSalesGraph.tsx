@@ -149,7 +149,9 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   const curSymbol = currencySymbol || symbol || '₹';
 
   // Amazon Seller controls
-  const [dateRange, setDateRange] = useState<DateRangeOption>(selectedRange || 'today');
+  const [dateRange, setDateRange] = useState<DateRangeOption>(
+    selectedRange || (presetRange === 'today' ? 'today' : presetRange === 'last7' ? '7days' : presetRange === 'thisMonth' ? 'thisMonth' : 'all')
+  );
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -458,6 +460,7 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   }, [bucketData]);
 
   const dateRangeLabels: Record<DateRangeOption, string> = {
+    all: 'All time',
     today: 'Today',
     '7days': 'Last 7 days',
     '30days': 'Last 30 days',
@@ -465,7 +468,6 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
     '3months': 'Last 3 months',
     '6months': 'Last 6 months',
     year: 'Last year',
-    all: 'All time',
   };
 
   const currentPeriodLabel =
