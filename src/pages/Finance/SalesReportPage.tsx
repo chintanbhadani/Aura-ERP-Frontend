@@ -44,7 +44,6 @@ import { AmazonSalesGraph } from '../../components/motion/AmazonSalesGraph';
 const TIME_PRESET_TABS: TabOption[] = [
   { id: 'all', label: 'All Time' },
   { id: 'today', label: 'Today' },
-  { id: 'yesterday', label: 'Yesterday' },
   { id: 'last7', label: 'Last 7 Days' },
   { id: 'thisMonth', label: 'This Month' },
 ];
@@ -147,11 +146,6 @@ const SalesReportPageBase: React.FC = () => {
 
     if (tabId === 'today') {
       const dStr = formatLocalDate(today);
-      setStartDate(dStr);
-      setEndDate(dStr);
-    } else if (tabId === 'yesterday') {
-      const y = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-      const dStr = formatLocalDate(y);
       setStartDate(dStr);
       setEndDate(dStr);
     } else if (tabId === 'last7') {

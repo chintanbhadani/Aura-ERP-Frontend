@@ -26,7 +26,6 @@ interface AmazonSalesGraphProps {
 
 export type DateRangeOption =
   | 'today'
-  | 'yesterday'
   | '7days'
   | '30days'
   | 'thisMonth'
@@ -119,35 +118,18 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Sync date range with presetRange if passed, or default smartly based on data
+  // Sync date range with presetRange if passed, otherwise default is always 'today'
   useEffect(() => {
     if (presetRange === 'today') {
       setDateRange('today');
-    } else if (presetRange === 'yesterday') {
-      setDateRange('yesterday');
     } else if (presetRange === 'last7') {
       setDateRange('7days');
     } else if (presetRange === 'thisMonth') {
       setDateRange('thisMonth');
-    } else if (!presetRange || presetRange === 'all') {
-      // Check if today has sales; if not, but yesterday has sales, default to yesterday
-      const now = new Date();
-      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const yDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      const yesterdayStr = `${yDate.getFullYear()}-${String(yDate.getMonth() + 1).padStart(2, '0')}-${String(yDate.getDate()).padStart(2, '0')}`;
-
-      const hasTodaySales = rows.some(r => getRowDateInfo(r).dateStr === todayStr && r.totalSales > 0);
-      const hasYesterdaySales = rows.some(r => getRowDateInfo(r).dateStr === yesterdayStr && r.totalSales > 0);
-
-      if (hasTodaySales) {
-        setDateRange('today');
-      } else if (hasYesterdaySales) {
-        setDateRange('yesterday');
-      } else {
-        setDateRange('7days');
-      }
+    } else {
+      setDateRange('today');
     }
-  }, [presetRange, rows]);
+  }, [presetRange]);
 
   // Filter rows based on search input
   const searchedRows = useMemo(() => {
@@ -218,52 +200,7 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
       return buckets;
     }
 
-    // 2. YESTERDAY: 12 AM to 11 PM (24 hours)
-    if (dateRange === 'yesterday') {
-      const buckets: BucketPoint[] = [];
-      for (let h = 0; h <= 23; h++) {
-        const period = h < 12 ? 'AM' : 'PM';
-        const displayH = h === 0 ? 12 : h > 12 ? h - 12 : h;
-        const label = `${displayH} ${period}`;
-
-        buckets.push({
-          label,
-          fullDate: `Yesterday, ${label}`,
-          sales: 0,
-          units: 0,
-          cost: 0,
-          profit: 0,
-          prevSales: 0,
-          prevUnits: 0,
-        });
-      }
-
-      // 7 days ago (same day last week) for comparison
-      const lastWeekDate = new Date(todayYear, todayMonth, todayDay - 8);
-      const lastWeekDateStr = `${lastWeekDate.getFullYear()}-${String(lastWeekDate.getMonth() + 1).padStart(2, '0')}-${String(lastWeekDate.getDate()).padStart(2, '0')}`;
-
-      searchedRows.forEach(r => {
-        const info = getRowDateInfo(r);
-        // Only transactions occurring on YESTERDAY
-        if (info.dateStr === yesterdayDateStr) {
-          const h = Math.min(23, Math.max(0, info.hour));
-          buckets[h].sales += r.totalSales;
-          buckets[h].units += r.quantity;
-          buckets[h].cost += r.totalCost;
-          buckets[h].profit += r.grossProfit;
-        }
-
-        if (compareDates && info.dateStr === lastWeekDateStr) {
-          const h = Math.min(23, Math.max(0, info.hour));
-          buckets[h].prevSales = (buckets[h].prevSales || 0) + r.totalSales;
-          buckets[h].prevUnits = (buckets[h].prevUnits || 0) + r.quantity;
-        }
-      });
-
-      return buckets;
-    }
-
-    // 3. LAST 7 DAYS
+    // 2. LAST 7 DAYS
     if (dateRange === '7days') {
       const buckets: BucketPoint[] = [];
       const dateMap = new Map<string, number>();
@@ -453,7 +390,6 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
 
   const dateRangeLabels: Record<DateRangeOption, string> = {
     today: 'Today',
-    yesterday: 'Yesterday',
     '7days': 'Last 7 days',
     '30days': 'Last 30 days',
     thisMonth: 'This month',
@@ -466,8 +402,6 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   const currentPeriodLabel =
     dateRange === 'today'
       ? 'Today so far'
-      : dateRange === 'yesterday'
-      ? 'Yesterday'
       : dateRange === '7days'
       ? 'Last 7 days'
       : dateRange === '30days'
@@ -479,8 +413,6 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   const prevPeriodLabel =
     dateRange === 'today'
       ? 'Yesterday'
-      : dateRange === 'yesterday'
-      ? 'Same day last week'
       : 'Previous period';
 
   // Format currency shorthand (₹0.00, ₹10k, etc.)
