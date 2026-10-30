@@ -540,80 +540,89 @@ const CashBookPageBase: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              {/* Category Super Header (Clean Modern Pills) */}
-              <tr className="bg-white/90 text-gray-500 font-semibold text-[11px] border-b border-gray-100">
-                <th colSpan={3} className="py-2 px-3 text-left">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] uppercase tracking-wider border border-emerald-100">
+              {/* Category Super Header (Distinct Section Backgrounds) */}
+              <tr className="text-gray-600 font-bold text-[11px] border-b border-gray-200/80">
+                <th colSpan={3} className="py-2.5 px-3 text-left bg-emerald-50/80 border-r border-emerald-200/60">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100/80 text-emerald-800 font-extrabold text-[10px] uppercase tracking-wider border border-emerald-200">
                     <Wallet className="w-3 h-3" />
                     Cash Book
                   </span>
                 </th>
-                <th colSpan={5} className="py-2 px-3 text-left border-l border-gray-100">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[10px] uppercase tracking-wider border border-blue-100">
+                <th colSpan={5} className="py-2.5 px-3 text-left bg-blue-50/80 border-r border-blue-200/60">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100/80 text-blue-800 font-extrabold text-[10px] uppercase tracking-wider border border-blue-200">
                     <TrendingUp className="w-3 h-3" />
                     Sales Breakdown
                   </span>
                 </th>
-                <th colSpan={4} className="py-2 px-3 text-left border-l border-gray-100">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 font-bold text-[10px] uppercase tracking-wider border border-rose-100">
+                <th colSpan={4} className="py-2.5 px-3 text-left bg-rose-50/80 border-r border-rose-200/60">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-100/80 text-rose-800 font-extrabold text-[10px] uppercase tracking-wider border border-rose-200">
                     <DollarSign className="w-3 h-3" />
                     Store Outflows & Purchases
                   </span>
                 </th>
-                <th colSpan={2} className="py-2 px-3 text-left border-l border-gray-100">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-[10px] uppercase tracking-wider border border-indigo-100">
+                <th colSpan={2} className="py-2.5 px-3 text-left bg-indigo-50/80 border-r border-indigo-200/60">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-100/80 text-indigo-800 font-extrabold text-[10px] uppercase tracking-wider border border-indigo-200">
                     <Building2 className="w-3 h-3" />
                     Bank Transfers
                   </span>
                 </th>
-                <th className="py-2 px-3 text-right border-l border-gray-100">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 font-bold text-[10px] uppercase tracking-wider border border-teal-100">
+                <th className="py-2.5 px-3 text-right bg-emerald-100/60">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-200/80 text-emerald-900 font-extrabold text-[10px] uppercase tracking-wider border border-emerald-300">
                     Closing
                   </span>
                 </th>
               </tr>
 
-              {/* Exact Column Headers */}
-              <tr className="bg-gray-50/80 text-gray-600 font-bold border-b border-gray-100 text-[11px]">
-                <th className="py-3.5 px-2 w-8 text-center text-gray-400">#</th>
-                <th className="py-3.5 px-3 whitespace-nowrap">Date</th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap bg-emerald-50/40 text-emerald-800 font-semibold">
+              {/* Exact Column Headers with Section Background Differentiation */}
+              <tr className="font-bold border-b border-gray-200 text-[11px]">
+                {/* Cash Book Columns */}
+                <th className="py-3.5 px-2 w-8 text-center text-gray-400 bg-emerald-50/40">#</th>
+                <th className="py-3.5 px-3 whitespace-nowrap text-gray-700 bg-emerald-50/40">Date</th>
+                <th className="py-3.5 px-3 text-right whitespace-nowrap bg-emerald-100/60 text-emerald-950 font-black border-r border-emerald-200/60">
                   Opening Balance
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap font-black bg-blue-50/30 text-gray-900">
+
+                {/* Sales Breakdown Columns */}
+                <th className="py-3.5 px-3 text-right whitespace-nowrap font-black bg-blue-100/60 text-blue-950">
                   Total Sale
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-amber-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-amber-800 bg-blue-50/40 font-semibold">
                   Credit Sale
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-blue-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-blue-800 bg-blue-50/40 font-semibold">
                   Bank Sale
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-purple-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-purple-800 bg-blue-50/40 font-semibold">
                   Mobile Money Sale
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap font-bold text-emerald-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap font-extrabold text-emerald-800 bg-blue-100/50 border-r border-blue-200/60">
                   Cash Sale
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-teal-700">
+
+                {/* Store Outflows & Purchases Columns */}
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-teal-800 bg-rose-50/40 font-semibold">
                   Received for Credit
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-rose-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-rose-800 bg-rose-100/50 font-bold">
                   Cash Purchase
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-rose-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-rose-800 bg-rose-100/50 font-bold">
                   Cash Expense
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-amber-800">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-amber-900 bg-rose-50/40 font-semibold border-r border-rose-200/60">
                   Cash Payment PO
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-indigo-700">
+
+                {/* Bank Transfers Columns */}
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-indigo-800 bg-indigo-50/40 font-semibold">
                   Cash in Bank
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-indigo-700">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-indigo-800 bg-indigo-50/40 font-semibold border-r border-indigo-200/60">
                   Cash Out Bank
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap font-black bg-emerald-100/60 text-emerald-950">
+
+                {/* Closing Column */}
+                <th className="py-3.5 px-3 text-right whitespace-nowrap font-black bg-emerald-200/70 text-emerald-950">
                   Closing Balance
                 </th>
               </tr>
@@ -687,62 +696,62 @@ const CashBookPageBase: React.FC = () => {
                         </td>
 
                         {/* Opening Balance */}
-                        <td className="py-3 px-3 text-right bg-emerald-50/30 font-bold text-emerald-900">
+                        <td className="py-3 px-3 text-right bg-emerald-50/50 font-bold text-emerald-950 border-r border-emerald-200/50">
                           {formatNum(row.openingBalance)}
                         </td>
 
                         {/* Total Sale */}
-                        <td className="py-3 px-3 text-right font-black text-gray-900 bg-blue-50/20">
+                        <td className="py-3 px-3 text-right font-black text-gray-900 bg-blue-100/35">
                           {formatNum(row.totalSale)}
                         </td>
 
                         {/* Credit Sale */}
-                        <td className={`py-3 px-3 text-right ${row.creditSale > 0 ? 'text-amber-700 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-blue-50/20 ${row.creditSale > 0 ? 'text-amber-800 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.creditSale)}
                         </td>
 
                         {/* Bank Sale */}
-                        <td className={`py-3 px-3 text-right ${row.bankSale > 0 ? 'text-blue-700 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-blue-50/20 ${row.bankSale > 0 ? 'text-blue-800 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.bankSale)}
                         </td>
 
                         {/* Mobile Money Sale */}
-                        <td className={`py-3 px-3 text-right ${row.mobileMoneySale > 0 ? 'text-purple-700 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-blue-50/20 ${row.mobileMoneySale > 0 ? 'text-purple-800 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.mobileMoneySale)}
                         </td>
 
                         {/* Cash Sale */}
-                        <td className={`py-3 px-3 text-right ${row.cashSale > 0 ? 'text-emerald-700 font-black' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-blue-100/40 border-r border-blue-200/50 ${row.cashSale > 0 ? 'text-emerald-800 font-black' : 'text-gray-300'}`}>
                           {formatNum(row.cashSale)}
                         </td>
 
                         {/* Received for Credit Sale */}
-                        <td className={`py-3 px-3 text-right ${row.receivedCreditSale > 0 ? 'text-teal-700 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-rose-50/20 ${row.receivedCreditSale > 0 ? 'text-teal-800 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.receivedCreditSale)}
                         </td>
 
                         {/* Cash Purchase */}
-                        <td className={`py-3 px-3 text-right ${row.cashPurchase > 0 ? 'text-rose-700 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-rose-50/30 ${row.cashPurchase > 0 ? 'text-rose-700 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.cashPurchase)}
                         </td>
 
                         {/* Cash Expense */}
-                        <td className={`py-3 px-3 text-right ${row.cashExpense > 0 ? 'text-rose-700 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-rose-50/30 ${row.cashExpense > 0 ? 'text-rose-700 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.cashExpense)}
                         </td>
 
                         {/* Cash Payment For Purchase */}
-                        <td className={`py-3 px-3 text-right ${row.cashPaymentForPurchase > 0 ? 'text-amber-800 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-rose-50/20 border-r border-rose-200/50 ${row.cashPaymentForPurchase > 0 ? 'text-amber-900 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.cashPaymentForPurchase)}
                         </td>
 
                         {/* Cash in Bank */}
-                        <td className={`py-3 px-3 text-right ${row.cashInBank > 0 ? 'text-indigo-700 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-indigo-50/20 ${row.cashInBank > 0 ? 'text-indigo-800 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.cashInBank)}
                         </td>
 
                         {/* Cash Out Bank */}
-                        <td className={`py-3 px-3 text-right ${row.cashOutFromBank > 0 ? 'text-indigo-700 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-indigo-50/20 border-r border-indigo-200/50 ${row.cashOutFromBank > 0 ? 'text-indigo-800 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.cashOutFromBank)}
                         </td>
 
@@ -892,46 +901,46 @@ const CashBookPageBase: React.FC = () => {
 
             {/* Summary Totals Footer */}
             {displayedDays.length > 0 && (
-              <tfoot className="bg-gray-50/90 font-mono text-xs border-t-2 border-gray-200">
-                <tr className="font-bold text-gray-800">
-                  <td colSpan={2} className="py-3.5 px-3 text-left font-sans font-extrabold text-gray-700 uppercase tracking-wider text-[11px]">
+              <tfoot className="font-mono text-xs border-t-2 border-gray-300 font-bold">
+                <tr className="text-gray-800">
+                  <td colSpan={2} className="py-3.5 px-3 text-left font-sans font-extrabold text-emerald-950 uppercase tracking-wider text-[11px] bg-emerald-50/60">
                     Period Totals ({displayedDays.length} Days)
                   </td>
-                  <td className="py-3.5 px-3 text-right text-gray-400 font-sans text-[11px]">—</td>
-                  <td className="py-3.5 px-3 text-right font-black text-gray-900 bg-blue-50/40">
+                  <td className="py-3.5 px-3 text-right text-gray-400 font-sans text-[11px] bg-emerald-50/60 border-r border-emerald-200/60">—</td>
+                  <td className="py-3.5 px-3 text-right font-black text-blue-950 bg-blue-100/60">
                     {formatNum(periodTotals.totalSale)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-amber-700">
+                  <td className="py-3.5 px-3 text-right text-amber-800 bg-blue-50/50">
                     {formatNum(periodTotals.creditSale)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-blue-700">
+                  <td className="py-3.5 px-3 text-right text-blue-800 bg-blue-50/50">
                     {formatNum(periodTotals.bankSale)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-purple-700">
+                  <td className="py-3.5 px-3 text-right text-purple-800 bg-blue-50/50">
                     {formatNum(periodTotals.mobileMoneySale)}
                   </td>
-                  <td className="py-3.5 px-3 text-right font-black text-emerald-700">
+                  <td className="py-3.5 px-3 text-right font-black text-emerald-800 bg-blue-100/60 border-r border-blue-200/60">
                     {formatNum(periodTotals.cashSale)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-teal-700">
+                  <td className="py-3.5 px-3 text-right text-teal-800 bg-rose-50/50">
                     {formatNum(periodTotals.receivedCreditSale)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-rose-700">
+                  <td className="py-3.5 px-3 text-right text-rose-800 bg-rose-100/60 font-bold">
                     {formatNum(periodTotals.cashPurchase)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-rose-700">
+                  <td className="py-3.5 px-3 text-right text-rose-800 bg-rose-100/60 font-bold">
                     {formatNum(periodTotals.cashExpense)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-amber-800">
+                  <td className="py-3.5 px-3 text-right text-amber-900 bg-rose-50/50 border-r border-rose-200/60">
                     {formatNum(periodTotals.cashPaymentForPurchase)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-indigo-700">
+                  <td className="py-3.5 px-3 text-right text-indigo-800 bg-indigo-50/50">
                     {formatNum(periodTotals.cashInBank)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-indigo-700">
+                  <td className="py-3.5 px-3 text-right text-indigo-800 bg-indigo-50/50 border-r border-indigo-200/60">
                     {formatNum(periodTotals.cashOutFromBank)}
                   </td>
-                  <td className="py-3.5 px-3 text-right font-black bg-emerald-100/70 text-emerald-950 font-sans">
+                  <td className="py-3.5 px-3 text-right font-black bg-emerald-200/80 text-emerald-950 font-sans">
                     {formatCur(summary?.currentStoreCash || 0)}
                   </td>
                 </tr>
