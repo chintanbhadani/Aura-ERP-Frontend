@@ -14,6 +14,9 @@ import {
   Settings, 
   ChevronRight, 
   ChevronDown, 
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   ArrowUpRight, 
   ArrowDownLeft, 
   CreditCard, 
@@ -62,6 +65,10 @@ const CashBookPageBase: React.FC = () => {
   const [search, setSearch] = useState('');
   const [onlyActiveDays, setOnlyActiveDays] = useState(false);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
+
+  // Pagination state (default 20 records)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   // Modals
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
@@ -227,6 +234,48 @@ const CashBookPageBase: React.FC = () => {
     // Latest days on top
     return [...list].reverse();
   }, [data.days, onlyActiveDays, search]);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, startDate, endDate, onlyActiveDays, activePreset, pageSize]);
+
+  // Pagination calculations (Default 20 records per page)
+  const totalItems = displayedDays.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedDays = useMemo(() => {
+    const startIndex = (validCurrentPage - 1) * pageSize;
+    return displayedDays.slice(startIndex, startIndex + pageSize);
+  }, [displayedDays, validCurrentPage, pageSize]);
+
+  // Visible page numbers generator
+  const pageNumbers = useMemo(() => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (validCurrentPage <= 4) {
+        for (let i = 1; i <= 5; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (validCurrentPage >= totalPages - 3) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        pages.push(validCurrentPage - 1);
+        pages.push(validCurrentPage);
+        pages.push(validCurrentPage + 1);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  }, [validCurrentPage, totalPages]);
 
   // Period totals for summary footer
   const periodTotals = useMemo(() => {
@@ -649,8 +698,9 @@ const CashBookPageBase: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                displayedDays.map((row, idx) => {
+                paginatedDays.map((row, idx) => {
                   const isExpanded = expandedDay === row.date;
+                  const rowNumber = (validCurrentPage - 1) * pageSize + idx + 1;
 
                   return (
                     <React.Fragment key={row.date}>
@@ -682,7 +732,7 @@ const CashBookPageBase: React.FC = () => {
                               )}
                             </button>
                           ) : (
-                            <span className="text-[10px] text-gray-300">{idx + 1}</span>
+                            <span className="text-[10px] text-gray-300">{rowNumber}</span>
                           )}
                         </td>
 
@@ -948,6 +998,100 @@ const CashBookPageBase: React.FC = () => {
             )}
           </table>
         </div>
+
+        {/* PAGINATION FOOTER */}
+        {totalItems > 0 && (
+          <div className="px-5 py-3.5 border-t border-gray-100 bg-gray-50/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600 select-none">
+            {/* Left: Rows Per Page & Counter */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 font-medium">Rows per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="bg-white border border-gray-200 hover:border-emerald-400 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 rounded-lg px-2.5 py-1 text-xs text-gray-700 outline-none cursor-pointer font-semibold transition-all shadow-2xs"
+                >
+                  {[10, 20, 50, 100].map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              <span className="text-gray-500 font-medium">
+                Showing <span className="font-bold text-gray-900">{(validCurrentPage - 1) * pageSize + 1}</span> to{' '}
+                <span className="font-bold text-gray-900">{Math.min(validCurrentPage * pageSize, totalItems)}</span> of{' '}
+                <span className="font-bold text-gray-900">{totalItems}</span> records
+              </span>
+            </div>
+
+            {/* Right: Page Navigation Buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={validCurrentPage === 1}
+                className="p-1.5 rounded-lg hover:bg-emerald-100/70 hover:text-emerald-700 disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-all cursor-pointer"
+                title="First Page"
+              >
+                <ChevronsLeft className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={validCurrentPage === 1}
+                className="p-1.5 rounded-lg hover:bg-emerald-100/70 hover:text-emerald-700 disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-all cursor-pointer"
+                title="Previous Page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-1 mx-1">
+                {pageNumbers.map((p, i) => {
+                  if (typeof p === 'string') {
+                    return (
+                      <span key={`ellipsis-${i}`} className="px-1.5 text-gray-400">
+                        {p}
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => setCurrentPage(p)}
+                      className={`min-w-7 h-7 px-2 text-xs rounded-lg font-bold transition-all cursor-pointer ${
+                        validCurrentPage === p
+                          ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={validCurrentPage === totalPages}
+                className="p-1.5 rounded-lg hover:bg-emerald-100/70 hover:text-emerald-700 disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-all cursor-pointer"
+                title="Next Page"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={validCurrentPage === totalPages}
+                className="p-1.5 rounded-lg hover:bg-emerald-100/70 hover:text-emerald-700 disabled:opacity-30 disabled:hover:bg-transparent text-gray-600 transition-all cursor-pointer"
+                title="Last Page"
+              >
+                <ChevronsRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* MODAL: SETUP OPENING BALANCES */}
