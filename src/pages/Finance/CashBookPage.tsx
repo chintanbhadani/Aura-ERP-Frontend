@@ -36,8 +36,11 @@ import {
   type CashBookConfig
 } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
+import WithAuth from '../../components/WithAuth';
+import { ModuleName, Permission } from '../../helper/constants';
+import { DashboardLayout } from '../../layouts/DashboardLayout';
 
-export const CashBookPage: React.FC = () => {
+const CashBookPageBase: React.FC = () => {
   const [data, setData] = useState<{ summary: CashBookSummary | null; days: CashBookDay[] }>({
     summary: null,
     days: []
@@ -273,7 +276,8 @@ export const CashBookPage: React.FC = () => {
   const summary = data.summary;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100/60 to-emerald-50/20 p-4 md:p-8 space-y-6">
+    <DashboardLayout>
+      <div className="space-y-6">
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/80 backdrop-blur-md p-6 rounded-3xl border border-gray-100 shadow-xs">
         <div>
@@ -1069,8 +1073,10 @@ export const CashBookPage: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 };
 
+export const CashBookPage = WithAuth(CashBookPageBase, ModuleName.EXPENSES, Permission.LIST);
 export default CashBookPage;
