@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Landmark, 
@@ -27,7 +28,9 @@ import {
   X, 
   CheckCircle2, 
   SlidersHorizontal,
-  Receipt
+  Receipt,
+  ExternalLink,
+  Package
 } from 'lucide-react';
 import { 
   fetchCashBookReport, 
@@ -68,6 +71,28 @@ const MOVEMENT_TYPE_OPTIONS: MovementTypeOption[] = [
 ];
 
 const CashBookPageBase: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleOpenInvoice = (inv: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!inv?.id) return;
+    const path = inv.type === 'PURCHASE'
+      ? `/invoices/purchase/new?id=${inv.id}`
+      : `/invoices/sales/new?id=${inv.id}`;
+    navigate(path);
+  };
+
+  const handleOpenProduct = (productId?: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!productId) return;
+    navigate(`/products/new?id=${productId}`);
+  };
+
+  const handleOpenExpenses = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    navigate('/expenses');
+  };
+
   const [data, setData] = useState<{ summary: CashBookSummary | null; days: CashBookDay[] }>({
     summary: null,
     days: []
@@ -848,19 +873,67 @@ const CashBookPageBase: React.FC = () => {
                                     <span>Sales Invoices ({row.details?.sales?.length || 0})</span>
                                   </span>
                                   {row.details?.sales && row.details.sales.length > 0 ? (
-                                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                                       {row.details.sales.map((s: any) => (
-                                        <div key={s.id} className="p-2 rounded-xl bg-gray-50 border border-gray-100 text-[11px]">
-                                          <div className="flex justify-between font-bold text-gray-900">
-                                            <span>{s.invoiceNumber}</span>
-                                            <span>{formatCur(s.totalAmount)}</span>
+                                        <div
+                                          key={s.id}
+                                          onClick={() => handleOpenInvoice(s)}
+                                          className="p-2.5 rounded-xl bg-gray-50/90 hover:bg-blue-50/70 border border-gray-200/80 hover:border-blue-300 transition-all cursor-pointer group shadow-2xs"
+                                          title="Click to open invoice"
+                                        >
+                                          <div className="flex justify-between items-center font-bold text-gray-900">
+                                            <span className="flex items-center gap-1.5 group-hover:text-blue-700 transition-colors">
+                                              <Receipt className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                              <span className="underline decoration-blue-300 underline-offset-2">{s.invoiceNumber}</span>
+                                              <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-blue-600 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                            </span>
+                                            <span className="text-gray-900 font-mono font-bold">{formatCur(s.totalAmount)}</span>
                                           </div>
-                                          <div className="text-gray-500 flex justify-between mt-0.5">
-                                            <span>{s.customer?.name || 'Walk-in'}</span>
-                                            <span className="uppercase text-[9px] font-extrabold px-1.5 py-0.2 bg-gray-200 rounded">
+                                          <div className="text-gray-500 flex justify-between items-center mt-1 text-[10px]">
+                                            <span className="font-medium text-gray-700">{s.customer?.name || 'Walk-in Customer'}</span>
+                                            <span className="uppercase text-[9px] font-extrabold px-1.5 py-0.5 bg-gray-200/80 text-gray-700 rounded">
                                               {s.paymentType}
                                             </span>
                                           </div>
+
+                                          {/* Connected Items List */}
+                                          {s.items && s.items.length > 0 && (
+                                            <div className="mt-2 pt-1.5 border-t border-gray-200/60 space-y-1">
+                                              <span className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                                                <Package className="w-3 h-3 text-blue-500" />
+                                                <span>Connected Items ({s.items.length})</span>
+                                              </span>
+                                              <div className="space-y-1">
+                                                {s.items.map((item: any, idx: number) => {
+                                                  const prodId = item.productId || item.product?.id;
+                                                  return (
+                                                    <div
+                                                      key={item.id || idx}
+                                                      onClick={(e) => handleOpenProduct(prodId, e)}
+                                                      className="flex items-center justify-between p-1.5 rounded-lg bg-white hover:bg-blue-100/70 border border-gray-100 hover:border-blue-200 text-[10.5px] transition-all cursor-pointer group/item"
+                                                      title="Click to open item in master"
+                                                    >
+                                                      <div className="min-w-0 flex items-center gap-1.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                                                        <span className="font-semibold text-gray-800 truncate group-hover/item:text-blue-700">
+                                                          {item.product?.name || item.product?.sku || 'Item'}
+                                                        </span>
+                                                        {item.product?.sku && item.product?.sku !== item.product?.name && (
+                                                          <span className="text-[9px] font-mono text-gray-400">({item.product.sku})</span>
+                                                        )}
+                                                      </div>
+                                                      <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px] text-gray-600">
+                                                        <span>{item.quantity} qty</span>
+                                                        <span className="text-gray-300">•</span>
+                                                        <span className="font-bold text-gray-800">{formatCur(item.totalPrice || item.quantity * item.unitPrice)}</span>
+                                                        <ExternalLink className="w-2.5 h-2.5 text-gray-400 group-hover/item:text-blue-600 opacity-60 group-hover/item:opacity-100 transition-opacity" />
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          )}
                                         </div>
                                       ))}
                                     </div>
@@ -876,19 +949,67 @@ const CashBookPageBase: React.FC = () => {
                                     <span>Purchases ({row.details?.purchases?.length || 0})</span>
                                   </span>
                                   {row.details?.purchases && row.details.purchases.length > 0 ? (
-                                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                    <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                                       {row.details.purchases.map((p: any) => (
-                                        <div key={p.id} className="p-2 rounded-xl bg-gray-50 border border-gray-100 text-[11px]">
-                                          <div className="flex justify-between font-bold text-gray-900">
-                                            <span>{p.invoiceNumber}</span>
-                                            <span>{formatCur(p.totalAmount)}</span>
+                                        <div
+                                          key={p.id}
+                                          onClick={() => handleOpenInvoice(p)}
+                                          className="p-2.5 rounded-xl bg-gray-50/90 hover:bg-rose-50/70 border border-gray-200/80 hover:border-rose-300 transition-all cursor-pointer group shadow-2xs"
+                                          title="Click to open invoice"
+                                        >
+                                          <div className="flex justify-between items-center font-bold text-gray-900">
+                                            <span className="flex items-center gap-1.5 group-hover:text-rose-700 transition-colors">
+                                              <Receipt className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                              <span className="underline decoration-rose-300 underline-offset-2">{p.invoiceNumber}</span>
+                                              <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-rose-600 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                            </span>
+                                            <span className="text-gray-900 font-mono font-bold">{formatCur(p.totalAmount)}</span>
                                           </div>
-                                          <div className="text-gray-500 flex justify-between mt-0.5">
-                                            <span>{p.supplier?.name || 'Vendor'}</span>
-                                            <span className="uppercase text-[9px] font-extrabold px-1.5 py-0.2 bg-gray-200 rounded">
+                                          <div className="text-gray-500 flex justify-between items-center mt-1 text-[10px]">
+                                            <span className="font-medium text-gray-700">{p.supplier?.name || 'Vendor'}</span>
+                                            <span className="uppercase text-[9px] font-extrabold px-1.5 py-0.5 bg-gray-200/80 text-gray-700 rounded">
                                               {p.paymentType}
                                             </span>
                                           </div>
+
+                                          {/* Connected Items List */}
+                                          {p.items && p.items.length > 0 && (
+                                            <div className="mt-2 pt-1.5 border-t border-gray-200/60 space-y-1">
+                                              <span className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1">
+                                                <Package className="w-3 h-3 text-rose-500" />
+                                                <span>Connected Items ({p.items.length})</span>
+                                              </span>
+                                              <div className="space-y-1">
+                                                {p.items.map((item: any, idx: number) => {
+                                                  const prodId = item.productId || item.product?.id;
+                                                  return (
+                                                    <div
+                                                      key={item.id || idx}
+                                                      onClick={(e) => handleOpenProduct(prodId, e)}
+                                                      className="flex items-center justify-between p-1.5 rounded-lg bg-white hover:bg-rose-100/70 border border-gray-100 hover:border-rose-200 text-[10.5px] transition-all cursor-pointer group/item"
+                                                      title="Click to open item in master"
+                                                    >
+                                                      <div className="min-w-0 flex items-center gap-1.5">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+                                                        <span className="font-semibold text-gray-800 truncate group-hover/item:text-rose-700">
+                                                          {item.product?.name || item.product?.sku || 'Item'}
+                                                        </span>
+                                                        {item.product?.sku && item.product?.sku !== item.product?.name && (
+                                                          <span className="text-[9px] font-mono text-gray-400">({item.product.sku})</span>
+                                                        )}
+                                                      </div>
+                                                      <div className="flex items-center gap-1.5 shrink-0 font-mono text-[10px] text-gray-600">
+                                                        <span>{item.quantity} qty</span>
+                                                        <span className="text-gray-300">•</span>
+                                                        <span className="font-bold text-gray-800">{formatCur(item.totalPrice || item.quantity * item.unitPrice)}</span>
+                                                        <ExternalLink className="w-2.5 h-2.5 text-gray-400 group-hover/item:text-rose-600 opacity-60 group-hover/item:opacity-100 transition-opacity" />
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          )}
                                         </div>
                                       ))}
                                     </div>
@@ -904,11 +1025,19 @@ const CashBookPageBase: React.FC = () => {
                                     <span>Expenses ({row.details?.expenses?.length || 0})</span>
                                   </span>
                                   {row.details?.expenses && row.details.expenses.length > 0 ? (
-                                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                    <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                                       {row.details.expenses.map((e: any) => (
-                                        <div key={e.id} className="p-2 rounded-xl bg-gray-50 border border-gray-100 text-[11px]">
+                                        <div
+                                          key={e.id}
+                                          onClick={handleOpenExpenses}
+                                          className="p-2 rounded-xl bg-gray-50/90 hover:bg-rose-50/70 border border-gray-200/80 hover:border-rose-300 text-[11px] transition-all cursor-pointer group"
+                                          title="Click to view in Expenses"
+                                        >
                                           <div className="flex justify-between font-bold text-gray-900">
-                                            <span className="truncate max-w-[120px]">{e.description}</span>
+                                            <span className="truncate max-w-[120px] group-hover:text-rose-700 flex items-center gap-1">
+                                              <span>{e.description}</span>
+                                              <ExternalLink className="w-2.5 h-2.5 text-gray-400 group-hover:text-rose-600 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                            </span>
                                             <span>{formatCur(e.amount)}</span>
                                           </div>
                                           <div className="text-gray-500 flex justify-between mt-0.5">
