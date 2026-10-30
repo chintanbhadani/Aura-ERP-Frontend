@@ -64,6 +64,7 @@ interface MovementTypeOption {
 
 const MOVEMENT_TYPE_OPTIONS: MovementTypeOption[] = [
   { value: 'OPENING_BALANCE', label: '💰 Starting Opening Balance / Capital Inflow (Cash IN)' },
+  { value: 'EXPENSE', label: '🧾 Store Operating Expense (Cash OUT)' },
   { value: 'BANK_DEPOSIT', label: '🏦 Deposit Store Cash into Bank (Cash in Bank)' },
   { value: 'BANK_WITHDRAWAL', label: '💵 Withdraw Cash from Bank into Store (Cash out from Bank)' },
   { value: 'CREDIT_COLLECTION', label: '👥 Received Cash for Credit Sale (Customer Payment)' },
