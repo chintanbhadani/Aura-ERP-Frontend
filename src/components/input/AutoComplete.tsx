@@ -279,10 +279,22 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
         freeSolo={creatable}
         filterOptions={customFilterOptions}
         inputValue={inputValue}
-        onInputChange={(_, val) => setInputValue(val || '')}
+        onInputChange={(_, val, reason) => {
+          if (reason === 'reset') {
+            if (selectedValue) {
+              const label = getOptionLabel ? getOptionLabel(selectedValue) : ((selectedValue as any)?.name || '');
+              setInputValue(label);
+            } else {
+              setInputValue('');
+            }
+            return;
+          }
+          setInputValue(val || '');
+        }}
         onChange={async (_, newValue) => {
           if (!newValue) {
             setFieldValue(keyName, multiple ? [] : '');
+            setInputValue('');
             onChange && onChange(null);
             return;
           }
@@ -294,6 +306,9 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
               const createdItem = await onCreate(newName);
               if (createdItem) {
                 const newId = (createdItem as any)[compareKey] ?? (createdItem as any).id;
+                setFetchedOptions((prev) => [createdItem, ...(prev || [])]);
+                const label = getOptionLabel ? getOptionLabel(createdItem) : ((createdItem as any)?.name || '');
+                setInputValue(label);
                 setFieldValue(keyName, newId);
                 onChange && onChange(createdItem);
               }
@@ -307,6 +322,7 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
             if (existing) {
               const id = (existing as any)[compareKey] ?? (existing as any).id;
               setFieldValue(keyName, id);
+              setInputValue(getOptionLabel ? getOptionLabel(existing) : ((existing as any)?.name || ''));
               onChange && onChange(existing);
               return;
             }
@@ -315,6 +331,9 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
               const createdItem = await onCreate(newValue.trim());
               if (createdItem) {
                 const newId = (createdItem as any)[compareKey] ?? (createdItem as any).id;
+                setFetchedOptions((prev) => [createdItem, ...(prev || [])]);
+                const label = getOptionLabel ? getOptionLabel(createdItem) : ((createdItem as any)?.name || '');
+                setInputValue(label);
                 setFieldValue(keyName, newId);
                 onChange && onChange(createdItem);
               }

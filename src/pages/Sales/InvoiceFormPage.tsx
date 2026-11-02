@@ -217,6 +217,29 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     }));
   }, [skus]);
 
+  useEffect(() => {
+    const paramName = searchParams.get('name');
+    const paramContact = searchParams.get('contact') || '';
+    const paramEmail = searchParams.get('email') || '';
+    if (paramName && paramName.trim()) {
+      (async () => {
+        try {
+          const newCust = await createCustomer({
+            name: paramName.trim(),
+            contact: paramContact.trim(),
+            email: paramEmail.trim(),
+          });
+          setCustomers((prev) => [newCust, ...prev]);
+          formikRef.current?.setFieldValue('clientId', newCust.id);
+          successToast(`Customer "${newCust.name}" added`);
+          navigate(location.pathname, { replace: true });
+        } catch (err) {
+          console.error('Failed to auto-create customer from query params', err);
+        }
+      })();
+    }
+  }, []);
+
   // Quick Customer Creation
   const handleSaveCustomer = async (values: any, resetForm: () => void) => {
     try {
@@ -226,6 +249,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         email: values.email?.trim() || '',
       });
       setCustomers((prev) => [newCust, ...prev]);
+      formikRef.current?.setFieldValue('clientId', newCust.id);
       successToast(`Customer "${newCust.name}" created`);
       setIsCustomerModalOpen(false);
       resetForm();
@@ -247,6 +271,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         email: values.email?.trim() || '',
       });
       setSuppliers((prev) => [newSupp, ...prev]);
+      formikRef.current?.setFieldValue('supplierId', newSupp.id);
       successToast(`Supplier "${newSupp.name}" created`);
       setIsSupplierModalOpen(false);
       resetForm();
@@ -1226,184 +1251,186 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                 </div>
 
               </div>
-
-              {/* QUICK MODAL: ADD CUSTOMER */}
-              {isCustomerModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-                  <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-                      <h3 className="text-base font-bold text-gray-900">Add New Customer</h3>
-                      <button onClick={() => setIsCustomerModalOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <Formik
-                      initialValues={{ name: pendingCustomerName, contact: '', email: '' }}
-                      validationSchema={customerModalValidationSchema}
-                      onSubmit={(vals, { resetForm }) => handleSaveCustomer(vals, resetForm)}
-                    >
-                      {({ isSubmitting }) => (
-                        <Form className="space-y-4">
-                          <TextFieldComponent name="name" label="Customer Name *" placeholder="e.g. Katumba Hardware" />
-                          <TextFieldComponent name="contact" label="Contact / Phone" placeholder="e.g. +256 700 123456" />
-                          <TextFieldComponent name="email" label="Email Address" placeholder="e.g. buyer@example.com" />
-                          <div className="flex justify-end gap-2 pt-2">
-                            <button
-                              type="button"
-                              onClick={() => setIsCustomerModalOpen(false)}
-                              className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="submit"
-                              disabled={isSubmitting}
-                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
-                            >
-                              Save & Select
-                            </button>
-                          </div>
-                        </Form>
-                      )}
-                    </Formik>
-                  </div>
-                </div>
-              )}
-
-              {/* QUICK MODAL: ADD SUPPLIER */}
-              {isSupplierModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-                  <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-                      <h3 className="text-base font-bold text-gray-900">Add New Supplier</h3>
-                      <button onClick={() => setIsSupplierModalOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <Formik
-                      initialValues={{ name: pendingSupplierName, contact: '', email: '' }}
-                      validationSchema={supplierModalValidationSchema}
-                      onSubmit={(vals, { resetForm }) => handleSaveSupplier(vals, resetForm)}
-                    >
-                      {({ isSubmitting }) => (
-                        <Form className="space-y-4">
-                          <TextFieldComponent name="name" label="Supplier Name *" placeholder="e.g. Tororo Cement Ltd" />
-                          <TextFieldComponent name="contact" label="Contact / Phone" placeholder="e.g. +256 750 987654" />
-                          <TextFieldComponent name="email" label="Email Address" placeholder="e.g. sales@tororo.com" />
-                          <div className="flex justify-end gap-2 pt-2">
-                            <button
-                              type="button"
-                              onClick={() => setIsSupplierModalOpen(false)}
-                              className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="submit"
-                              disabled={isSubmitting}
-                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
-                            >
-                              Save & Select
-                            </button>
-                          </div>
-                        </Form>
-                      )}
-                    </Formik>
-                  </div>
-                </div>
-              )}
-
-              {/* QUICK MODAL: ADD ITEM MASTER */}
-              {isProductModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-                  <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-                      <div>
-                        <h3 className="text-base font-bold text-gray-900">Quick Add Item Master</h3>
-                        <p className="text-xs text-gray-500">Creates record directly into Item Master & SKUs database</p>
-                      </div>
-                      <button onClick={() => setIsProductModalOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-
-                    <Formik
-                      initialValues={{
-                        name: pendingProductName,
-                        sku: pendingProductName ? pendingProductName.replace(/\s+/g, '-').toUpperCase().slice(0, 15) : '',
-                        categoryId: '',
-                        unitId: '',
-                        selling_price: 0,
-                        cost_price: 0,
-                      }}
-                      validationSchema={productModalValidationSchema}
-                      onSubmit={(vals, { resetForm }) => handleSaveProduct(vals, resetForm)}
-                    >
-                      {({ isSubmitting }) => (
-                        <Form className="space-y-4">
-                          <TextFieldComponent name="name" label="Item Name *" placeholder="e.g. NAILS 3 INCH" />
-                          <TextFieldComponent name="sku" label="Item / SKU Code *" placeholder="e.g. NLS-3IN" />
-
-                          <div className="grid grid-cols-2 gap-3">
-                            <SelectOutlinedField
-                              name="categoryId"
-                              label="Item Group"
-                              options={categories.map(c => ({ label: c.name, value: c.id }))}
-                            />
-                            <SelectOutlinedField
-                              name="unitId"
-                              label="Unit of Measure (UOM)"
-                              options={units.map(u => ({ label: u.name, value: u.id }))}
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3">
-                            <TextFieldComponent name="selling_price" type="number" label="Standard Selling Rate" placeholder="0.00" />
-                            <TextFieldComponent name="cost_price" type="number" label="Standard Purchase Rate" placeholder="0.00" />
-                          </div>
-
-                          <div className="flex justify-end gap-2 pt-2">
-                            <button
-                              type="button"
-                              onClick={() => setIsProductModalOpen(false)}
-                              className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              type="submit"
-                              disabled={isSubmitting}
-                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
-                            >
-                              Create & Select
-                            </button>
-                          </div>
-                        </Form>
-                      )}
-                    </Formik>
-                  </div>
-                </div>
-              )}
-
-              {/* Select PO Batches Modal */}
-              <SelectPOBatchesModal
-                isOpen={isPOModalOpen}
-                onClose={() => {
-                  setIsPOModalOpen(false);
-                  setActivePOItemIndex(null);
-                  setSelectedPOProduct(null);
-                }}
-                productId={selectedPOProduct?.id || ''}
-                productName={selectedPOProduct?.name || ''}
-                productSku={selectedPOProduct?.sku}
-                initialTargetQty={selectedPOProduct?.quantity || 1}
-                initialAllocations={selectedPOProduct?.initialAllocations}
-                onConfirmAllocation={handleConfirmPOAllocation}
-              />
-
             </Form>
+
+            {/* QUICK MODAL: ADD CUSTOMER */}
+            {isCustomerModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+                    <h3 className="text-base font-bold text-gray-900">Add New Customer</h3>
+                    <button type="button" onClick={() => setIsCustomerModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <Formik
+                    initialValues={{ name: pendingCustomerName, contact: '', email: '' }}
+                    validationSchema={customerModalValidationSchema}
+                    onSubmit={(vals, { resetForm }) => handleSaveCustomer(vals, resetForm)}
+                  >
+                    {({ handleSubmit, isSubmitting }) => (
+                      <div className="flex flex-col gap-4 pt-1">
+                        <TextFieldComponent name="name" label="Customer Name *" placeholder="e.g. Katumba Hardware" />
+                        <TextFieldComponent name="contact" label="Contact / Phone" placeholder="e.g. +256 700 123456" />
+                        <TextFieldComponent name="email" label="Email Address" placeholder="e.g. buyer@example.com" />
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsCustomerModalOpen(false)}
+                            className="px-5 py-2.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => handleSubmit()}
+                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow cursor-pointer"
+                          >
+                            Save & Select
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </Formik>
+                </div>
+              </div>
+            )}
+
+            {/* QUICK MODAL: ADD SUPPLIER */}
+            {isSupplierModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+                    <h3 className="text-base font-bold text-gray-900">Add New Supplier</h3>
+                    <button type="button" onClick={() => setIsSupplierModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <Formik
+                    initialValues={{ name: pendingSupplierName, contact: '', email: '' }}
+                    validationSchema={supplierModalValidationSchema}
+                    onSubmit={(vals, { resetForm }) => handleSaveSupplier(vals, resetForm)}
+                  >
+                    {({ handleSubmit, isSubmitting }) => (
+                      <div className="flex flex-col gap-4 pt-1">
+                        <TextFieldComponent name="name" label="Supplier Name *" placeholder="e.g. Tororo Cement Ltd" />
+                        <TextFieldComponent name="contact" label="Contact / Phone" placeholder="e.g. +256 750 987654" />
+                        <TextFieldComponent name="email" label="Email Address" placeholder="e.g. sales@tororo.com" />
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsSupplierModalOpen(false)}
+                            className="px-5 py-2.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => handleSubmit()}
+                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow cursor-pointer"
+                          >
+                            Save & Select
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </Formik>
+                </div>
+              </div>
+            )}
+
+            {/* QUICK MODAL: ADD ITEM MASTER */}
+            {isProductModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+                <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Quick Add Item Master</h3>
+                      <p className="text-xs text-gray-500">Creates record directly into Item Master & SKUs database</p>
+                    </div>
+                    <button type="button" onClick={() => setIsProductModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <Formik
+                    initialValues={{
+                      name: pendingProductName,
+                      sku: pendingProductName ? pendingProductName.replace(/\s+/g, '-').toUpperCase().slice(0, 15) : '',
+                      categoryId: '',
+                      unitId: '',
+                      selling_price: 0,
+                      cost_price: 0,
+                    }}
+                    validationSchema={productModalValidationSchema}
+                    onSubmit={(vals, { resetForm }) => handleSaveProduct(vals, resetForm)}
+                  >
+                    {({ handleSubmit, isSubmitting }) => (
+                      <div className="flex flex-col gap-4 pt-1">
+                        <TextFieldComponent name="name" label="Item Name *" placeholder="e.g. NAILS 3 INCH" />
+                        <TextFieldComponent name="sku" label="Item / SKU Code *" placeholder="e.g. NLS-3IN" />
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <SelectOutlinedField
+                            name="categoryId"
+                            label="Item Group"
+                            options={categories.map(c => ({ label: c.name, value: c.id }))}
+                          />
+                          <SelectOutlinedField
+                            name="unitId"
+                            label="Unit of Measure (UOM)"
+                            options={units.map(u => ({ label: u.name, value: u.id }))}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <TextFieldComponent name="selling_price" type="number" label="Standard Selling Rate" placeholder="0.00" />
+                          <TextFieldComponent name="cost_price" type="number" label="Standard Purchase Rate" placeholder="0.00" />
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsProductModalOpen(false)}
+                            className="px-5 py-2.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => handleSubmit()}
+                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow cursor-pointer"
+                          >
+                            Create & Select
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </Formik>
+                </div>
+              </div>
+            )}
+
+            {/* Select PO Batches Modal */}
+            <SelectPOBatchesModal
+              isOpen={isPOModalOpen}
+              onClose={() => {
+                setIsPOModalOpen(false);
+                setActivePOItemIndex(null);
+                setSelectedPOProduct(null);
+              }}
+              productId={selectedPOProduct?.id || ''}
+              productName={selectedPOProduct?.name || ''}
+              productSku={selectedPOProduct?.sku}
+              initialTargetQty={selectedPOProduct?.quantity || 1}
+              initialAllocations={selectedPOProduct?.initialAllocations}
+              onConfirmAllocation={handleConfirmPOAllocation}
+            />
           </ERPFormPageLayout>
         );
       }}
