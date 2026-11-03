@@ -302,10 +302,17 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
       title: 'DATE',
       width: '120px',
       sortable: true,
-      render: (val) => (
-        <span className="text-xs font-medium text-gray-700">
-          {new Date(val).toLocaleDateString()}
-        </span>
+      render: (val, row) => (
+        <div className="flex flex-col">
+          <span className="text-xs font-medium text-gray-700">
+            {new Date(val).toLocaleDateString()}
+          </span>
+          {row.dueDate && (
+            <span className="text-[10px] text-gray-400">
+              Due: {new Date(row.dueDate).toLocaleDateString()}
+            </span>
+          )}
+        </div>
       )
     },
     {
@@ -337,7 +344,10 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
         let badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-300';
         if (val === 'CREDIT') badgeStyle = 'bg-amber-50 text-amber-800 border-amber-300';
         else if (val === 'BANK') badgeStyle = 'bg-blue-50 text-blue-700 border-blue-300';
+        else if (val === 'MOBILE_MONEY' || val === 'AIRTEL') badgeStyle = 'bg-rose-50 text-rose-700 border-rose-300';
         else if (val === 'PARTIAL') badgeStyle = 'bg-purple-50 text-purple-700 border-purple-300';
+
+        const displayLabel = val === 'MOBILE_MONEY' ? 'AIRTEL' : val;
 
         return (
           <span 
@@ -347,7 +357,7 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
             }}
             className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider border shadow-2xs cursor-pointer ${badgeStyle}`}
           >
-            {val}
+            {displayLabel}
           </span>
         );
       }

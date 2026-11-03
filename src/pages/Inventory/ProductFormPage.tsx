@@ -623,15 +623,33 @@ const ProductFormPageBase: React.FC = () => {
       const isRoll = isRollGroupSelected(values.categoryId, categories, values.partOf) ||
         Boolean(values.rollLength || values.rollWidth || values.rollCoreLength || values.rollCoreDiameter || values.rollDiaSize || values.rollWeight);
 
+      const resolvedCategoryId = typeof values.categoryId === 'object' && values.categoryId !== null
+        ? (values.categoryId.id || null)
+        : (values.categoryId || null);
+
+      let finalCatId = resolvedCategoryId;
+      if (!finalCatId && values.categoryId) {
+        const found = categories.find(c => c.name?.toLowerCase() === String(values.categoryId).toLowerCase().trim());
+        if (found) finalCatId = found.id;
+      }
+
+      const resolvedSupplierId = typeof values.supplierId === 'object' && values.supplierId !== null
+        ? (values.supplierId.id || null)
+        : (values.supplierId || null);
+
+      const resolvedUnitId = typeof values.unitId === 'object' && values.unitId !== null
+        ? (values.unitId.id || null)
+        : (values.unitId || null);
+
       const payload = {
-        sku: values.sku.trim(),
+        sku: (values.sku || '').trim() || `SKU-${Date.now()}`,
         name: values.name.trim(),
         cost_price: Number(values.costPrice || 0),
         selling_price: Number(values.sellingPrice || 0),
         min_stock: Number(values.minStock || 0),
-        categoryId: values.categoryId || null,
-        supplierId: values.supplierId || null,
-        unitId: values.unitId || null,
+        categoryId: finalCatId || null,
+        supplierId: resolvedSupplierId || null,
+        unitId: resolvedUnitId || null,
         location: values.binLocation || '',
         status: values.disabled ? 'Inactive' : 'Active',
         quantity: initialData?.quantity || 0,

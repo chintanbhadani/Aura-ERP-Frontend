@@ -77,18 +77,22 @@ export interface InvoiceItem {
   product?: any; // To hold related product info
 }
 
-export type PaymentType = 'CASH' | 'BANK' | 'CREDIT' | 'PARTIAL';
+export type PaymentType = 'CASH' | 'BANK' | 'CREDIT' | 'PARTIAL' | 'MOBILE_MONEY';
 
 export interface Invoice {
   id: string;
   invoiceNumber: string;
   type: 'PURCHASE' | 'SALES';
   date: string;
+  dueDate?: string | null;
+  notes?: string | null;
+  paymentTerms?: string | null;
   totalAmount: number;
   paymentType?: PaymentType;
   cashAmount?: number;
   bankAmount?: number;
   creditAmount?: number;
+  mobileMoneyAmount?: number;
   customerId?: string | null;
   supplierId?: string | null;
   items?: InvoiceItem[];

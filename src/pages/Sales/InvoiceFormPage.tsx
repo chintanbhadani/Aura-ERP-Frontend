@@ -78,6 +78,11 @@ const invoiceValidationSchema = Yup.object({
     then: (schema) => schema.min(0).required('Required for partial'),
     otherwise: (schema) => schema.notRequired(),
   }),
+  mobileMoneyAmount: Yup.number().when('paymentType', {
+    is: 'PARTIAL',
+    then: (schema) => schema.min(0).notRequired(),
+    otherwise: (schema) => schema.notRequired(),
+  }),
   items: Yup.array().of(
     Yup.object({
       productId: Yup.string().required('Item is required'),
@@ -342,6 +347,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         paymentType: existingInvoice.paymentType || 'CASH',
         cashAmount: existingInvoice.cashAmount ?? '',
         bankAmount: existingInvoice.bankAmount ?? '',
+        mobileMoneyAmount: existingInvoice.mobileMoneyAmount ?? '',
         creditAmount: existingInvoice.creditAmount ?? '',
         notes: existingInvoice.notes || '',
         paymentTerms: existingInvoice.paymentTerms || 'Payment due on receipt',
@@ -375,6 +381,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       paymentType: 'CASH',
       cashAmount: '',
       bankAmount: '',
+      mobileMoneyAmount: '',
       creditAmount: '',
       notes: '',
       paymentTerms: 'Payment due on receipt',
@@ -452,8 +459,10 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       const payload: any = {
         type: values.type,
         date: values.date,
+        dueDate: values.dueDate || undefined,
         paymentType: values.paymentType,
         notes: values.notes,
+        paymentTerms: values.paymentTerms,
         items: values.items.map((i: any) => ({
           productId: i.productId,
           quantity: Number(i.quantity),
@@ -474,6 +483,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       if (values.paymentType === 'PARTIAL') {
         payload.cashAmount = Number(values.cashAmount) || 0;
         payload.bankAmount = Number(values.bankAmount) || 0;
+        payload.mobileMoneyAmount = Number(values.mobileMoneyAmount) || 0;
       }
 
       const created = await createInvoice(payload);
@@ -603,7 +613,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                               {format(grandTotalAmount)}
                             </p>
                             <p className="text-[11px] text-gray-400 mt-1">
-                              {totalQty} {totalQty === 1 ? 'Unit' : 'Units'} • {values.paymentType}
+                              {totalQty} {totalQty === 1 ? 'Unit' : 'Units'} • {values.paymentType === 'MOBILE_MONEY' ? 'AIRTEL MONEY' : values.paymentType}
                             </p>
                           </div>
                         </div>
@@ -883,6 +893,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                 { label: 'Cash Settlement', value: 'CASH' },
                                 { label: 'Credit (Unpaid)', value: 'CREDIT' },
                                 { label: 'Bank Transfer / Cheque', value: 'BANK' },
+                                { label: 'Airtel Money / Mobile Money', value: 'MOBILE_MONEY' },
                                 { label: 'Partial Split', value: 'PARTIAL' },
                               ]}
                             />
@@ -1205,7 +1216,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                           PAYMENT DETAILS & SPLIT
                         </h4>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                           <TextFieldComponent
                             name="cashAmount"
                             label="Cash Settlement Amount"
@@ -1215,6 +1226,11 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                             name="bankAmount"
                             label="Bank / Wire Transfer Amount"
                             placeholder={values.paymentType === 'BANK' ? String(grandTotalAmount) : '0.00'}
+                          />
+                          <TextFieldComponent
+                            name="mobileMoneyAmount"
+                            label="Airtel Money Amount"
+                            placeholder={values.paymentType === 'MOBILE_MONEY' ? String(grandTotalAmount) : '0.00'}
                           />
                         </div>
 
