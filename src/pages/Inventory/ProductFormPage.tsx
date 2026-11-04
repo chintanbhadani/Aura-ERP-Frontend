@@ -1755,256 +1755,245 @@ const ProductFormPageBase: React.FC = () => {
 
               </div>
             </div>
-
-            {/* COMMENTS & ACTIVITY TIMELINE COMPONENT */}
-            {/* <FormCommentsAndActivity
-              entityType="Item"
-              entityId={id || initialData?.id || values.sku || ''}
-              createdByName={initialData?.createdBy || initialData?.assignedTo || user?.name || user?.username || 'Admin'}
-              createdAt={initialData?.createdAt ? formatDistanceToNow(new Date(initialData.createdAt), { addSuffix: true }) : 'recently'}
-              lastEditedByName={initialData?.updatedBy || initialData?.assignedTo || user?.name || user?.username || 'Admin'}
-              lastEditedAt={initialData?.updatedAt ? formatDistanceToNow(new Date(initialData.updatedAt), { addSuffix: true }) : 'recently'}
-              currentUser={{ name: user?.name || user?.username || 'Admin' }}
-            /> */}
-
-            {/* MODALS FOR INLINE CREATION */}
-            
-            {/* Category Modal */}
-            {showCategoryModal && (
-              <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
-                  <h3 className="text-lg font-bold text-gray-900 mb-5">Add New Item Group</h3>
-                  <Formik
-                    initialValues={{ name: pendingCategoryName }}
-                    validationSchema={categoryModalValidationSchema}
-                    onSubmit={async (val, { resetForm, setSubmitting }) => {
-                      try {
-                        setSubmitting(true);
-                        const newCat = await createCategory({ name: val.name.trim() });
-                        setCategories((prev) => [...prev, newCat]);
-                        setFieldValue('categoryId', newCat.id);
-                        if (categoryResolveRef.current) categoryResolveRef.current(newCat);
-                        resetForm();
-                        setShowCategoryModal(false);
-                        successToast('Item Group created');
-                      } catch (error) {
-                        errorToast('Failed to create item group');
-                      } finally {
-                        setSubmitting(false);
-                      }
-                    }}
-                  >
-                    {({ submitForm: submitCategoryForm, isSubmitting: isCategorySubmitting }) => (
-                      <Form className="space-y-5">
-                        <TextFieldComponent name="name" label="Item Group Name" placeholder="e.g. ROLL, TOOLS" />
-                        <div className="flex justify-end gap-3 pt-2">
-                          <ButtonComponent
-                            variant="outlined"
-                            onClick={() => {
-                              setShowCategoryModal(false);
-                              if (categoryResolveRef.current) categoryResolveRef.current(null);
-                            }}
-                          >
-                            Cancel
-                          </ButtonComponent>
-                          <ButtonComponent
-                            variant="primary"
-                            onClick={submitCategoryForm}
-                            loading={isCategorySubmitting}
-                          >
-                            Create Item Group
-                          </ButtonComponent>
-                        </div>
-                      </Form>
-                    )}
-                  </Formik>
-                </div>
-              </div>
-            )}
-
-            {/* Supplier Modal */}
-            {showSupplierModal && (
-              <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
-                  <h3 className="text-lg font-bold text-gray-900 mb-5">Add New Supplier</h3>
-                  <Formik
-                    initialValues={{ name: pendingSupplierName, contact: '', email: '' }}
-                    validationSchema={supplierValidationSchema}
-                    onSubmit={async (val, { resetForm, setSubmitting }) => {
-                      try {
-                        setSubmitting(true);
-                        let newSup: any;
-                        try {
-                          newSup = await createSupplier({ name: val.name.trim(), contact: val.contact?.trim(), email: val.email?.trim() });
-                        } catch (err) {
-                          newSup = { id: `SUP-${Date.now()}`, name: val.name.trim(), contact: val.contact?.trim(), email: val.email?.trim() };
-                        }
-                        setSuppliers((prev) => [...prev, newSup]);
-                        setFieldValue('supplierId', newSup.id);
-                        if (supplierResolveRef.current) supplierResolveRef.current(newSup);
-                        resetForm();
-                        setShowSupplierModal(false);
-                        successToast('Supplier created');
-                      } catch (error) {
-                        errorToast('Failed to create supplier');
-                      } finally {
-                        setSubmitting(false);
-                      }
-                    }}
-                  >
-                    {({ submitForm: submitSupplierForm, isSubmitting: isSupplierSubmitting }) => (
-                      <Form className="space-y-4">
-                        <TextFieldComponent name="name" label="Supplier Name *" placeholder="Supplier Ltd" />
-                        <TextFieldComponent name="contact" label="Contact" placeholder="Phone..." />
-                        <TextFieldComponent name="email" label="Email" placeholder="supplier@email.com" />
-                        <div className="flex justify-end gap-3 pt-2">
-                          <ButtonComponent
-                            variant="outlined"
-                            onClick={() => {
-                              setShowSupplierModal(false);
-                              if (supplierResolveRef.current) supplierResolveRef.current(null);
-                            }}
-                          >
-                            Cancel
-                          </ButtonComponent>
-                          <ButtonComponent
-                            variant="primary"
-                            onClick={submitSupplierForm}
-                            loading={isSupplierSubmitting}
-                          >
-                            Create Supplier
-                          </ButtonComponent>
-                        </div>
-                      </Form>
-                    )}
-                  </Formik>
-                </div>
-              </div>
-            )}
-
-            {/* Unit Modal */}
-            {showUnitModal && (
-              <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-[100]">
-                <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
-                  <h3 className="text-lg font-bold text-gray-900 mb-5">Add New Unit of Measure</h3>
-                  <Formik
-                    initialValues={{ name: pendingUnitName || '' }}
-                    enableReinitialize
-                    validationSchema={unitValidationSchema}
-                    onSubmit={async (val, { resetForm, setSubmitting }) => {
-                      try {
-                        setSubmitting(true);
-                        const newUnit = await createUnit({ name: val.name.trim() });
-                        setUnits((prev) => [...prev, newUnit]);
-                        setFieldValue('unitId', newUnit.id);
-                        if (unitResolveRef.current) {
-                          unitResolveRef.current(newUnit);
-                          unitResolveRef.current = null;
-                        }
-                        setPendingUnitName('');
-                        resetForm();
-                        setShowUnitModal(false);
-                        successToast('Unit created');
-                      } catch (error) {
-                        errorToast('Failed to create unit');
-                      } finally {
-                        setSubmitting(false);
-                      }
-                    }}
-                  >
-                    {({ submitForm: submitUnitForm, isSubmitting: isUnitSubmitting }) => (
-                      <Form className="space-y-4">
-                        <TextFieldComponent name="name" label="Unit Name (e.g. Pcs, Roll, Meter)" placeholder="e.g. Pcs" />
-                        <div className="flex justify-end gap-3 pt-2">
-                          <ButtonComponent
-                            variant="outlined"
-                            onClick={() => {
-                              setShowUnitModal(false);
-                              setPendingUnitName('');
-                              if (unitResolveRef.current) {
-                                unitResolveRef.current(null);
-                                unitResolveRef.current = null;
-                              }
-                            }}
-                          >
-                            Cancel
-                          </ButtonComponent>
-                          <ButtonComponent
-                            variant="primary"
-                            onClick={submitUnitForm}
-                            loading={isUnitSubmitting}
-                          >
-                            Create Unit
-                          </ButtonComponent>
-                        </div>
-                      </Form>
-                    )}
-                  </Formik>
-                </div>
-              </div>
-            )}
-            {/* Jump to Field Modal */}
-            {showJumpToFieldModal && (
-              <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4 border border-gray-100 relative animate-in zoom-in-95 duration-150">
-                  
-                  {/* Header */}
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                    <h3 className="text-base font-bold text-gray-900">Jump to field</h3>
-                    <button
-                      type="button"
-                      onClick={() => setShowJumpToFieldModal(false)}
-                      className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Select Field Input Container */}
-                  <div className="space-y-2">
-                    <TextFieldComponent
-                      autoFocus
-                      label="Select Field *"
-                      value={jumpSearchQuery}
-                      onChange={(e: any) => setJumpSearchQuery(e.target.value)}
-                      placeholder="Search field..."
-                    />
-
-                    {/* Options List */}
-                    <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200 divide-y divide-gray-100 bg-white mt-2 shadow-2xs">
-                      {filteredJumpFields.length > 0 ? (
-                        filteredJumpFields.map((field, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => handleJumpToField(field)}
-                            className="w-full text-left px-4 py-3 text-xs font-medium text-gray-800 hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center justify-between cursor-pointer"
-                          >
-                            <span className="font-semibold">{field.label}</span>
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-full">
-                              {field.tab}
-                            </span>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="p-4 text-center text-xs text-gray-400 font-medium">
-                          No matching fields found
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            )}
-
-            {/* Item Print & PDF Preview Modal */}
-            <ItemPrintModal
-              isOpen={showPrintModal}
-              onClose={() => setShowPrintModal(false)}
-              item={{ ...values, ...initialData }}
-            />
           </Form>
+
+          {/* MODALS FOR INLINE CREATION (Rendered outside the main <Form> to avoid nested form tags) */}
+          
+          {/* Category Modal */}
+          {showCategoryModal && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
+                <h3 className="text-lg font-bold text-gray-900 mb-5">Add New Item Group</h3>
+                <Formik
+                  initialValues={{ name: pendingCategoryName }}
+                  validationSchema={categoryModalValidationSchema}
+                  onSubmit={async (val, { resetForm, setSubmitting }) => {
+                    try {
+                      setSubmitting(true);
+                      const newCat = await createCategory({ name: val.name.trim() });
+                      setCategories((prev) => [...prev, newCat]);
+                      setFieldValue('categoryId', newCat.id);
+                      if (categoryResolveRef.current) categoryResolveRef.current(newCat);
+                      resetForm();
+                      setShowCategoryModal(false);
+                      successToast('Item Group created');
+                    } catch (error) {
+                      errorToast('Failed to create item group');
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  }}
+                >
+                  {({ submitForm: submitCategoryForm, isSubmitting: isCategorySubmitting }) => (
+                    <div className="space-y-5">
+                      <TextFieldComponent name="name" label="Item Group Name" placeholder="e.g. ROLL, TOOLS" />
+                      <div className="flex justify-end gap-3 pt-2">
+                        <ButtonComponent
+                          variant="outlined"
+                          onClick={() => {
+                            setShowCategoryModal(false);
+                            if (categoryResolveRef.current) categoryResolveRef.current(null);
+                          }}
+                        >
+                          Cancel
+                        </ButtonComponent>
+                        <ButtonComponent
+                          variant="primary"
+                          onClick={submitCategoryForm}
+                          loading={isCategorySubmitting}
+                        >
+                          Create Item Group
+                        </ButtonComponent>
+                      </div>
+                    </div>
+                  )}
+                </Formik>
+              </div>
+            </div>
+          )}
+
+          {/* Supplier Modal */}
+          {showSupplierModal && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
+                <h3 className="text-lg font-bold text-gray-900 mb-5">Add New Supplier</h3>
+                <Formik
+                  initialValues={{ name: pendingSupplierName, contact: '', email: '' }}
+                  validationSchema={supplierValidationSchema}
+                  onSubmit={async (val, { resetForm, setSubmitting }) => {
+                    try {
+                      setSubmitting(true);
+                      let newSup: any;
+                      try {
+                        newSup = await createSupplier({ name: val.name.trim(), contact: val.contact?.trim(), email: val.email?.trim() });
+                      } catch (err) {
+                        newSup = { id: `SUP-${Date.now()}`, name: val.name.trim(), contact: val.contact?.trim(), email: val.email?.trim() };
+                      }
+                      setSuppliers((prev) => [...prev, newSup]);
+                      setFieldValue('supplierId', newSup.id);
+                      if (supplierResolveRef.current) supplierResolveRef.current(newSup);
+                      resetForm();
+                      setShowSupplierModal(false);
+                      successToast('Supplier created');
+                    } catch (error) {
+                      errorToast('Failed to create supplier');
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  }}
+                >
+                  {({ submitForm: submitSupplierForm, isSubmitting: isSupplierSubmitting }) => (
+                    <div className="space-y-4">
+                      <TextFieldComponent name="name" label="Supplier Name *" placeholder="Supplier Ltd" />
+                      <TextFieldComponent name="contact" label="Contact" placeholder="Phone..." />
+                      <TextFieldComponent name="email" label="Email" placeholder="supplier@email.com" />
+                      <div className="flex justify-end gap-3 pt-2">
+                        <ButtonComponent
+                          variant="outlined"
+                          onClick={() => {
+                            setShowSupplierModal(false);
+                            if (supplierResolveRef.current) supplierResolveRef.current(null);
+                          }}
+                        >
+                          Cancel
+                        </ButtonComponent>
+                        <ButtonComponent
+                          variant="primary"
+                          onClick={submitSupplierForm}
+                          loading={isSupplierSubmitting}
+                        >
+                          Create Supplier
+                        </ButtonComponent>
+                      </div>
+                    </div>
+                  )}
+                </Formik>
+              </div>
+            </div>
+          )}
+
+          {/* Unit Modal */}
+          {showUnitModal && (
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-[100]">
+              <div className="bg-white rounded-3xl p-7 w-full max-w-md shadow-xl relative">
+                <h3 className="text-lg font-bold text-gray-900 mb-5">Add New Unit of Measure</h3>
+                <Formik
+                  initialValues={{ name: pendingUnitName || '' }}
+                  enableReinitialize
+                  validationSchema={unitValidationSchema}
+                  onSubmit={async (val, { resetForm, setSubmitting }) => {
+                    try {
+                      setSubmitting(true);
+                      const newUnit = await createUnit({ name: val.name.trim() });
+                      setUnits((prev) => [...prev, newUnit]);
+                      setFieldValue('unitId', newUnit.id);
+                      if (unitResolveRef.current) {
+                        unitResolveRef.current(newUnit);
+                        unitResolveRef.current = null;
+                      }
+                      setPendingUnitName('');
+                      resetForm();
+                      setShowUnitModal(false);
+                      successToast('Unit created');
+                    } catch (error) {
+                      errorToast('Failed to create unit');
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  }}
+                >
+                  {({ submitForm: submitUnitForm, isSubmitting: isUnitSubmitting }) => (
+                    <div className="space-y-4">
+                      <TextFieldComponent name="name" label="Unit Name (e.g. Pcs, Roll, Meter)" placeholder="e.g. Pcs" />
+                      <div className="flex justify-end gap-3 pt-2">
+                        <ButtonComponent
+                          variant="outlined"
+                          onClick={() => {
+                            setShowUnitModal(false);
+                            setPendingUnitName('');
+                            if (unitResolveRef.current) {
+                              unitResolveRef.current(null);
+                              unitResolveRef.current = null;
+                            }
+                          }}
+                        >
+                          Cancel
+                        </ButtonComponent>
+                        <ButtonComponent
+                          variant="primary"
+                          onClick={submitUnitForm}
+                          loading={isUnitSubmitting}
+                        >
+                          Create Unit
+                        </ButtonComponent>
+                      </div>
+                    </div>
+                  )}
+                </Formik>
+              </div>
+            </div>
+          )}
+          {/* Jump to Field Modal */}
+          {showJumpToFieldModal && (
+            <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+              <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4 border border-gray-100 relative animate-in zoom-in-95 duration-150">
+                
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <h3 className="text-base font-bold text-gray-900">Jump to field</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowJumpToFieldModal(false)}
+                    className="p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Select Field Input Container */}
+                <div className="space-y-2">
+                  <TextFieldComponent
+                    autoFocus
+                    label="Select Field *"
+                    value={jumpSearchQuery}
+                    onChange={(e: any) => setJumpSearchQuery(e.target.value)}
+                    placeholder="Search field..."
+                  />
+
+                  {/* Options List */}
+                  <div className="max-h-64 overflow-y-auto rounded-xl border border-gray-200 divide-y divide-gray-100 bg-white mt-2 shadow-2xs">
+                    {filteredJumpFields.length > 0 ? (
+                      filteredJumpFields.map((field, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleJumpToField(field)}
+                          className="w-full text-left px-4 py-3 text-xs font-medium text-gray-800 hover:bg-gray-100 hover:text-gray-900 transition-colors flex items-center justify-between cursor-pointer"
+                        >
+                          <span className="font-semibold">{field.label}</span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-100 px-2 py-0.5 rounded-full">
+                            {field.tab}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-xs text-gray-400 font-medium">
+                        No matching fields found
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* Item Print & PDF Preview Modal */}
+          <ItemPrintModal
+            isOpen={showPrintModal}
+            onClose={() => setShowPrintModal(false)}
+            item={{ ...values, ...initialData }}
+          />
         </ERPFormPageLayout>
       )}
     </Formik>
