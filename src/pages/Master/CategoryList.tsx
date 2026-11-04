@@ -493,7 +493,7 @@ const CategoryListBase: React.FC = () => {
         entityName="Item Group"
         columns={CATEGORY_IMPORT_COLUMNS}
         sampleData={CATEGORY_IMPORT_SAMPLE_DATA}
-        templateFileName="patel_strap_item_groups_demo_template.xlsx"
+        templateFileName="aura_erp_item_groups_template.xlsx"
         onImport={async (rows) => {
           const res = await bulkImportCategories(rows);
           return res;

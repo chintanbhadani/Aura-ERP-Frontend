@@ -450,7 +450,7 @@ const SupplierListBase: React.FC = () => {
         entityName="Supplier"
         columns={SUPPLIER_IMPORT_COLUMNS}
         sampleData={SUPPLIER_IMPORT_SAMPLE_DATA}
-        templateFileName="patel_strap_suppliers_demo_template.xlsx"
+        templateFileName="aura_erp_suppliers_template.xlsx"
         onImport={async (rows) => {
           const res = await bulkImportSuppliers(rows);
           return res;

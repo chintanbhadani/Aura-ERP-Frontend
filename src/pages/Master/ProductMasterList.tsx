@@ -598,7 +598,7 @@ const ProductMasterListBase: React.FC = () => {
         entityName="Item"
         columns={ITEM_IMPORT_COLUMNS}
         sampleData={ITEM_IMPORT_SAMPLE_DATA}
-        templateFileName="patel_strap_item_master_demo_template.xlsx"
+        templateFileName="aura_erp_item_master_template.xlsx"
         onImport={async (rows) => {
           const res = await bulkImportProducts(rows);
           return res;

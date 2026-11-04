@@ -461,7 +461,7 @@ const UnitListBase: React.FC = () => {
         entityName="Unit"
         columns={UNIT_IMPORT_COLUMNS}
         sampleData={UNIT_IMPORT_SAMPLE_DATA}
-        templateFileName="patel_strap_units_demo_template.xlsx"
+        templateFileName="aura_erp_units_template.xlsx"
         onImport={async (rows) => {
           const res = await bulkImportUnits(rows);
           return res;

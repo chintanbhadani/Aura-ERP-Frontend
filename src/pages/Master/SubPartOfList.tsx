@@ -291,7 +291,7 @@ const SubPartOfListBase: React.FC = () => {
         entityName="Sub Part Of"
         columns={SUB_PART_OF_IMPORT_COLUMNS}
         sampleData={SUB_PART_OF_IMPORT_SAMPLE_DATA}
-        templateFileName="patel_strap_sub_part_of_demo_template.xlsx"
+        templateFileName="aura_erp_sub_part_of_template.xlsx"
         onImport={async (rows) => {
           const res = await bulkImportSubPartOfs(rows);
           return res;
