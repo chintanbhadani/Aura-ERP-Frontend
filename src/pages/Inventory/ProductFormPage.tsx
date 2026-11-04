@@ -7,6 +7,7 @@ import { ERPFormHeader, ERPFormPageLayout } from '../../components/ERPForm';
 import { triggerActivityRefresh } from '../../components/FormCommentsAndActivity';
 import dataService from '../../axios/dataService';
 import { 
+  fetchInventory,
   fetchInventoryById, 
   fetchCategories, 
   fetchSuppliers, 
@@ -431,6 +432,7 @@ const ProductFormPageBase: React.FC = () => {
   const [units, setUnits] = useState<Unit[]>([]);
   const [partOfs, setPartOfs] = useState<PartOf[]>([]);
   const [subPartOfs, setSubPartOfs] = useState<SubPartOf[]>([]);
+  const [existingItems, setExistingItems] = useState<any[]>([]);
 
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<'details' | 'dashboard' | 'accounting' | 'purchasing' | 'tax' | 'quality'>('details');
@@ -627,6 +629,24 @@ const ProductFormPageBase: React.FC = () => {
       .then(items => setSubPartOfs(items && Array.isArray(items) ? items : []))
       .catch(() => setSubPartOfs([]));
 
+    fetchInventory()
+      .then(items => {
+        const list = items && Array.isArray(items) ? items : [];
+        setExistingItems(list);
+        if (!isEditMode && formikRef.current) {
+          const currentSku = formikRef.current.values.sku;
+          const nextSku = generateNextItemCode(
+            formikRef.current.values.company || 'PATEL STRAP INDUSTRIES LTD',
+            'TOOLS',
+            list
+          );
+          if (!currentSku || currentSku === 'PSTL001') {
+            formikRef.current.setFieldValue('sku', nextSku);
+          }
+        }
+      })
+      .catch(() => setExistingItems([]));
+
     if (isEditMode && id) {
       setLoading(true);
       fetchInventoryById(id)
@@ -719,7 +739,7 @@ const ProductFormPageBase: React.FC = () => {
   const handleDuplicate = () => {
     if (!formikRef.current) return;
     const values = formikRef.current.values;
-    const duplicatedSku = generateNextItemCode(values.company || 'PATEL STRAP INDUSTRIES LTD', 'TOOLS');
+    const duplicatedSku = generateNextItemCode(values.company || 'PATEL STRAP INDUSTRIES LTD', 'TOOLS', existingItems);
     const duplicatedName = values.name ? (values.name.includes('(Copy)') ? values.name : `${values.name} (Copy)`) : 'Copy Item';
 
     const dupData = {
@@ -982,7 +1002,7 @@ const ProductFormPageBase: React.FC = () => {
       innerRef={formikRef}
       enableReinitialize
       initialValues={{
-        sku: initialData?.sku || generateNextItemCode(initialData?.company || 'PATEL STRAP INDUSTRIES LTD', 'TOOLS'),
+        sku: initialData?.sku || generateNextItemCode(initialData?.company || 'PATEL STRAP INDUSTRIES LTD', 'TOOLS', existingItems),
         name: initialData?.name || '',
         categoryId: initialData?.categoryId ?? initialData?.category?.id ?? '',
         supplierId: initialData?.supplierId ?? initialData?.supplier?.id ?? '',
@@ -1282,11 +1302,16 @@ const ProductFormPageBase: React.FC = () => {
                           <div className="h-0.5 bg-gray-100 w-full"></div>
                         </div>
 
-                        <div className="w-full">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <TextFieldComponent 
                             name="name" 
                             label="Item Name *" 
-                            placeholder="e.g. PLIER SET" 
+                            placeholder="e.g. Plane Steel Sheet" 
+                          />
+                          <TextFieldComponent 
+                            name="sku" 
+                            label="Item Code / SKU *" 
+                            placeholder="e.g. PSTL002" 
                           />
                         </div>
 
