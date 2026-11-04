@@ -218,6 +218,202 @@ export const generateNextItemCode = (
   return `${prefix}${String(nextSeq).padStart(padLength, '0')}`;
 };
 
+const ActivityHeatmapComponent = React.memo(({ initialData }: { initialData: any }) => {
+  const [showActivity, setShowActivity] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { monthBlocks } = React.useMemo(() => {
+    const today = new Date();
+    const datesMap: Record<string, number> = {};
+
+    const formatDateStr = (dateInput: Date | string) => {
+      const d = new Date(dateInput);
+      if (isNaN(d.getTime())) return '';
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    if (initialData?.createdAt) {
+      const cDate = formatDateStr(initialData.createdAt);
+      if (cDate) datesMap[cDate] = (datesMap[cDate] || 0) + 1;
+    }
+    if (initialData?.updatedAt) {
+      const uDate = formatDateStr(initialData.updatedAt);
+      if (uDate) datesMap[uDate] = (datesMap[uDate] || 0) + 1;
+    }
+    if (Array.isArray(initialData?.stockLedgers)) {
+      initialData.stockLedgers.forEach((l: any) => {
+        if (l.date || l.createdAt) {
+          const lDate = formatDateStr(l.date || l.createdAt);
+          if (lDate) datesMap[lDate] = (datesMap[lDate] || 0) + 1;
+        }
+      });
+    }
+
+    // Ensure today's date (17 Sep) has active count
+    const todayStr = formatDateStr(today);
+    if (todayStr) {
+      datesMap[todayStr] = Math.max(datesMap[todayStr] || 0, 1);
+    }
+
+    const monthsShort = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const blocks: Array<{
+      monthName: string;
+      year: number;
+      weeks: Array<Array<{ dateStr: string; dayOfWeek: number; count: number; isValid: boolean }>>;
+    }> = [];
+
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+
+    // 12 Months: from 11 months ago to current month
+    for (let mOffset = -11; mOffset <= 0; mOffset++) {
+      const monthDate = new Date(currentYear, currentMonth + mOffset, 1);
+      const mIdx = monthDate.getMonth();
+      const yr = monthDate.getFullYear();
+      const monthName = monthsShort[mIdx];
+
+      const firstDayOfMonth = new Date(yr, mIdx, 1);
+      const lastDayOfMonth = new Date(yr, mIdx + 1, 0);
+
+      const startDayOfWeek = firstDayOfMonth.getDay();
+      const daysInMonth = lastDayOfMonth.getDate();
+      const dayCells: Array<{ dateStr: string; dayOfWeek: number; count: number; isValid: boolean }> = [];
+
+      for (let pad = 0; pad < startDayOfWeek; pad++) {
+        dayCells.push({ dateStr: '', dayOfWeek: pad, count: 0, isValid: false });
+      }
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dObj = new Date(yr, mIdx, d);
+        const dateStr = formatDateStr(dObj);
+        const dayOfWeek = dObj.getDay();
+        const count = datesMap[dateStr] || 0;
+
+        dayCells.push({ dateStr, dayOfWeek, count, isValid: true });
+      }
+
+      const monthWeeks: typeof dayCells[] = [];
+      let currentWeek: typeof dayCells = [];
+
+      dayCells.forEach((cell, i) => {
+        currentWeek.push(cell);
+        if (currentWeek.length === 7 || i === dayCells.length - 1) {
+          while (currentWeek.length < 7) {
+            currentWeek.push({ dateStr: '', dayOfWeek: currentWeek.length, count: 0, isValid: false });
+          }
+          monthWeeks.push(currentWeek);
+          currentWeek = [];
+        }
+      });
+
+      blocks.push({
+        monthName,
+        year: yr,
+        weeks: monthWeeks
+      });
+    }
+
+    return { monthBlocks: blocks };
+  }, [initialData]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+    }
+  }, [showActivity]);
+
+  return (
+    <div className="border border-gray-200 rounded-3xl p-6 bg-white space-y-4 shadow-2xs">
+      <div 
+        onClick={() => setShowActivity(!showActivity)}
+        className="flex items-center justify-between cursor-pointer select-none"
+      >
+        <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+          Activity
+        </h3>
+        <button type="button" className="text-gray-400 hover:text-gray-600 transition-colors p-1">
+          {showActivity ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+        </button>
+      </div>
+
+      {showActivity && (
+        <div className="pt-2 space-y-4">
+          <div ref={scrollRef} className="overflow-x-auto pt-9 pb-2 scroll-smooth">
+            <div className="flex items-start gap-3 min-w-max select-none">
+              {/* Day Labels Column aligned with rows 0..6 */}
+              <div className="flex flex-col text-[10px] font-medium text-gray-400 w-7 pr-1 pt-[18px] gap-[3.5px]">
+                <span className="h-2.5 flex items-center leading-none"></span>
+                <span className="h-2.5 flex items-center leading-none">Mon</span>
+                <span className="h-2.5 flex items-center leading-none"></span>
+                <span className="h-2.5 flex items-center leading-none">Wed</span>
+                <span className="h-2.5 flex items-center leading-none"></span>
+                <span className="h-2.5 flex items-center leading-none">Fri</span>
+                <span className="h-2.5 flex items-center leading-none"></span>
+              </div>
+
+              {/* Month Blocks Container with Gap between each Month */}
+              {monthBlocks.map((block, bIdx) => (
+                <div key={`${block.year}-${block.monthName}-${bIdx}`} className="flex flex-col gap-1.5 relative">
+                  {/* Floating Month Name above weeks */}
+                  <div className="text-[11px] font-bold tracking-wider text-gray-500 absolute -top-6 left-0">
+                    {block.monthName}
+                  </div>
+
+                  {/* Columns of Weeks for this Month */}
+                  <div className="flex gap-1">
+                    {block.weeks.map((week, wIdx) => (
+                      <div key={wIdx} className="flex flex-col gap-1">
+                        {week.map((day, dIdx) => {
+                          if (!day.isValid) {
+                            return <div key={dIdx} className="w-2.5 h-2.5" />;
+                          }
+
+                          let bgClass = 'bg-[#f4f5f7] border border-gray-100';
+                          if (day.count >= 4) bgClass = 'bg-[#0052cc] border border-[#0052cc]';
+                          else if (day.count === 3) bgClass = 'bg-[#2684ff] border border-[#2684ff]';
+                          else if (day.count === 2) bgClass = 'bg-[#4c9aff] border border-[#4c9aff]';
+                          else if (day.count === 1) bgClass = 'bg-[#b3d4ff] border border-[#b3d4ff]';
+
+                          const tooltipText = `${day.count} activity on ${day.dateStr}`;
+
+                          return (
+                            <div
+                              key={dIdx}
+                              className="relative group/dot flex items-center justify-center cursor-pointer"
+                            >
+                              <div
+                                className={`w-2.5 h-2.5 rounded-[2px] transition-all duration-150 hover:scale-130 hover:ring-2 hover:ring-offset-1 hover:ring-blue-400 ${bgClass}`}
+                              />
+                              {/* Floating Tooltip Popup */}
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/dot:flex flex-col items-center z-[100] pointer-events-none">
+                                <div className="bg-gray-900 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap tracking-wide select-none">
+                                  {tooltipText}
+                                </div>
+                                <div className="w-2 h-2 bg-gray-900 rotate-45 -mt-1"></div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-xs text-gray-400 font-normal">
+            This is based on stock movement. See Stock Ledger for details
+          </p>
+        </div>
+      )}
+    </div>
+  );
+});
+
 const ProductFormPageBase: React.FC = () => {
   const { user } = useSelector((state: any) => state.base);
   const [searchParams] = useSearchParams();
@@ -779,201 +975,6 @@ const ProductFormPageBase: React.FC = () => {
     const parts = nameStr.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[1][0]).toUpperCase();
-  };
-
-  const ActivityHeatmapComponent = ({ initialData }: { initialData: any }) => {
-    const [showActivity, setShowActivity] = useState(true);
-    const scrollRef = useRef<HTMLDivElement>(null);
-
-    const { monthBlocks } = React.useMemo(() => {
-      const today = new Date();
-      const datesMap: Record<string, number> = {};
-
-      const formatDateStr = (dateInput: Date | string) => {
-        const d = new Date(dateInput);
-        if (isNaN(d.getTime())) return '';
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
-      };
-
-      if (initialData?.createdAt) {
-        const cDate = formatDateStr(initialData.createdAt);
-        if (cDate) datesMap[cDate] = (datesMap[cDate] || 0) + 1;
-      }
-      if (initialData?.updatedAt) {
-        const uDate = formatDateStr(initialData.updatedAt);
-        if (uDate) datesMap[uDate] = (datesMap[uDate] || 0) + 1;
-      }
-      if (Array.isArray(initialData?.stockLedgers)) {
-        initialData.stockLedgers.forEach((l: any) => {
-          if (l.date || l.createdAt) {
-            const lDate = formatDateStr(l.date || l.createdAt);
-            if (lDate) datesMap[lDate] = (datesMap[lDate] || 0) + 1;
-          }
-        });
-      }
-
-      // Ensure today's date (17 Sep) has active count
-      const todayStr = formatDateStr(today);
-      if (todayStr) {
-        datesMap[todayStr] = Math.max(datesMap[todayStr] || 0, 1);
-      }
-
-      const monthsShort = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-      const blocks: Array<{
-        monthName: string;
-        year: number;
-        weeks: Array<Array<{ dateStr: string; dayOfWeek: number; count: number; isValid: boolean }>>;
-      }> = [];
-
-      const currentYear = today.getFullYear();
-      const currentMonth = today.getMonth();
-
-      // 12 Months: from 11 months ago to current month
-      for (let mOffset = -11; mOffset <= 0; mOffset++) {
-        const monthDate = new Date(currentYear, currentMonth + mOffset, 1);
-        const mIdx = monthDate.getMonth();
-        const yr = monthDate.getFullYear();
-        const monthName = monthsShort[mIdx];
-
-        const firstDayOfMonth = new Date(yr, mIdx, 1);
-        const lastDayOfMonth = new Date(yr, mIdx + 1, 0);
-
-        const startDayOfWeek = firstDayOfMonth.getDay();
-        const daysInMonth = lastDayOfMonth.getDate();
-        const dayCells: Array<{ dateStr: string; dayOfWeek: number; count: number; isValid: boolean }> = [];
-
-        for (let pad = 0; pad < startDayOfWeek; pad++) {
-          dayCells.push({ dateStr: '', dayOfWeek: pad, count: 0, isValid: false });
-        }
-
-        for (let d = 1; d <= daysInMonth; d++) {
-          const dObj = new Date(yr, mIdx, d);
-          const dateStr = formatDateStr(dObj);
-          const dayOfWeek = dObj.getDay();
-          const count = datesMap[dateStr] || 0;
-
-          dayCells.push({ dateStr, dayOfWeek, count, isValid: true });
-        }
-
-        const monthWeeks: typeof dayCells[] = [];
-        let currentWeek: typeof dayCells = [];
-
-        dayCells.forEach((cell, i) => {
-          currentWeek.push(cell);
-          if (currentWeek.length === 7 || i === dayCells.length - 1) {
-            while (currentWeek.length < 7) {
-              currentWeek.push({ dateStr: '', dayOfWeek: currentWeek.length, count: 0, isValid: false });
-            }
-            monthWeeks.push(currentWeek);
-            currentWeek = [];
-          }
-        });
-
-        blocks.push({
-          monthName,
-          year: yr,
-          weeks: monthWeeks
-        });
-      }
-
-      return { monthBlocks: blocks };
-    }, [initialData]);
-
-    useEffect(() => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
-      }
-    }, [showActivity]);
-
-    return (
-      <div className="border border-gray-200 rounded-3xl p-6 bg-white space-y-4 shadow-2xs">
-        <div 
-          onClick={() => setShowActivity(!showActivity)}
-          className="flex items-center justify-between cursor-pointer select-none"
-        >
-          <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            Activity
-          </h3>
-          <button type="button" className="text-gray-400 hover:text-gray-600 transition-colors p-1">
-            {showActivity ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
-          </button>
-        </div>
-
-        {showActivity && (
-          <div className="pt-2 space-y-4">
-            <div ref={scrollRef} className="overflow-x-auto pt-9 pb-2 scroll-smooth">
-              <div className="flex items-start gap-3 min-w-max select-none">
-                {/* Day Labels Column aligned with rows 0..6 */}
-                <div className="flex flex-col text-[10px] font-medium text-gray-400 w-7 pr-1 pt-[18px] gap-[3.5px]">
-                  <span className="h-2.5 flex items-center leading-none"></span>
-                  <span className="h-2.5 flex items-center leading-none">Mon</span>
-                  <span className="h-2.5 flex items-center leading-none"></span>
-                  <span className="h-2.5 flex items-center leading-none">Wed</span>
-                  <span className="h-2.5 flex items-center leading-none"></span>
-                  <span className="h-2.5 flex items-center leading-none">Fri</span>
-                  <span className="h-2.5 flex items-center leading-none"></span>
-                </div>
-
-                {/* Month Blocks Container with Gap between each Month */}
-                <div className="flex items-start gap-4">
-                  {monthBlocks.map((block, bIdx) => (
-                    <div key={bIdx} className="flex flex-col items-center gap-2">
-                      <span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase">
-                        {block.monthName}
-                      </span>
-
-                      <div className="flex gap-[3.5px]">
-                        {block.weeks.map((week, wIdx) => (
-                          <div key={wIdx} className="flex flex-col gap-[3.5px]">
-                            {week.map((day, dIdx) => {
-                              if (!day.isValid) {
-                                return <div key={dIdx} className="w-2.5 h-2.5 opacity-0 pointer-events-none" />;
-                              }
-
-                              let bgClass = 'bg-gray-100 hover:bg-gray-200';
-                              if (day.count > 0) {
-                                if (day.count >= 4) bgClass = 'bg-emerald-700 hover:bg-emerald-800';
-                                else if (day.count >= 2) bgClass = 'bg-emerald-600 hover:bg-emerald-700';
-                                else bgClass = 'bg-emerald-500 hover:bg-emerald-600';
-                              }
-
-                              const dayNum = parseInt(day.dateStr.split('-')[2] || '1', 10);
-                              const tooltipText = `${day.count} ON ${dayNum} ${block.monthName} ${block.year}`;
-
-                              return (
-                                <div key={dIdx} className="relative group/dot">
-                                  <div
-                                    className={`w-2.5 h-2.5 rounded-[2px] transition-colors cursor-pointer ${bgClass}`}
-                                  />
-                                  {/* Floating Tooltip Popup */}
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover/dot:flex flex-col items-center z-[100] pointer-events-none">
-                                    <div className="bg-gray-900 text-white font-bold text-[11px] px-3 py-1.5 rounded-xl shadow-xl whitespace-nowrap tracking-wide select-none">
-                                      {tooltipText}
-                                    </div>
-                                    <div className="w-2 h-2 bg-gray-900 rotate-45 -mt-1"></div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <p className="text-xs text-gray-400 font-normal">
-              This is based on stock movement. See Stock Ledger for details
-            </p>
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (

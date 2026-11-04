@@ -40,11 +40,12 @@ export interface ReusableAutocompleteProps<T> {
 }
 
 const defaultFilter = createFilterOptions<any>();
+const EMPTY_ARRAY: any[] = [];
 
 export const ReusableAutocomplete = <T extends { id?: string | number }>({
   keyName,
-  options = [],
-  defaultOptions = [],
+  options = EMPTY_ARRAY,
+  defaultOptions = EMPTY_ARRAY,
   getOptionLabel,
   apiEndpoint,
   filterPayload,
@@ -72,15 +73,9 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
   const { setFieldValue, submitCount } = useFormikContext<any>();
   const [field, meta] = useField(keyName);
   const [inputValue, setInputValue] = useState<string>('');
-  const [fetchedOptions, setFetchedOptions] = useState<T[]>(defaultOptions.length > 0 ? defaultOptions : options);
+  const [fetchedOptions, setFetchedOptions] = useState<T[]>(EMPTY_ARRAY);
+  const [createdOptions, setCreatedOptions] = useState<T[]>(EMPTY_ARRAY);
   const [apiLoading, setApiLoading] = useState<boolean>(false);
-
-  // Sync initial options when no apiEndpoint is passed
-  useEffect(() => {
-    if (!apiEndpoint) {
-      setFetchedOptions(options.length > 0 ? options : defaultOptions);
-    }
-  }, [options, defaultOptions, apiEndpoint]);
 
   // Debounced fetch when apiEndpoint is provided
   useEffect(() => {
@@ -115,7 +110,7 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
           resolvedList = data;
         }
 
-        setFetchedOptions(resolvedList || []);
+        setFetchedOptions(resolvedList || EMPTY_ARRAY);
       } catch (err) {
         console.error(`Error fetching options from ${apiEndpoint}:`, err);
       } finally {
@@ -129,7 +124,15 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
     };
   }, [apiEndpoint, refreshKey, JSON.stringify(filterPayload), searchKey ? inputValue : undefined]);
 
-  const activeOptions = apiEndpoint ? fetchedOptions : (options.length > 0 ? options : fetchedOptions);
+  // Compute active options without copying props to state, preventing infinite loops
+  const activeOptions = useMemo(() => {
+    if (apiEndpoint) {
+      return createdOptions.length > 0 ? [...createdOptions, ...fetchedOptions] : fetchedOptions;
+    }
+    const base = options && options.length > 0 ? options : (defaultOptions || EMPTY_ARRAY);
+    return createdOptions.length > 0 ? [...createdOptions, ...base] : base;
+  }, [apiEndpoint, createdOptions, fetchedOptions, options, defaultOptions]);
+
   const isComponentLoading = loading || apiLoading;
 
   interface OptionType {
@@ -271,7 +274,7 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
         }}
         getOptionKey={(option) => {
           if (typeof option === 'string') return option;
-          return (option as any)[compareKey] ?? (option as any).id ?? (option as any).inputValue ?? Math.random();
+          return (option as any)[compareKey] ?? (option as any).id ?? (option as any).inputValue ?? (option as any).name ?? (getOptionLabel ? getOptionLabel(option) : '');
         }}
         selectOnFocus
         clearOnBlur
@@ -283,13 +286,14 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
           if (reason === 'reset') {
             if (selectedValue) {
               const label = getOptionLabel ? getOptionLabel(selectedValue) : ((selectedValue as any)?.name || '');
-              setInputValue(label);
+              setInputValue(prev => prev !== label ? label : prev);
             } else {
-              setInputValue('');
+              setInputValue(prev => prev !== '' ? '' : prev);
             }
             return;
           }
-          setInputValue(val || '');
+          const nextVal = val || '';
+          setInputValue(prev => prev !== nextVal ? nextVal : prev);
         }}
         onChange={async (_, newValue) => {
           if (!newValue) {
@@ -306,7 +310,7 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
               const createdItem = await onCreate(newName);
               if (createdItem) {
                 const newId = (createdItem as any)[compareKey] ?? (createdItem as any).id;
-                setFetchedOptions((prev) => [createdItem, ...(prev || [])]);
+                setCreatedOptions((prev) => [createdItem, ...(prev || [])]);
                 const label = getOptionLabel ? getOptionLabel(createdItem) : ((createdItem as any)?.name || '');
                 setInputValue(label);
                 setFieldValue(keyName, newId);
@@ -331,7 +335,7 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
               const createdItem = await onCreate(newValue.trim());
               if (createdItem) {
                 const newId = (createdItem as any)[compareKey] ?? (createdItem as any).id;
-                setFetchedOptions((prev) => [createdItem, ...(prev || [])]);
+                setCreatedOptions((prev) => [createdItem, ...(prev || [])]);
                 const label = getOptionLabel ? getOptionLabel(createdItem) : ((createdItem as any)?.name || '');
                 setInputValue(label);
                 setFieldValue(keyName, newId);
@@ -471,7 +475,7 @@ export const ReusableAutocomplete = <T extends { id?: string | number }>({
 export const StandaloneAutocomplete = <T extends Record<string, any>>({
   value,
   onChange,
-  options = [],
+  options = EMPTY_ARRAY,
   getOptionLabel,
   renderOptionLabel,
   placeholder = 'Select an option',
