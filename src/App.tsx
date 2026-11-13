@@ -41,6 +41,8 @@ import { ProductFormPage } from './pages/Inventory/ProductFormPage';
 import { InvoiceList } from './components/InvoiceList';
 import { InventoryTable as ProductInventory } from './components/InventoryTable';
 import { StockEntryList } from './pages/Inventory/StockEntryList';
+import { RepackListPage } from './pages/Inventory/RepackListPage';
+import { RepackFormPage } from './pages/Inventory/RepackFormPage';
 import { GrnList } from './pages/Inventory/GrnList';
 import { GRNFormPage } from './pages/Inventory/GRNFormPage';
 import { MaterialRequestList } from './pages/Inventory/MaterialRequestList';
@@ -196,6 +198,8 @@ function App() {
         <Route path="/invoices/sales/new" element={<InvoiceFormPage defaultType="SALES" />} />
         <Route path="/invoices/purchase/new" element={<InvoiceFormPage defaultType="PURCHASE" />} />
         <Route path="/invoices/:id" element={<InvoiceFormPage />} />
+        <Route path="/repack" element={<RepackListPage />} />
+        <Route path="/repack/new" element={<RepackFormPage />} />
         
         {/* Item Master Detail Routes */}
         <Route path="/products" element={<ProductMasterList />} />

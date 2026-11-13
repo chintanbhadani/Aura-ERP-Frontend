@@ -102,7 +102,7 @@ function StockDashboardPageBase() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8 p-1 sm:p-2">
+      <div className="p-4 sm:p-6 lg:p-8 space-y-8 pb-12">
         {/* Header Banner */}
         <div className="bg-gradient-to-r from-emerald-800 via-teal-800 to-emerald-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
           <div className="absolute right-0 top-0 opacity-10 pointer-events-none translate-x-12 -translate-y-6">
@@ -315,6 +315,25 @@ function StockDashboardPageBase() {
                 </div>
                 <div className="flex items-center justify-between text-gray-400 group-hover:text-rose-600">
                   <FolderTree className="w-5 h-5 text-gray-600 group-hover:text-rose-600" />
+                  <ArrowUpRight className="w-4 h-4 transition transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </div>
+              </Link>
+            </motion.div>
+
+            {/* Repack / Bulk Conversion Card */}
+            <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ scale: 0.98 }}>
+              <Link
+                to="/repack"
+                className="group p-4 rounded-2xl border border-gray-100 bg-gray-50/60 hover:bg-cyan-50/50 hover:border-cyan-200 transition-all duration-200 flex flex-col justify-between h-full"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-bold text-gray-700 group-hover:text-cyan-800 transition">Repack</span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-100 text-cyan-800">
+                    Conversion
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-gray-400 group-hover:text-cyan-600">
+                  <Boxes className="w-5 h-5 text-gray-600 group-hover:text-cyan-600" />
                   <ArrowUpRight className="w-4 h-4 transition transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </div>
               </Link>

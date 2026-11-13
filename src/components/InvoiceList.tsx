@@ -15,17 +15,18 @@ import {
   MessageSquare,
   Trash2
 } from 'lucide-react';
-import { fetchInvoices, deleteInvoice } from '../services/api';
+import { fetchInvoices, deleteInvoice, bulkImportInvoices } from '../services/api';
 import { successToast, errorToast } from '../helper/toast';
 import type { Invoice } from '../types';
 import { printInvoice, downloadInvoicePdf } from '../helper/invoicePrinter';
 import { useCurrency } from '../helper/currency';
-import { ERPListPageLayout, type QuickFilterField, type FilterRule } from './ERPList';
+import { ERPListPageLayout, ERPBulkImportModal, type QuickFilterField, type FilterRule } from './ERPList';
 import { type ColumnDef } from './CustomTable';
 import { StatusBadge } from './StatusBadge';
 import WithAuth from './WithAuth';
 import { ModuleName, Permission } from '../helper/constants';
 import { formatFullDateTime } from '../helper/helper';
+import { getInvoiceImportColumns, PURCHASE_INVOICE_IMPORT_SAMPLE_DATA, SALES_INVOICE_IMPORT_SAMPLE_DATA } from '../pages/Sales/invoiceImportConfig';
 
 export interface InvoiceListProps {
   fixedType?: 'SALES' | 'PURCHASE';
@@ -65,6 +66,7 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
   const [createdByFilter, setCreatedByFilter] = useState('All');
   const [tagFilter, setTagFilter] = useState('All');
   const [showTags, setShowTags] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -107,6 +109,9 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
   const partyHeader = fixedType === 'SALES' ? 'Customer' : fixedType === 'PURCHASE' ? 'Supplier' : 'Customer / Supplier';
   const addNewLabel = fixedType === 'SALES' ? 'Add Sales Invoice' : fixedType === 'PURCHASE' ? 'Add Purchase Invoice' : 'Add Invoice';
   const addNewPath = fixedType === 'PURCHASE' ? '/invoices/purchase/new' : '/invoices/sales/new';
+
+  const importColumns = useMemo(() => getInvoiceImportColumns(fixedType === 'SALES' ? 'SALES' : 'PURCHASE'), [fixedType]);
+  const importSampleData = useMemo(() => fixedType === 'SALES' ? SALES_INVOICE_IMPORT_SAMPLE_DATA : PURCHASE_INVOICE_IMPORT_SAMPLE_DATA, [fixedType]);
 
   // Client-side filtering & sorting
   const filteredInvoices = useMemo(() => {
@@ -429,7 +434,8 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
   ];
 
   return (
-    <ERPListPageLayout<Invoice>
+    <>
+      <ERPListPageLayout<Invoice>
       title={pageTitle}
       viewType={viewType}
       onViewTypeChange={setViewType}
@@ -439,6 +445,8 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
       onPrint={() => window.print()}
       onAddNew={() => navigate(addNewPath)}
       addNewLabel={addNewLabel}
+      onImport={() => setShowImportModal(true)}
+      importLabel="Add Bulk"
 
       assignedToFilter={assignedToFilter}
       onAssignedToChange={setAssignedToFilter}
@@ -544,6 +552,32 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
         </div>
       }
     />
+
+    {/* BULK IMPORT EXCEL MODAL */}
+    <ERPBulkImportModal
+      isOpen={showImportModal}
+      onClose={() => setShowImportModal(false)}
+      title={fixedType === 'PURCHASE' ? 'Bulk Import Purchase Invoices' : 'Bulk Import Sales Invoices'}
+      entityName={fixedType === 'PURCHASE' ? 'Purchase Invoice' : 'Sales Invoice'}
+      columns={importColumns}
+      sampleData={importSampleData}
+      templateFileName={fixedType === 'PURCHASE' ? 'aura_erp_purchase_invoices_template.xlsx' : 'aura_erp_sales_invoices_template.xlsx'}
+      instructions={[
+        'Upload Excel (.xlsx, .xls) or CSV files with invoice line items.',
+        'Items sharing the same Invoice Number will automatically be grouped into a single multi-item invoice.',
+        'Stock quantities for item SKUs will automatically be updated and tracked in the Stock Ledger.',
+        'Cash and Bank amounts will automatically update the Cashflow Ledger and Cash Book & Balance Sheet.'
+      ]}
+      onImport={async (rows) => {
+        const res = await bulkImportInvoices(rows, fixedType === 'SALES' ? 'SALES' : 'PURCHASE');
+        return res;
+      }}
+      onSuccess={() => {
+        loadInvoices();
+        successToast('Invoices imported successfully!');
+      }}
+    />
+  </>
   );
 };
 

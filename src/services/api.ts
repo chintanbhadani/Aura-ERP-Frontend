@@ -560,6 +560,33 @@ export const deleteInvoice = async (id: string): Promise<any> => {
   return response.data;
 };
 
+export const bulkImportInvoices = async (items: any[], type: 'PURCHASE' | 'SALES' = 'PURCHASE'): Promise<{
+  successCount: number;
+  createdCount?: number;
+  updatedCount?: number;
+  errors?: string[];
+  message?: string;
+}> => {
+  const response = await dataService.post('/invoices/bulk-import', { items, type });
+  return response.data;
+};
+
+export const bulkUploadInvoices = async (file: File, type: 'PURCHASE' | 'SALES' = 'PURCHASE'): Promise<{
+  successCount: number;
+  createdCount?: number;
+  updatedCount?: number;
+  errors?: string[];
+  message?: string;
+}> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('type', type);
+  const response = await dataService.post('/invoices/bulk-upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
 export interface AvailableBatch {
   purchaseItemId: string;
   poNumber: string;
@@ -601,6 +628,61 @@ export const updateStockEntry = async (id: string, data: { quantityChange?: numb
 
 export const deleteStockEntry = async (id: string): Promise<void> => {
   await dataService.delete(`/stock-entries/${id}`);
+};
+
+export interface AvailablePoItem {
+  purchaseItemId: string;
+  poNumber: string;
+  poId: string;
+  date: string;
+  supplierName: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  unitName: string;
+  unitCost: number;
+  initialQuantity: number;
+  availableQuantity: number;
+}
+
+export interface RepackEntryData {
+  id?: string;
+  repackNumber?: string;
+  date?: string;
+  sourceProductId: string;
+  sourceQuantity: number;
+  targetProductId: string;
+  targetQuantity: number;
+  purchaseItemId?: string | null;
+  purchaseInvoiceNo?: string | null;
+  poAllocations?: any[];
+  packagingCost?: number;
+  calculatedCost?: number;
+  notes?: string;
+  status?: string;
+  sourceProduct?: any;
+  targetProduct?: any;
+  createdAt?: string;
+}
+
+export const fetchAvailablePoItems = async (): Promise<AvailablePoItem[]> => {
+  const response = await dataService.get('/repack/available-po-items');
+  return response.data;
+};
+
+export const fetchRepacks = async (params?: Record<string, string>): Promise<RepackEntryData[]> => {
+  const response = await dataService.get('/repack', { params });
+  return response.data;
+};
+
+export const createRepack = async (data: RepackEntryData): Promise<RepackEntryData> => {
+  const response = await dataService.post('/repack', data);
+  return response.data;
+};
+
+export const deleteRepack = async (id: string): Promise<{ message: string }> => {
+  const response = await dataService.delete(`/repack/${id}`);
+  return response.data;
 };
 
 export const fetchGrns = async (search?: string | Record<string, string>): Promise<any[]> => {

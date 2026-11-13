@@ -75,6 +75,7 @@ const navItems: NavItem[] = [
     children: [
       { name: 'Sales Invoice', href: '/invoices/sales', icon: FileText, moduleName: ModuleName.TAX_INVOICES, requiredPermission: Permission.LIST },
       { name: 'Purchase Invoice', href: '/invoices/purchase', icon: ShoppingCart, moduleName: ModuleName.TAX_INVOICES, requiredPermission: Permission.LIST },
+      { name: 'Repack', href: '/repack', icon: Boxes, moduleName: ModuleName.TAX_INVOICES, requiredPermission: Permission.LIST },
     ]
   },
   { 

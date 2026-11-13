@@ -80,6 +80,8 @@ const ROUTE_BREADCRUMBS: Record<string, { module: string; page: string }> = {
   '/buying/purchase-order': { module: 'Buying', page: 'Purchase Order' },
   '/buying/purchase-order/new': { module: 'Buying', page: 'New Purchase Order' },
   '/grn': { module: 'Stock', page: 'Goods Receipt (GRN)' },
+  '/repack': { module: 'Invoice', page: 'Repack' },
+  '/repack/new': { module: 'Invoice', page: 'Create Repack' },
   '/stock-entry': { module: 'Stock', page: 'Stock Entry' },
   '/material-request': { module: 'Stock', page: 'Material Request' },
   '/material-request/new': { module: 'Stock', page: 'New Material Request' },
@@ -321,9 +323,9 @@ export function DashboardLayout({ children, breadcrumb, headerSearch, searchValu
       <main className="flex-1 overflow-y-auto overflow-x-hidden flex flex-col relative w-full">
         {/* Header */}
         <header className="sticky top-0 z-30 shrink-0 bg-white border-b border-gray-200">
-          <div className="h-13 flex items-center justify-between px-3 sm:px-4 gap-2">
+          <div className="h-13 flex items-center justify-between px-4 sm:px-6 md:pl-6 gap-3">
             {/* Left: Mobile Toggle & Dynamic Breadcrumb */}
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-3 min-w-0">
               <button 
                 className="md:hidden p-1.5 text-gray-600 hover:bg-gray-100 rounded-lg shrink-0 cursor-pointer"
                 onClick={() => setIsMobileMenuOpen(true)}
