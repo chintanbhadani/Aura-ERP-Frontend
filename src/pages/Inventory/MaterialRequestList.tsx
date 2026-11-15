@@ -358,7 +358,7 @@ const MaterialRequestListBase: React.FC = () => {
       onViewTypeChange={setViewType}
       loading={loading}
       onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-      onExportAll={handleBulkExport}
+      onFetchAllRecords={fetchMaterialRequests}
       onPrint={() => window.print()}
       onAddNew={() => navigate('/material-request/new')}
       addNewLabel="Add Material Request"

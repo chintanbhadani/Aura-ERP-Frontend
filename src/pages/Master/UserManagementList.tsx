@@ -425,7 +425,7 @@ const UserManagementListBase: React.FC<UserManagementListProps> = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={handleBulkExport}
+        onFetchAllRecords={fetchUsers}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/users/new')}
         addNewLabel="Add User"

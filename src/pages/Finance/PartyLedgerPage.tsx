@@ -23,6 +23,8 @@ import {
 import { formatCurrency } from '../../helper/currency';
 import { fetchPartyLedgerReport } from '../../services/api';
 import { errorToast } from '../../helper/toast';
+import { ERPExportModal } from '../../components/ERPList/ERPExportModal';
+import type { ColumnDef } from '../../components/CustomTable';
 
 export const PartyLedgerPageBase: React.FC = () => {
   const navigate = useNavigate();
@@ -43,6 +45,7 @@ export const PartyLedgerPageBase: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'ALL' | 'CUSTOMER' | 'SUPPLIER'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -145,11 +148,11 @@ export const PartyLedgerPageBase: React.FC = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={exportToCSV}
-              className="px-3.5 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              onClick={() => setIsExportModalOpen(true)}
+              className="px-3.5 py-2 bg-[#059669] hover:bg-[#047857] text-white text-xs font-semibold rounded-xl transition-all flex items-center gap-1.5 shadow-sm hover:shadow-md cursor-pointer"
             >
               <Download className="w-4 h-4" />
-              <span>Export CSV</span>
+              <span>Export</span>
             </button>
             <button
               type="button"
@@ -413,6 +416,71 @@ export const PartyLedgerPageBase: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* ERP EXPORT MODAL */}
+        <ERPExportModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          title="Party Ledger Master Statement"
+          fileNamePrefix="party_ledger_master"
+          columns={[
+            {
+              key: 'partyName',
+              title: 'Party Name',
+              render: (r: any) => r.partyName || ''
+            },
+            {
+              key: 'partyType',
+              title: 'Type',
+              render: (r: any) => r.partyType || ''
+            },
+            {
+              key: 'creditPurchase',
+              title: 'Credit Purchase (USh)',
+              render: (r: any) => r.creditPurchase || 0
+            },
+            {
+              key: 'paymentForPurchase',
+              title: 'Payment for Purchase (USh)',
+              render: (r: any) => r.paymentForPurchase || 0
+            },
+            {
+              key: 'sale',
+              title: 'Sale (USh)',
+              render: (r: any) => r.sale || 0
+            },
+            {
+              key: 'credit',
+              title: 'Credit (USh)',
+              render: (r: any) => r.credit || 0
+            },
+            {
+              key: 'cash',
+              title: 'Cash (USh)',
+              render: (r: any) => r.cash || 0
+            },
+            {
+              key: 'pending',
+              title: 'Net Pending (USh)',
+              render: (r: any) => r.pending || 0
+            },
+            {
+              key: 'closingMonthEnd',
+              title: 'Closing Month End',
+              render: (r: any) => r.closingMonthEnd || 0
+            },
+            {
+              key: 'date',
+              title: 'Date',
+              render: (r: any) => r.date || ''
+            }
+          ]}
+          data={filteredRows}
+          onFetchAllRecords={async () => {
+            const res = await fetchPartyLedgerReport({ type: activeTab });
+            return res?.rows || filteredRows;
+          }}
+        />
       </div>
     </DashboardLayout>
   );

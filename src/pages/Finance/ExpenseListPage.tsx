@@ -283,6 +283,10 @@ const ExpenseListPageBase: React.FC = () => {
         data={filteredExpenses}
         columns={columns}
         loading={loading}
+        onFetchAllRecords={async () => {
+          const res = await fetchExpenses();
+          return Array.isArray(res) ? res : [];
+        }}
         selectable={false}
         onRowClick={(row: Expense) => navigate(`/expenses/${row.id}`)}
         onAddNew={() => navigate('/expenses/new')}

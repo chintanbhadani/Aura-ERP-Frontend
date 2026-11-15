@@ -326,7 +326,7 @@ const RoleManagementListBase: React.FC<RoleManagementListProps> = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={handleBulkExport}
+        onFetchAllRecords={fetchRoles}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/roles/new')}
         addNewLabel="Add Role"

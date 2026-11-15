@@ -450,6 +450,7 @@ function ProformaInvoicesBase() {
         data={filteredProformas}
         columns={columns}
         loading={loading}
+        onFetchAllRecords={async () => proformas}
         selectable={true}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}

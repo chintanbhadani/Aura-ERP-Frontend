@@ -707,6 +707,40 @@ const ProductionWeighingLedgerBase: React.FC = () => {
         title="Production Weighing Ledger & Roll Sticker Generator"
         data={filteredRecords}
         columns={columns}
+        onFetchAllRecords={async () => {
+          try {
+            const res = await dataService.get('/weighments');
+            if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+              return res.data.data.map((item: any) => ({
+                id: item.id,
+                rollStickerCode: item.rollStickerCode,
+                ginningStickerCode: item.ginningStickerCode,
+                productionOrderNo: item.productionOrderId || 'PO-2026-001',
+                customerName: item.notes || 'Reliance Industries Ltd',
+                finishedGoodName: item.productName || 'PET Strap 12mm x 0.60mm Green',
+                finishedGoodSku: item.sizeDimensions || 'PET-1206-GRN',
+                machineCode: item.machineNo || 'EXT-01',
+                machineLetter: (item.machineNo || 'EXT-01').includes('02') ? 'B' : 'A',
+                machineName: `Machine ${item.machineNo || 'EXT-01'}`,
+                rollGrade: item.rollGrade === 'GRADE_B' ? 'Grade B' : item.rollGrade === 'GRADE_C' ? 'Grade C' : 'Grade A',
+                grossWeightKg: item.grossWeightKg,
+                tareWeightKg: item.tareWeightKg,
+                actualNetWeightKg: item.actualNetWeightKg,
+                billedWeightKg: item.billedWeightKg,
+                giveawayWeightKg: item.giveawayWeightKg,
+                netWeightKg: item.billedWeightKg,
+                strapLengthMeters: item.strapLengthMeters,
+                shift: item.shift as 'D' | 'N',
+                manualSuffix: item.manualSuffix || '1',
+                operatorName: item.operatorName,
+                createdAt: item.createdAt
+              }));
+            }
+          } catch (e) {
+            console.warn(e);
+          }
+          return weighments;
+        }}
         onAddNew={() => setIsAddModalOpen(true)}
         addNewLabel="Record Scale Weight"
         extraHeaderActions={

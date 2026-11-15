@@ -367,7 +367,8 @@ export const exportProductsToExcel = (products: Product[], filename?: string): v
         'Sr No': index + 1,
         'Item Code / SKU': p.sku || p.id || '',
         'Item Name': p.name || '',
-        'Item Group': getCategoryName(p) || 'CONSUMABLES',
+        'ID': p.sku || p.id || '',
+        'Item Group': getCategoryName(p) || '-',
         'Part Of': getPartOfName(p) || '-',
         'Sub Part Of': getSubPartOfName(p) || '-',
         'Default UOM': getUnitName(p),
@@ -376,7 +377,7 @@ export const exportProductsToExcel = (products: Product[], filename?: string): v
         'Stock Qty': qty,
         'Min Stock': minStock,
         'Bin Location': getBinLocation(p),
-        'Company': p.company || 'AURA INDUSTRIES LTD',
+        'Company': p.company || '',
         'Status': p.disabled ? 'Disabled' : 'Enabled',
         'Maintain Stock': p.maintainStock !== false ? 'Yes' : 'No',
         'Include In Manufacturing': p.includeInManufacturing !== false ? 'Yes' : 'No',
@@ -390,6 +391,7 @@ export const exportProductsToExcel = (products: Product[], filename?: string): v
       { wch: 8 },   // Sr No
       { wch: 20 },  // SKU
       { wch: 34 },  // Item Name
+      { wch: 18 },  // ID
       { wch: 20 },  // Item Group
       { wch: 20 },  // Part Of
       { wch: 20 },  // Sub Part Of
@@ -475,6 +477,7 @@ export const exportProductsToPdf = (
         String(index + 1),
         p.sku || '-',
         p.name || '-',
+        p.sku || p.id || '-',
         getCategoryName(p) || '-',
         getPartOfName(p) || '-',
         getSubPartOfName(p) || '-',
@@ -493,6 +496,7 @@ export const exportProductsToPdf = (
         '#',
         'Item Code / SKU',
         'Item Name',
+        'ID',
         'Item Group',
         'Part Of',
         'Sub Part Of',
@@ -524,17 +528,18 @@ export const exportProductsToPdf = (
       },
       columnStyles: {
         0: { cellWidth: 8, halign: 'center' },
-        1: { cellWidth: 26, fontStyle: 'bold' },
-        2: { cellWidth: 50 },
-        3: { cellWidth: 26 },
-        4: { cellWidth: 24 },
-        5: { cellWidth: 24 },
-        6: { cellWidth: 12, halign: 'center' },
-        7: { cellWidth: 26, halign: 'right' },
-        8: { cellWidth: 26, halign: 'right' },
-        9: { cellWidth: 16, halign: 'right' },
-        10: { cellWidth: 16, halign: 'center' },
-        11: { cellWidth: 15, halign: 'center' }
+        1: { cellWidth: 24, fontStyle: 'bold' },
+        2: { cellWidth: 44 },
+        3: { cellWidth: 22, fontStyle: 'bold' },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 22 },
+        6: { cellWidth: 22 },
+        7: { cellWidth: 12, halign: 'center' },
+        8: { cellWidth: 24, halign: 'right' },
+        9: { cellWidth: 24, halign: 'right' },
+        10: { cellWidth: 15, halign: 'right' },
+        11: { cellWidth: 15, halign: 'center' },
+        12: { cellWidth: 15, halign: 'center' }
       },
       margin: { left: 14, right: 14 },
       didDrawPage: (data) => {

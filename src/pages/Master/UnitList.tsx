@@ -365,7 +365,7 @@ const UnitListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={handleBulkExport}
+        onFetchAllRecords={fetchUnits}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/units/new')}
         addNewLabel="Add Unit"

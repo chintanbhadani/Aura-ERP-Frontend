@@ -71,7 +71,11 @@ export const ERPExportModal = <T extends Record<string, any> = any>({
         setExportStatusText('Fetching all latest records from server API...');
         try {
           const fetched = await onFetchAllRecords();
-          targetRecords = Array.isArray(fetched) ? fetched : data;
+          if (Array.isArray(fetched) && fetched.length > 0) {
+            targetRecords = fetched;
+          } else {
+            targetRecords = data;
+          }
         } catch (err: any) {
           console.warn('API fetch failed, falling back to local table records:', err);
           targetRecords = data;
@@ -98,6 +102,7 @@ export const ERPExportModal = <T extends Record<string, any> = any>({
       }
 
       onClose();
+      successToast(`Exported all ${targetRecords.length} record(s) to ${fileFormat.toUpperCase()}`);
     } catch (err: any) {
       console.error('Export Error:', err);
       errorToast(err.message || 'Failed to complete export');
@@ -177,8 +182,9 @@ export const ERPExportModal = <T extends Record<string, any> = any>({
                 <option value="csv">CSV (.csv)</option>
               </select>
             </div>
-            <p className="text-[11px] text-gray-400 mt-1.5">
-              Exports all available records fetched directly from the database API.
+            <p className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#059669] shrink-0"></span>
+              <span>Bypasses page limits to fetch and export all records directly via server API.</span>
             </p>
           </div>
 

@@ -240,7 +240,7 @@ const PartOfListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={() => successToast('Exporting Part Of data...')}
+        onFetchAllRecords={fetchPartOfs}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/part-of/new')}
         addNewLabel="Add Part Of"

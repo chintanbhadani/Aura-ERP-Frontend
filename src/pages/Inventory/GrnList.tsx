@@ -338,7 +338,7 @@ function GrnListBase() {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={() => successToast('Exported GRNs')}
+        onFetchAllRecords={fetchGrns}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/grn/new')}
         addNewLabel="Add GRN"

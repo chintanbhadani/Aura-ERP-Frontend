@@ -248,6 +248,7 @@ const ProductionOrderListBase: React.FC = () => {
       data={filteredOrders}
       columns={columns}
       loading={loading}
+      onFetchAllRecords={fetchProductionOrders}
       selectable={false}
       onRowClick={(row) => navigate(`/production-orders/${row.id}`)}
       onAddNew={() => navigate('/production-orders/new')}

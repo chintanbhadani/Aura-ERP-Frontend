@@ -309,6 +309,7 @@ const BomListPageBase: React.FC = () => {
         data={filteredBoms}
         columns={columns}
         loading={loading}
+        onFetchAllRecords={async () => boms}
         selectable={false}
         onRowClick={(row) => navigate(`/bom/${row.id}`)}
         onAddNew={() => navigate('/bom/new')}

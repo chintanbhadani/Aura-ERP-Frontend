@@ -483,7 +483,10 @@ function StockLedgerListBase() {
       viewTypeOptions={['Ledger View', 'Summary View']}
       loading={loading}
       onRefresh={loadData}
-      onExportAll={handleExportCSV}
+      onFetchAllRecords={async () => {
+        const res = await fetchStockEntries();
+        return Array.isArray(res) ? res : [];
+      }}
       onPrint={handlePrint}
       
       // Sidebar Filters

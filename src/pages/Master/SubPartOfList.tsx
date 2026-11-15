@@ -237,7 +237,7 @@ const SubPartOfListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={() => successToast('Exporting Sub Part Of data...')}
+        onFetchAllRecords={fetchSubPartOfs}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/sub-part-of/new')}
         addNewLabel="Add Sub Part Of"

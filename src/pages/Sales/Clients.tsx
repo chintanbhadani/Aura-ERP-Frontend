@@ -498,7 +498,7 @@ function ClientsBase() {
         showTags={showTags}
         setShowTags={setShowTags}
         onRefresh={loadClients}
-        onExportAll={handleExportCSV}
+        onFetchAllRecords={fetchClients}
         onPrint={() => window.print()}
         extraHeaderActions={extraHeaderActions}
         emptyMessage="No clients found. Click 'New Client / Inquiry' to create one."

@@ -411,6 +411,7 @@ function QuotationsBase() {
         data={filteredQuotations}
         columns={columns}
         loading={loading}
+        onFetchAllRecords={async () => quotations}
         selectable={true}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}

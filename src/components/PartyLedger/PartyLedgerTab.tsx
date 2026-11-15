@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../../helper/currency';
 import { successToast, errorToast } from '../../helper/toast';
+import { ERPExportModal } from '../ERPList/ERPExportModal';
+import type { ColumnDef } from '../CustomTable';
 import { 
   fetchCustomerLedger, 
   recordCustomerPayment, 
@@ -51,6 +53,9 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Export Modal State
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -424,8 +429,8 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
 
           <button
             type="button"
-            onClick={exportToCSV}
-            title="Export Ledger to CSV"
+            onClick={() => setIsExportModalOpen(true)}
+            title="Export Ledger Report (Excel / PDF / CSV)"
             className="p-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 rounded-xl transition-colors cursor-pointer shadow-2xs"
           >
             <Download className="w-4 h-4" />
@@ -763,6 +768,62 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
           </div>
         </div>
       )}
+      {/* 5. ERP EXPORT MODAL (EXCEL / PDF / CSV) */}
+      <ERPExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title={`${partyName} — Statement Ledger`}
+        fileNamePrefix={`${partyName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_ledger`}
+        columns={[
+          {
+            key: 'date',
+            title: 'Date',
+            render: (tx: any) => new Date(tx.date).toLocaleDateString('en-GB')
+          },
+          {
+            key: 'voucherType',
+            title: 'Voucher Type',
+            render: (tx: any) => tx.voucherType || ''
+          },
+          {
+            key: 'refNo',
+            title: 'Ref / Invoice #',
+            render: (tx: any) => tx.refNo || ''
+          },
+          {
+            key: 'particulars',
+            title: 'Particulars',
+            render: (tx: any) => tx.particulars || ''
+          },
+          {
+            key: 'paymentMethod',
+            title: 'Mode',
+            render: (tx: any) => tx.paymentMethod || 'CASH'
+          },
+          {
+            key: 'debit',
+            title: 'Debit (DR)',
+            render: (tx: any) => tx.debit > 0 ? formatCurrency(tx.debit) : '-'
+          },
+          {
+            key: 'credit',
+            title: 'Credit (CR)',
+            render: (tx: any) => tx.credit > 0 ? formatCurrency(tx.credit) : '-'
+          },
+          {
+            key: 'runningBalance',
+            title: 'Running Balance',
+            render: (tx: any) => `${formatCurrency(tx.runningBalance || 0)} ${tx.balanceType || ''}`
+          }
+        ]}
+        data={filteredTransactions}
+        onFetchAllRecords={async () => {
+          const res = isCustomer 
+            ? await fetchCustomerLedger(partyId) 
+            : await fetchSupplierLedger(partyId);
+          return res?.transactions || filteredTransactions;
+        }}
+      />
     </div>
   );
 };

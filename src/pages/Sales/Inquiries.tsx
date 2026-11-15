@@ -462,6 +462,7 @@ function InquiriesBase() {
         data={filteredInquiries}
         columns={columns}
         loading={loading}
+        onFetchAllRecords={async () => inquiries}
         selectable={true}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}

@@ -397,7 +397,7 @@ const CategoryListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={handleBulkExport}
+        onFetchAllRecords={fetchCategories}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/categories/new')}
         addNewLabel="Add Item Group"
