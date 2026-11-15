@@ -48,13 +48,15 @@ import {
   ExternalLink,
   Layers,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  Upload
 } from 'lucide-react';
 import { useCurrency } from '../../helper/currency';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
 import { printInvoice, downloadInvoicePdf } from '../../helper/invoicePrinter';
 import { SelectPOBatchesModal, type SelectedPOAllocation } from '../../components/SelectPOBatchesModal';
+import { InvoiceItemsBulkUploadModal, downloadInvoiceItemTemplate } from '../../components/InvoiceItemsBulkUploadModal';
 
 const invoiceValidationSchema = Yup.object({
   type: Yup.string().required(),
@@ -182,6 +184,9 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     uom: string;
     initialAllocations?: { purchaseItemId: string; quantity: number }[];
   } | null>(null);
+
+  // Bulk Upload Items State
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
 
   const customerResolveRef = useRef<((val: Customer) => void) | null>(null);
   const supplierResolveRef = useRef<((val: Supplier) => void) | null>(null);
@@ -499,6 +504,35 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     setIsPOModalOpen(false);
     setActivePOItemIndex(null);
     setSelectedPOProduct(null);
+  };
+
+  const handleApplyImportedItems = (importedItems: any[], mode: 'replace' | 'append') => {
+    if (!importedItems || importedItems.length === 0) return;
+
+    const formattedItems = importedItems.map((item: any) => ({
+      productId: item.productId || '',
+      quantity: Number(item.quantity) || 1,
+      unitPrice: Number(item.unitPrice) || 0,
+      costPrice: Number(item.costPrice) || 0,
+      purchaseInvoiceNo: '',
+      purchaseItemId: '',
+      poAllocations: [],
+      uom: item.uom || 'Pcs',
+    }));
+
+    if (mode === 'replace') {
+      formikRef.current?.setFieldValue('items', formattedItems);
+    } else {
+      const currentItems = formikRef.current?.values?.items || [];
+      const isSingleBlank = currentItems.length === 1 && !currentItems[0].productId && Number(currentItems[0].unitPrice) === 0;
+      if (isSingleBlank) {
+        formikRef.current?.setFieldValue('items', formattedItems);
+      } else {
+        formikRef.current?.setFieldValue('items', [...currentItems, ...formattedItems]);
+      }
+    }
+
+    successToast(`Successfully imported ${formattedItems.length} line item(s)`);
   };
 
   const handleSubmit = async (values: typeof initialValues, { setSubmitting }: any) => {
@@ -1267,20 +1301,45 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                   </table>
                                 </div>
 
-                                <div className="flex justify-between items-center">
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                   <div className="flex items-center gap-2">
                                     <button
                                       type="button"
                                       onClick={() => push({ productId: '', quantity: 1, unitPrice: 0, costPrice: 0, purchaseInvoiceNo: '', purchaseItemId: '', uom: 'Pcs' })}
-                                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-emerald-200"
+                                      className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-emerald-200 shadow-2xs"
                                     >
-                                      <Plus className="w-3.5 h-3.5" />
-                                      Add Line Item
+                                      <Plus className="w-3.5 h-3.5 text-emerald-700" />
+                                      <span>Add Line Item</span>
                                     </button>
                                   </div>
 
-                                  <div className="text-xs text-gray-500">
-                                    Total Lines: <span className="font-bold text-gray-800">{values.items.length}</span> | Total Units: <span className="font-bold text-gray-800">{totalQty}</span>
+                                  {/* Right: Stats & Download / Upload Buttons (Matching ERPNext & User Mockup) */}
+                                  <div className="flex flex-col items-end gap-1.5 self-end sm:self-auto">
+                                    <div className="text-xs text-gray-500">
+                                      Total Lines: <span className="font-bold text-gray-800">{values.items.length}</span> | Total Units: <span className="font-bold text-gray-800">{totalQty.toLocaleString('en-US')}</span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadInvoiceItemTemplate(itemMasterOptions, values.type)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-lg border border-gray-300 shadow-2xs transition-colors cursor-pointer"
+                                        title="Download Sample Items Excel Template"
+                                      >
+                                        <Download className="w-3.5 h-3.5 text-gray-500" />
+                                        <span>Download</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => setIsBulkUploadOpen(true)}
+                                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#059669] hover:bg-[#047857] active:bg-[#065f46] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer"
+                                        title="Bulk Upload Line Items from Excel or CSV"
+                                      >
+                                        <Upload className="w-3.5 h-3.5" />
+                                        <span>Upload</span>
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -1568,6 +1627,16 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
               initialTargetQty={selectedPOProduct?.quantity || 1}
               initialAllocations={selectedPOProduct?.initialAllocations}
               onConfirmAllocation={handleConfirmPOAllocation}
+            />
+
+            {/* Bulk Upload Items Modal */}
+            <InvoiceItemsBulkUploadModal
+              isOpen={isBulkUploadOpen}
+              onClose={() => setIsBulkUploadOpen(false)}
+              invoiceType={values.type}
+              availableProducts={itemMasterOptions}
+              existingItemsCount={values.items?.length || 0}
+              onApplyItems={handleApplyImportedItems}
             />
           </ERPFormPageLayout>
         );

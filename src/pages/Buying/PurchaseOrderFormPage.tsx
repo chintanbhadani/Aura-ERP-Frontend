@@ -49,8 +49,11 @@ import {
   Building2,
   CheckCircle2,
   XCircle,
-  ChevronsUpDown
+  ChevronsUpDown,
+  Upload,
+  Download
 } from 'lucide-react';
+import { InvoiceItemsBulkUploadModal, downloadInvoiceItemTemplate } from '../../components/InvoiceItemsBulkUploadModal';
 
 const purchaseOrderSchema = Yup.object({
   supplier: Yup.string().required('Supplier is required'),
@@ -111,6 +114,7 @@ const PurchaseOrderFormPageBase: React.FC = () => {
   const [itemsList, setItemsList] = useState<PurchaseOrderItem[]>([
     { id: '1', itemCode: '', requiredByDate: new Date().toISOString().split('T')[0], itemGroup: '', quantity: 1, uom: 'Pcs', rate: 0, receivedQty: 0, amount: 0 }
   ]);
+  const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliersList, setSuppliersList] = useState<Supplier[]>([]);
   const [availableSkus, setAvailableSkus] = useState<string[]>([]);
@@ -373,6 +377,36 @@ const PurchaseOrderFormPageBase: React.FC = () => {
       }
       return item;
     }));
+  };
+
+  const handleApplyPOImportedItems = (importedItems: any[], mode: 'replace' | 'append') => {
+    if (!importedItems || importedItems.length === 0) return;
+
+    const converted: PurchaseOrderItem[] = importedItems.map((item, idx) => ({
+      id: String(itemsList.length + idx + 1),
+      itemCode: item.itemCode || item.itemName,
+      itemGroup: item.itemGroup || 'Raw Material',
+      requiredByDate: new Date().toISOString().split('T')[0],
+      quantity: Number(item.quantity) || 1,
+      uom: item.uom || 'Pcs',
+      rate: Number(item.unitPrice) || 0,
+      amount: (Number(item.quantity) || 1) * (Number(item.unitPrice) || 0),
+      receivedQty: 0
+    }));
+
+    setIsFormDirty(true);
+    if (mode === 'replace') {
+      setItemsList(converted);
+    } else {
+      const isSingleBlank = itemsList.length === 1 && !itemsList[0].itemCode && Number(itemsList[0].rate) === 0;
+      if (isSingleBlank) {
+        setItemsList(converted);
+      } else {
+        setItemsList(prev => [...prev, ...converted]);
+      }
+    }
+
+    successToast(`Imported ${converted.length} item(s) into Purchase Order`);
   };
 
   const handleLoadFromMaterialRequest = async (mr: MaterialRequest) => {
@@ -1423,10 +1457,26 @@ const PurchaseOrderFormPageBase: React.FC = () => {
                             </button>
                           </div>
 
-                          <div className="flex items-center gap-3 text-gray-600 font-semibold">
-                            <button type="button" onClick={() => successToast('CSV Template downloaded')} className="hover:text-primary-600 cursor-pointer">Download Template</button>
-                            <span>|</span>
-                            <button type="button" onClick={() => successToast('CSV Uploaded')} className="hover:text-primary-600 cursor-pointer">Upload CSV</button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => downloadInvoiceItemTemplate(products, 'PURCHASE', 'Purchase_Order_Items_Template.xlsx')}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-lg border border-gray-300 shadow-2xs transition-colors cursor-pointer"
+                              title="Download Sample Items Excel Template"
+                            >
+                              <Download className="w-3.5 h-3.5 text-gray-500" />
+                              <span>Download</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setIsBulkUploadOpen(true)}
+                              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#059669] hover:bg-[#047857] active:bg-[#065f46] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer"
+                              title="Bulk Upload Line Items from Excel or CSV"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>Upload</span>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -1763,6 +1813,15 @@ const PurchaseOrderFormPageBase: React.FC = () => {
           }}
         />
       )}
+      {/* Purchase Order Bulk Upload Items Modal */}
+      <InvoiceItemsBulkUploadModal
+        isOpen={isBulkUploadOpen}
+        onClose={() => setIsBulkUploadOpen(false)}
+        invoiceType="PURCHASE_ORDER"
+        availableProducts={products}
+        existingItemsCount={itemsList.length}
+        onApplyItems={handleApplyPOImportedItems}
+      />
     </ERPFormPageLayout>
   );
 };
