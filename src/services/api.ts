@@ -73,6 +73,10 @@ export interface Product {
   min_stock?: number;
   categoryId?: string;
   category?: Category;
+  partOfId?: string;
+  partOf?: PartOf | string | any;
+  subPartOfId?: string;
+  subPartOf?: SubPartOf | string | any;
   supplierId?: string;
   supplier?: Supplier;
   unitId?: string;
@@ -88,8 +92,6 @@ export interface Product {
   imageUrl?: string;
   attachments?: any;
   company?: string;
-  partOf?: string;
-  subPartOf?: string;
   itemGroup?: string;
   uom?: string;
   tansadNo?: string;

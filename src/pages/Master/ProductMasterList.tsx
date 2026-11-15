@@ -10,6 +10,8 @@ import {
   fetchInventory,
   updateProduct,
   bulkImportProducts,
+  fetchPartOfs,
+  fetchSubPartOfs,
   type Product 
 } from '../../services/api';
 import { ITEM_IMPORT_COLUMNS, ITEM_IMPORT_SAMPLE_DATA } from './itemImportConfig';
@@ -31,7 +33,7 @@ import { formatFullDateTime } from '../../helper/helper';
 interface BulkEditFieldConfig {
   label: string;
   key: string;
-  type: 'text' | 'number' | 'boolean' | 'select' | 'category' | 'unit';
+  type: 'text' | 'number' | 'boolean' | 'select' | 'category' | 'unit' | 'partOf' | 'subPartOf';
   options?: string[];
 }
 
@@ -57,6 +59,8 @@ const BULK_EDIT_FIELDS: BulkEditFieldConfig[] = [
   { label: 'Include Item In Manufacturing', key: 'includeInManufacturing', type: 'boolean' },
   { label: 'Is Fixed Asset', key: 'isFixedAsset', type: 'boolean' },
   { label: 'Item Group', key: 'categoryId', type: 'category' },
+  { label: 'Part Of', key: 'partOfId', type: 'partOf' },
+  { label: 'Sub Part Of', key: 'subPartOfId', type: 'subPartOf' },
   { label: 'Maintain Stock', key: 'maintainStock', type: 'boolean' },
   { label: 'Min Stock', key: 'min_stock', type: 'number' },
   { label: 'Standard Cost Price (₹)', key: 'cost_price', type: 'number' },
@@ -129,6 +133,8 @@ const ProductMasterListBase: React.FC = () => {
   // Disable / Enable Toggle Dialog State
   const [toggleProductTarget, setToggleProductTarget] = useState<any | null>(null);
   const [isToggleLoading, setIsToggleLoading] = useState(false);
+  const [partOfsData, setPartOfsData] = useState<any[]>([]);
+  const [subPartOfsData, setSubPartOfsData] = useState<any[]>([]);
 
   // Quick Filters
   const [quickFilters, setQuickFilters] = useState({
@@ -145,8 +151,14 @@ const ProductMasterListBase: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const invData = await fetchInventory().catch(() => []);
+      const [invData, parts, subParts] = await Promise.all([
+        fetchInventory().catch(() => []),
+        fetchPartOfs().catch(() => []),
+        fetchSubPartOfs().catch(() => [])
+      ]);
       setProducts(invData || []);
+      setPartOfsData(parts || []);
+      setSubPartOfsData(subParts || []);
     } catch (err) {
       console.error('Failed to fetch items:', err);
       setProducts([]);
@@ -218,9 +230,29 @@ const ProductMasterListBase: React.FC = () => {
         parsedValue = bulkEditValue === '' ? null : Number(bulkEditValue);
       }
 
+      // Persist updates to backend
+      await Promise.all(selectedIds.map(async (prodId) => {
+        const updatePayload: any = { [selectedBulkField]: parsedValue };
+        if (selectedBulkField === 'partOfId') {
+          const matched = partOfsData.find(p => String(p.id) === String(parsedValue));
+          if (matched) {
+            updatePayload.partOf = matched.name;
+            updatePayload.partOfId = matched.id;
+          }
+        }
+        if (selectedBulkField === 'subPartOfId') {
+          const matched = subPartOfsData.find(s => String(s.id) === String(parsedValue));
+          if (matched) {
+            updatePayload.subPartOf = matched.name;
+            updatePayload.subPartOfId = matched.id;
+          }
+        }
+        await updateProduct(prodId, updatePayload);
+      }));
+
       setProducts(prev => prev.map(p => {
         if (selectedIds.includes(p.id!)) {
-          const updated = { ...p, [selectedBulkField]: parsedValue, updatedAt: new Date().toISOString() };
+          const updated: any = { ...p, [selectedBulkField]: parsedValue, updatedAt: new Date().toISOString() };
           if (selectedBulkField === 'categoryId') {
             const matchedCat = categoriesList.find(c => c.id === parsedValue);
             if (matchedCat) updated.category = matchedCat;
@@ -228,6 +260,20 @@ const ProductMasterListBase: React.FC = () => {
           if (selectedBulkField === 'unitId') {
             const matchedUnit = unitsList.find(u => u.id === parsedValue);
             if (matchedUnit) updated.unit = matchedUnit;
+          }
+          if (selectedBulkField === 'partOfId') {
+            const matchedPart = partOfsData.find(part => String(part.id) === String(parsedValue));
+            if (matchedPart) {
+              updated.partOf = matchedPart;
+              updated.partOfId = matchedPart.id;
+            }
+          }
+          if (selectedBulkField === 'subPartOfId') {
+            const matchedSub = subPartOfsData.find(sub => String(sub.id) === String(parsedValue));
+            if (matchedSub) {
+              updated.subPartOf = matchedSub;
+              updated.subPartOfId = matchedSub.id;
+            }
           }
           return updated;
         }
@@ -245,6 +291,14 @@ const ProductMasterListBase: React.FC = () => {
     }
   };
 
+  // Helper to safely get Part Of string from product
+  const getPartOfText = (p: any): string => {
+    if (!p) return '';
+    if (typeof p.partOf === 'string') return p.partOf;
+    if (p.partOf && typeof p.partOf === 'object' && p.partOf.name) return p.partOf.name;
+    return '';
+  };
+
   // Filtered & Sorted Products
   const filteredProducts = useMemo(() => {
     let result = [...products];
@@ -255,7 +309,7 @@ const ProductMasterListBase: React.FC = () => {
         p.name.toLowerCase().includes(query) ||
         (p.sku && p.sku.toLowerCase().includes(query)) ||
         (p.category?.name && p.category.name.toLowerCase().includes(query)) ||
-        (p.partOf && p.partOf.toLowerCase().includes(query)) ||
+        (getPartOfText(p) && getPartOfText(p).toLowerCase().includes(query)) ||
         (p.company && p.company.toLowerCase().includes(query))
       );
     }
@@ -270,7 +324,7 @@ const ProductMasterListBase: React.FC = () => {
       result = result.filter(p => p.category?.name && p.category.name.toLowerCase().includes(quickFilters.group.toLowerCase()));
     }
     if (quickFilters.partOf) {
-      result = result.filter(p => p.partOf && p.partOf.toLowerCase().includes(quickFilters.partOf.toLowerCase()));
+      result = result.filter(p => getPartOfText(p) && getPartOfText(p).toLowerCase().includes(quickFilters.partOf.toLowerCase()));
     }
     if (quickFilters.company) {
       result = result.filter(p => p.company && p.company.toLowerCase().includes(quickFilters.company.toLowerCase()));
@@ -299,7 +353,7 @@ const ProductMasterListBase: React.FC = () => {
         else if (rule.field === 'Item Name') fieldVal = p.name || '';
         else if (rule.field === 'Item Group') fieldVal = p.category?.name || '';
         else if (rule.field === 'Status') fieldVal = p.status || (p.disabled ? 'Disabled' : 'Active');
-        else if (rule.field === 'Part Of') fieldVal = p.partOf || '';
+        else if (rule.field === 'Part Of') fieldVal = getPartOfText(p);
         else if (rule.field === 'Bin Location') fieldVal = p.location || '';
         else if (rule.field === 'Company') fieldVal = p.company || '';
 
@@ -411,7 +465,7 @@ const ProductMasterListBase: React.FC = () => {
       width: '160px',
       sortable: true,
       render: (val, record: any) => {
-        const partVal = (val || record?.partOf || '').toString().trim();
+        const partVal = (getPartOfText(record) || (typeof val === 'string' ? val : val?.name || '')).trim();
         if (!partVal) {
           return <span className="text-gray-300 font-mono">-</span>;
         }
@@ -699,6 +753,40 @@ const ProductMasterListBase: React.FC = () => {
                           {unitsList.map(u => (
                             <option key={u.id} value={u.id}>
                               {u.name}
+                            </option>
+                          ))}
+                        </select>
+                      );
+                    }
+
+                    if (fieldConfig.type === 'partOf') {
+                      return (
+                        <select
+                          value={bulkEditValue}
+                          onChange={(e) => setBulkEditValue(e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-200 hover:bg-white focus:bg-white focus:border-primary-500 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 outline-none cursor-pointer font-medium transition-all"
+                        >
+                          <option value="">Select Part Of...</option>
+                          {partOfsData.map(p => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                      );
+                    }
+
+                    if (fieldConfig.type === 'subPartOf') {
+                      return (
+                        <select
+                          value={bulkEditValue}
+                          onChange={(e) => setBulkEditValue(e.target.value)}
+                          className="w-full bg-gray-50 border border-gray-200 hover:bg-white focus:bg-white focus:border-primary-500 rounded-xl px-3.5 py-2.5 text-xs text-gray-800 outline-none cursor-pointer font-medium transition-all"
+                        >
+                          <option value="">Select Sub Part Of...</option>
+                          {subPartOfsData.map(sp => (
+                            <option key={sp.id} value={sp.id}>
+                              {sp.name}
                             </option>
                           ))}
                         </select>

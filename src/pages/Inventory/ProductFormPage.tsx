@@ -659,6 +659,20 @@ const ProductFormPageBase: React.FC = () => {
               return exists ? prev : [...prev, cat];
             });
           }
+          if (product.partOf) {
+            const po = product.partOf;
+            setPartOfs(prev => {
+              const exists = prev.some(p => String(p.id) === String(po.id) || p.name === po.name);
+              return exists ? prev : [...prev, po];
+            });
+          }
+          if (product.subPartOf) {
+            const spo = product.subPartOf;
+            setSubPartOfs(prev => {
+              const exists = prev.some(s => String(s.id) === String(spo.id) || s.name === spo.name);
+              return exists ? prev : [...prev, spo];
+            });
+          }
           if (product.unit) {
             const un = product.unit;
             setUnits(prev => {
@@ -835,7 +849,13 @@ const ProductFormPageBase: React.FC = () => {
       const finalAttachments = [...existingAttachmentItems, ...uploadedAttachmentItems];
 
       const partOfStr = typeof values.partOf === 'string' ? values.partOf : (values.partOf?.name || '');
+      const matchedPartOf = partOfs.find(p => p.name?.toLowerCase() === partOfStr.toLowerCase() || String(p.id) === String((values.partOf as any)?.id || values.partOf));
+      const finalPartOfId = matchedPartOf?.id || (typeof values.partOf === 'object' && (values.partOf as any)?.id ? (values.partOf as any).id : null);
+
       const subPartOfStr = typeof values.subPartOf === 'string' ? values.subPartOf : (values.subPartOf?.name || '');
+      const matchedSubPartOf = subPartOfs.find(sp => sp.name?.toLowerCase() === subPartOfStr.toLowerCase() || String(sp.id) === String((values.subPartOf as any)?.id || values.subPartOf));
+      const finalSubPartOfId = matchedSubPartOf?.id || (typeof values.subPartOf === 'object' && (values.subPartOf as any)?.id ? (values.subPartOf as any).id : null);
+
       const isRoll = isRollGroupSelected(values.categoryId, categories, values.partOf) ||
         Boolean(values.rollLength || values.rollWidth || values.rollCoreLength || values.rollCoreDiameter || values.rollDiaSize || values.rollWeight);
 
@@ -872,7 +892,9 @@ const ProductFormPageBase: React.FC = () => {
 
         company: values.company || '',
         partOf: partOfStr,
+        partOfId: finalPartOfId || null,
         subPartOf: subPartOfStr,
+        subPartOfId: finalSubPartOfId || null,
         tansadNo: values.tansadNo || '',
         withholdingTaxPurchase: Number(values.withholdingTaxPurchase || 0),
         withholdingTaxSales: Number(values.withholdingTaxSales || 0),
@@ -1008,8 +1030,8 @@ const ProductFormPageBase: React.FC = () => {
         supplierId: initialData?.supplierId ?? initialData?.supplier?.id ?? '',
         unitId: initialData?.unitId ?? initialData?.unit?.id ?? (units[0]?.id || ''),
         company: initialData?.company || 'PATEL STRAP INDUSTRIES LTD',
-        partOf: initialData?.partOf || '',
-        subPartOf: initialData?.subPartOf || '',
+        partOf: initialData?.partOf?.name || (typeof initialData?.partOf === 'string' ? initialData?.partOf : '') || (partOfs.find(p => String(p.id) === String(initialData?.partOfId))?.name || ''),
+        subPartOf: initialData?.subPartOf?.name || (typeof initialData?.subPartOf === 'string' ? initialData?.subPartOf : '') || (subPartOfs.find(s => String(s.id) === String(initialData?.subPartOfId))?.name || ''),
         tansadNo: initialData?.tansadNo || '',
         withholdingTaxPurchase: initialData?.withholdingTaxPurchase !== undefined ? String(initialData.withholdingTaxPurchase) : '0.000',
         withholdingTaxSales: initialData?.withholdingTaxSales !== undefined ? String(initialData.withholdingTaxSales) : '0.000',
