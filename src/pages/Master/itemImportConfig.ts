@@ -27,14 +27,14 @@ export const ITEM_IMPORT_COLUMNS: BulkImportColumn[] = [
   { 
     key: 'partOf', 
     label: 'Part Of', 
-    aliases: ['part_of', 'partOf'],
+    aliases: ['part_of', 'partOf', 'part', 'part_name', 'partName', 'partof', 'part of', 'part_master'],
     exampleValue: 'FINISHED GOODS', 
     description: 'e.g. FINISHED GOODS, RAW MATERIAL, PACKING' 
   },
   { 
     key: 'subPartOf', 
     label: 'Sub Part Of', 
-    aliases: ['sub_part_of', 'subPartOf'],
+    aliases: ['sub_part_of', 'subPartOf', 'sub_part', 'subPart', 'subpart', 'subpartof', 'sub part of', 'sub_part_name', 'subpartname'],
     exampleValue: 'WORKSHOP', 
     description: 'e.g. WORKSHOP, PACKING, STORE' 
   },
@@ -62,7 +62,7 @@ export const ITEM_IMPORT_COLUMNS: BulkImportColumn[] = [
   // Pricing & Stock
   { 
     key: 'cost_price', 
-    label: 'Standard Cost Price (₹)', 
+    label: 'Standard Cost Price (USh)', 
     aliases: ['costPrice', 'cost_price', 'cost'],
     type: 'number', 
     exampleValue: 120.00,
@@ -70,7 +70,7 @@ export const ITEM_IMPORT_COLUMNS: BulkImportColumn[] = [
   },
   { 
     key: 'selling_price', 
-    label: 'Standard Selling Rate (₹)', 
+    label: 'Standard Selling Rate (USh)', 
     aliases: ['sellingPrice', 'selling_price', 'sellingRate', 'rate', 'price'],
     type: 'number', 
     exampleValue: 150.00,
@@ -93,7 +93,7 @@ export const ITEM_IMPORT_COLUMNS: BulkImportColumn[] = [
   },
   { 
     key: 'valuationRate', 
-    label: 'Valuation Rate (₹)', 
+    label: 'Valuation Rate (USh)', 
     aliases: ['valuation_rate'],
     type: 'number', 
     exampleValue: 118.00 

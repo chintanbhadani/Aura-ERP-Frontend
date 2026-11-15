@@ -354,7 +354,7 @@ function ProformaInvoicesBase() {
       width: '140px',
       render: (val) => (
         <span className="font-mono text-xs font-bold text-gray-900">
-          ₹{Number(val || 0).toLocaleString('en-IN')}
+          USh {Number(val || 0).toLocaleString('en-US')}
         </span>
       )
     },
@@ -367,7 +367,7 @@ function ProformaInvoicesBase() {
         return (
           <div>
             <span className="font-mono text-xs font-semibold text-emerald-800">
-              ₹{Number(row.advanceReceived || 0).toLocaleString('en-IN')}
+              USh {Number(row.advanceReceived || 0).toLocaleString('en-US')}
             </span>
             <span className="text-[10px] text-gray-400 font-medium ml-1">
               ({pct}%)
@@ -384,7 +384,7 @@ function ProformaInvoicesBase() {
         const bal = Number(val || 0);
         return (
           <span className={`font-mono text-xs font-semibold ${bal > 0 ? 'text-amber-700' : 'text-gray-400'}`}>
-            ₹{bal.toLocaleString('en-IN')}
+            USh {bal.toLocaleString('en-US')}
           </span>
         );
       }

@@ -36,7 +36,7 @@ export const Settings: React.FC = () => {
     !WORLD_CURRENCIES.some(c => c.code === currentCurrency.code && c.symbol === currentCurrency.symbol)
   );
 
-  const handleCurrencySelect = (_event: any, newValue: CurrencyOption | string | null) => {
+  const handleCurrencySelect = (_event: any, newValue: any) => {
     if (!newValue) return;
 
     if (typeof newValue === 'string') {
@@ -68,7 +68,7 @@ export const Settings: React.FC = () => {
     dispatch(resetSettings());
     setSelectedCurrency(DEFAULT_CURRENCY);
     setIsCustom(false);
-    successToast('Settings reset to default (USD $)');
+    successToast('Settings reset to default (UGX USh)');
   };
 
   const currentOption = WORLD_CURRENCIES.find(
@@ -164,11 +164,17 @@ export const Settings: React.FC = () => {
                 options={WORLD_CURRENCIES}
                 value={currentOption}
                 onChange={handleCurrencySelect}
-                getOptionLabel={(option) => {
+                getOptionLabel={(option: any) => {
                   if (typeof option === 'string') return option;
                   return `${option.name} (${option.symbol} - ${option.code}) ${option.country ? `• ${option.country}` : ''}`;
                 }}
-                isOptionEqualToValue={(option, val) => option.code === val.code && option.symbol === val.symbol}
+                isOptionEqualToValue={(option: any, val: any) => {
+                  const optCode = typeof option === 'object' ? option?.code : option;
+                  const optSymbol = typeof option === 'object' ? option?.symbol : option;
+                  const valCode = typeof val === 'object' ? val?.code : val;
+                  const valSymbol = typeof val === 'object' ? val?.symbol : val;
+                  return optCode === valCode && optSymbol === valSymbol;
+                }}
                 renderInput={(params) => (
                   <TextField
                     {...params}

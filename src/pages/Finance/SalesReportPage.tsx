@@ -395,7 +395,7 @@ const SalesReportPageBase: React.FC = () => {
           <StatSparkCard
             title="Total Sales Revenue"
             value={filteredSummary.totalRevenue}
-            prefix={symbol ? `${symbol} ` : '₹ '}
+            prefix={symbol ? `${symbol} ` : 'USh '}
             decimals={0}
             badge={{ text: '+18.4%', trend: 'up' }}
             subtitle={`From ${filteredSummary.totalInvoices} sales invoices`}
@@ -407,7 +407,7 @@ const SalesReportPageBase: React.FC = () => {
           <StatSparkCard
             title="Total Purchase Cost"
             value={filteredSummary.totalCost}
-            prefix={symbol ? `${symbol} ` : '₹ '}
+            prefix={symbol ? `${symbol} ` : 'USh '}
             decimals={0}
             badge={{ text: 'Valuation', trend: 'neutral' }}
             subtitle="PO procurement costs"
@@ -419,7 +419,7 @@ const SalesReportPageBase: React.FC = () => {
           <StatSparkCard
             title="Gross Profit"
             value={filteredSummary.totalProfit}
-            prefix={symbol ? `${symbol} ` : '₹ '}
+            prefix={symbol ? `${symbol} ` : 'USh '}
             decimals={0}
             badge={{ text: `${filteredSummary.overallMargin.toFixed(1)}%`, trend: filteredSummary.overallMargin >= 15 ? 'up' : 'alert' }}
             subtitle="Markup over PO batch cost"
@@ -431,7 +431,7 @@ const SalesReportPageBase: React.FC = () => {
           <StatSparkCard
             title="Total Expenses"
             value={totalExpenses}
-            prefix={symbol ? `${symbol} ` : '₹ '}
+            prefix={symbol ? `${symbol} ` : 'USh '}
             decimals={0}
             badge={{ text: `${expenses.length} Records`, trend: 'neutral' }}
             subtitle={startDate || endDate ? 'Filtered period expenses' : 'All-time operating expenses'}
@@ -443,7 +443,7 @@ const SalesReportPageBase: React.FC = () => {
           <StatSparkCard
             title="Net Profit"
             value={filteredSummary.totalProfit - totalExpenses}
-            prefix={symbol ? `${symbol} ` : '₹ '}
+            prefix={symbol ? `${symbol} ` : 'USh '}
             decimals={0}
             badge={{ 
               text: `${filteredSummary.totalRevenue > 0 ? (((filteredSummary.totalProfit - totalExpenses) / filteredSummary.totalRevenue) * 100).toFixed(1) : 0}%`, 

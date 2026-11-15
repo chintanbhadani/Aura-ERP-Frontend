@@ -63,8 +63,8 @@ const BULK_EDIT_FIELDS: BulkEditFieldConfig[] = [
   { label: 'Sub Part Of', key: 'subPartOfId', type: 'subPartOf' },
   { label: 'Maintain Stock', key: 'maintainStock', type: 'boolean' },
   { label: 'Min Stock', key: 'min_stock', type: 'number' },
-  { label: 'Standard Cost Price (₹)', key: 'cost_price', type: 'number' },
-  { label: 'Standard Selling Rate (₹)', key: 'selling_price', type: 'number' },
+  { label: 'Standard Cost Price (USh)', key: 'cost_price', type: 'number' },
+  { label: 'Standard Selling Rate (USh)', key: 'selling_price', type: 'number' },
   { label: 'Status', key: 'status', type: 'select', options: ['Active', 'Inactive'] },
   { label: 'Tags', key: 'tags', type: 'text' }
 ];

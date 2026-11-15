@@ -346,7 +346,7 @@ function QuotationsBase() {
       width: '140px',
       render: (val) => (
         <span className="font-mono text-xs font-bold text-gray-900">
-          ₹{Number(val || 0).toLocaleString('en-IN')}
+          USh {Number(val || 0).toLocaleString('en-US')}
         </span>
       )
     },
@@ -529,7 +529,7 @@ function QuotationsBase() {
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between">
                 <span className="text-xs font-medium text-emerald-800">Total Quotation Value:</span>
                 <span className="text-base font-bold font-mono text-emerald-900">
-                  ₹{calculatedTotal.toLocaleString('en-IN')}
+                  USh {calculatedTotal.toLocaleString('en-US')}
                 </span>
               </div>
 

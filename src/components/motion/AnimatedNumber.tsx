@@ -36,7 +36,7 @@ export const AnimatedNumber: React.FC<AnimatedNumberProps> = ({
     return () => controls.stop();
   }, [value, duration]);
 
-  const formatted = displayValue.toLocaleString('en-IN', {
+  const formatted = displayValue.toLocaleString('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });

@@ -1063,7 +1063,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                         <th className="py-2.5 px-3 w-24 min-w-[80px] border-r border-gray-200 text-center">Unit (UOM)</th>
                                         <th className="py-2.5 px-3 w-32 min-w-[110px] border-r border-gray-200">Quantity *</th>
                                         <th className="py-2.5 px-3 w-36 min-w-[140px] border-r border-gray-200">
-                                          {values.type === 'SALES' ? 'Sell Price' : 'Price'} ({currency?.symbol || '$'}) *
+                                          {values.type === 'SALES' ? 'Sell Price' : 'Price'} ({currency?.symbol || 'USh'}) *
                                         </th>
                                         <th className="py-2.5 px-4 w-32 min-w-[110px] text-right border-r border-gray-200">Row Total</th>
                                         <th className="py-2.5 px-3 w-14 min-w-[56px] text-center">Action</th>

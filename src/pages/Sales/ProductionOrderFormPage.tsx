@@ -70,7 +70,7 @@ const FormattedAmountInput: React.FC<{
 
   const displayVal = isFocused
     ? (inputText !== '' ? inputText : (value !== undefined && value !== null && value > 0 ? String(value) : ''))
-    : (value !== undefined && value !== null && value > 0 ? value.toLocaleString('en-IN') : '');
+    : (value !== undefined && value !== null && value > 0 ? value.toLocaleString('en-US') : '');
 
   return (
     <div>
@@ -169,7 +169,7 @@ const RateInput: React.FC<{
 
   const displayVal = isFocused
     ? inputText
-    : (value !== undefined && value !== null && value > 0 ? value.toLocaleString('en-IN') : '');
+    : (value !== undefined && value !== null && value > 0 ? value.toLocaleString('en-US') : '');
 
   return (
     <TextFieldComponent
@@ -973,7 +973,7 @@ const ProductionOrderFormPageBase: React.FC = () => {
 
   const calculateGrandTotal = () => {
     const sum = (formData.items || []).reduce((acc, item) => acc + (item.totalAmount || 0), 0);
-    return sum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return sum.toLocaleString('en-US');
   };
 
   if (loading) {
@@ -1361,7 +1361,7 @@ const ProductionOrderFormPageBase: React.FC = () => {
                     {/* Item Total Badge */}
                     <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200 text-xs font-bold shadow-2xs">
                       <span className="text-[11px] text-emerald-600 font-medium">Item Total:</span>
-                      <span>₹{(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      <span>USh {(item.totalAmount || 0).toLocaleString('en-US')}</span>
                     </div>
 
                     {(formData.items?.length || 0) > 1 && (
@@ -1791,7 +1791,7 @@ const ProductionOrderFormPageBase: React.FC = () => {
                     <div className="col-span-12 sm:col-span-4">
                       <TextFieldComponent
                         label="Total Amt (incl. GST)"
-                        value={`₹${(item.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                        value={`USh ${(item.totalAmount || 0).toLocaleString('en-US')}`}
                         disabled
                         sx={{
                           '& .MuiOutlinedInput-input.Mui-disabled': {

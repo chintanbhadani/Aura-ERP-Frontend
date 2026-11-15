@@ -399,11 +399,11 @@ const InquiryFormPageBase: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-2xl font-black text-emerald-950 font-mono tracking-tight flex items-center">
-                        <span className="text-base font-semibold mr-0.5">₹</span>
-                        {estimatedOrderValue.toLocaleString('en-IN')}
+                        <span className="text-base font-semibold mr-1">USh</span>
+                        {estimatedOrderValue.toLocaleString('en-US')}
                       </div>
                       <p className="text-[11px] text-emerald-700/80 mt-0.5">
-                        {Number(values.sizeInTons || 0).toFixed(2)} Tons @ ₹{Number(values.quotedPrice || 0)}/kg
+                        {Number(values.sizeInTons || 0).toFixed(2)} Tons @ USh {Number(values.quotedPrice || 0).toLocaleString('en-US')}/kg
                       </p>
                     </div>
 
@@ -805,10 +805,10 @@ const InquiryFormPageBase: React.FC = () => {
                           Calculated Est. Value
                         </label>
                         <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-bold text-gray-900 font-mono h-[38px] flex items-center">
-                          ₹ {estimatedOrderValue.toLocaleString('en-IN')}
+                          USh {estimatedOrderValue.toLocaleString('en-US')}
                         </div>
                         <span className="text-[10px] text-emerald-600 font-medium mt-1 block">
-                          Auto-calculated (Tons × 1,000 × ₹/kg)
+                          Auto-calculated (Tons × 1,000 × USh/kg)
                         </span>
                       </div>
 

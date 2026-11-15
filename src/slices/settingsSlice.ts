@@ -14,9 +14,9 @@ export interface SettingsState {
 }
 
 export const DEFAULT_CURRENCY: CurrencySetting = {
-  code: 'USD',
-  symbol: '$',
-  name: 'US Dollar',
+  code: 'UGX',
+  symbol: 'USh',
+  name: 'Ugandan Shilling',
   position: 'prefix',
 };
 
@@ -38,6 +38,14 @@ const settingsSlice = createSlice({
     resetSettings() {
       return initialState;
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase('persist/REHYDRATE' as any, (state, action: any) => {
+      const persistedCur = action.payload?.settings?.currency;
+      if (!persistedCur || persistedCur.code === 'USD' || persistedCur.symbol === '$') {
+        state.currency = DEFAULT_CURRENCY;
+      }
+    });
   },
 });
 

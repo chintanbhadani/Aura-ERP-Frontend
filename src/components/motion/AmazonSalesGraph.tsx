@@ -146,7 +146,7 @@ export const AmazonSalesGraph: React.FC<AmazonSalesGraphProps> = ({
   onAnalyseClick
 }) => {
   const { format, symbol } = useCurrency();
-  const curSymbol = currencySymbol || symbol || '₹';
+  const curSymbol = currencySymbol || symbol || 'USh';
 
   // Amazon Seller controls
   const [dateRange, setDateRange] = useState<DateRangeOption>(

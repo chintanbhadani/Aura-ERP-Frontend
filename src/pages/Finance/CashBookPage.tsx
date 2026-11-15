@@ -252,13 +252,13 @@ const CashBookPageBase: React.FC = () => {
 
   // Format currency
   const formatCur = (num: number) => {
-    return `${symbol ? `${symbol} ` : '₹ '}${Number(num || 0).toLocaleString('en-IN')}`;
+    return `${symbol ? `${symbol} ` : 'USh '}${Number(num || 0).toLocaleString('en-US')}`;
   };
 
   const formatNum = (num: number) => {
     if (!num && num !== 0) return '—';
     if (num === 0) return '0';
-    return Number(num).toLocaleString('en-IN');
+    return Number(num).toLocaleString('en-US');
   };
 
   // Filtered rows
@@ -500,7 +500,7 @@ const CashBookPageBase: React.FC = () => {
         <StatSparkCard
           title="Cash at Store"
           value={summary?.currentStoreCash || 0}
-          prefix={symbol ? `${symbol} ` : '₹ '}
+          prefix={symbol ? `${symbol} ` : 'USh '}
           decimals={0}
           badge={{ 
             text: (summary?.currentStoreCash || 0) >= 0 ? 'Surplus' : 'Deficit', 
@@ -515,7 +515,7 @@ const CashBookPageBase: React.FC = () => {
         <StatSparkCard
           title="Bank Balance"
           value={summary?.currentBankBalance || 0}
-          prefix={symbol ? `${symbol} ` : '₹ '}
+          prefix={symbol ? `${symbol} ` : 'USh '}
           decimals={0}
           badge={{ text: 'Liquid Funds', trend: 'neutral' }}
           subtitle="Bank transfers & cheques"
@@ -527,7 +527,7 @@ const CashBookPageBase: React.FC = () => {
         <StatSparkCard
           title="Airtel / Mobile Money"
           value={summary?.currentAirtelBalance || 0}
-          prefix={symbol ? `${symbol} ` : '₹ '}
+          prefix={symbol ? `${symbol} ` : 'USh '}
           decimals={0}
           badge={{ text: 'Digital Wallet', trend: 'neutral' }}
           subtitle="Digital mobile float"
@@ -539,7 +539,7 @@ const CashBookPageBase: React.FC = () => {
         <StatSparkCard
           title="Customer Credit"
           value={summary?.totalCreditReceivable || 0}
-          prefix={symbol ? `${symbol} ` : '₹ '}
+          prefix={symbol ? `${symbol} ` : 'USh '}
           decimals={0}
           badge={{ text: 'Receivables', trend: 'alert' }}
           subtitle="Uncollected sales invoices"
@@ -551,7 +551,7 @@ const CashBookPageBase: React.FC = () => {
         <StatSparkCard
           title="Supplier Payables"
           value={summary?.totalCreditPayable || 0}
-          prefix={symbol ? `${symbol} ` : '₹ '}
+          prefix={symbol ? `${symbol} ` : 'USh '}
           decimals={0}
           badge={{ text: 'Payables', trend: 'down' }}
           subtitle="Outstanding PO balances"

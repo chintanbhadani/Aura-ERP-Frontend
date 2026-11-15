@@ -9,8 +9,8 @@ export interface CurrencyOption extends CurrencySetting {
 }
 
 export const WORLD_CURRENCIES: CurrencyOption[] = [
-  { code: 'USD', symbol: '$', name: 'US Dollar', position: 'prefix', country: 'United States' },
   { code: 'UGX', symbol: 'USh', name: 'Ugandan Shilling', position: 'prefix', country: 'Uganda' },
+  { code: 'USD', symbol: '$', name: 'US Dollar', position: 'prefix', country: 'United States' },
   { code: 'EUR', symbol: '€', name: 'Euro', position: 'prefix', country: 'European Union' },
   { code: 'GBP', symbol: '£', name: 'British Pound', position: 'prefix', country: 'United Kingdom' },
   { code: 'INR', symbol: '₹', name: 'Indian Rupee', position: 'prefix', country: 'India' },
@@ -37,20 +37,25 @@ export const WORLD_CURRENCIES: CurrencyOption[] = [
  */
 export const formatCurrency = (
   amount: number | string | null | undefined,
-  currency?: CurrencySetting
+  currency?: CurrencySetting,
+  options?: { forceDecimals?: boolean }
 ): string => {
-  const activeCurrency = currency || DEFAULT_CURRENCY;
+  let activeCurrency = currency || getActiveCurrency();
+  if (!activeCurrency || activeCurrency.code === 'USD' || activeCurrency.symbol === '$') {
+    activeCurrency = DEFAULT_CURRENCY;
+  }
   const num = Number(amount || 0);
   
-  // Use 'en-IN' universally to get the Lakhs/Crores comma formatting (e.g., 2,20,204.81) for all currencies
-  const locale = 'en-IN';
+  // Standard 3-digit comma grouping (e.g., 123,234,456,345)
+  const locale = 'en-US';
   
+  const hasDecimals = options?.forceDecimals || (num % 1 !== 0);
   const formattedNumber = num.toLocaleString(locale, {
-    minimumFractionDigits: 2,
+    minimumFractionDigits: hasDecimals ? 2 : 0,
     maximumFractionDigits: 2,
   });
 
-  const symbol = activeCurrency.symbol || '$';
+  const symbol = activeCurrency.symbol || 'USh';
   const position = activeCurrency.position || 'prefix';
 
   // Add a space if symbol has multiple characters (like USh, KSh, AED)
@@ -69,7 +74,11 @@ export const formatCurrency = (
 export const getActiveCurrency = (): CurrencySetting => {
   try {
     const state = store.getState() as any;
-    return state?.settings?.currency || DEFAULT_CURRENCY;
+    const cur = state?.settings?.currency;
+    if (cur && cur.code && cur.code !== 'USD' && cur.symbol !== '$') {
+      return cur;
+    }
+    return DEFAULT_CURRENCY;
   } catch {
     return DEFAULT_CURRENCY;
   }
@@ -80,13 +89,19 @@ export const getActiveCurrency = (): CurrencySetting => {
  */
 export const useCurrency = () => {
   const currency: CurrencySetting = useSelector(
-    (state: RootState) => (state as any).settings?.currency || DEFAULT_CURRENCY
+    (state: RootState) => {
+      const cur = (state as any).settings?.currency;
+      if (cur && cur.code && cur.code !== 'USD' && cur.symbol !== '$') {
+        return cur;
+      }
+      return DEFAULT_CURRENCY;
+    }
   );
 
   return {
     currency,
-    symbol: currency.symbol || '$',
-    code: currency.code || 'USD',
+    symbol: currency.symbol || 'USh',
+    code: currency.code || 'UGX',
     format: (amount: number | string | null | undefined) => formatCurrency(amount, currency),
   };
 };

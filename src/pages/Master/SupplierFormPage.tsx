@@ -133,7 +133,7 @@ const SupplierFormPageBase: React.FC = () => {
     contactPersonName: '',
     contact: '',
     email: '',
-    billingCurrency: 'INR',
+    billingCurrency: 'UGX',
     priceList: 'Standard Buying',
     bankAccount: '',
     trackExchangeDifferences: true,
@@ -1082,9 +1082,10 @@ const SupplierFormPageBase: React.FC = () => {
                           name="billingCurrency"
                           label="Billing Currency"
                           options={[
-                            { label: 'INR (₹)', value: 'INR' },
+                            { label: 'UGX (USh)', value: 'UGX' },
                             { label: 'USD ($)', value: 'USD' },
                             { label: 'EUR (€)', value: 'EUR' },
+                            { label: 'INR (₹)', value: 'INR' },
                             { label: 'TZS', value: 'TZS' }
                           ]}
                         />

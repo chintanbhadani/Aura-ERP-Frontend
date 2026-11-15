@@ -1744,10 +1744,10 @@ const ProductFormPageBase: React.FC = () => {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div className="w-full">
-                        <TextFieldComponent name="costPrice" label="Standard Purchase Rate / Cost Price (₹)" type="number" placeholder="0.00" />
+                        <TextFieldComponent name="costPrice" label="Standard Purchase Rate / Cost Price (USh)" type="number" placeholder="0.00" />
                       </div>
                       <div className="w-full">
-                        <TextFieldComponent name="sellingPrice" label="Standard Selling Price (₹)" type="number" placeholder="0.00" />
+                        <TextFieldComponent name="sellingPrice" label="Standard Selling Price (USh)" type="number" placeholder="0.00" />
                       </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">

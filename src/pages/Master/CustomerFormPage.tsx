@@ -185,7 +185,7 @@ const CustomerFormPageBase: React.FC = () => {
     isAuthOtpApplied: false,
     defaultAuthOtpMethod: '',
     defaultPriceList: 'Standard Selling',
-    billingCurrency: 'INR',
+    billingCurrency: 'UGX',
     defaultCompanyBankAccount: '',
     internalCustomer: '',
     isAutoCloseDn: false,
@@ -249,7 +249,7 @@ const CustomerFormPageBase: React.FC = () => {
           isAuthOtpApplied: data.isAuthOtpApplied || false,
           defaultAuthOtpMethod: data.defaultAuthOtpMethod || '',
           defaultPriceList: data.defaultPriceList || 'Standard Selling',
-          billingCurrency: data.billingCurrency || 'INR',
+          billingCurrency: data.billingCurrency || 'UGX',
           defaultCompanyBankAccount: data.defaultCompanyBankAccount || '',
           internalCustomer: data.internalCustomer || '',
           isAutoCloseDn: data.isAutoCloseDn || false,
@@ -1040,9 +1040,10 @@ const CustomerFormPageBase: React.FC = () => {
                           name="billingCurrency"
                           label="Billing Currency"
                           options={[
-                            { value: 'INR', label: 'INR (₹)' },
+                            { value: 'UGX', label: 'UGX (USh)' },
                             { value: 'USD', label: 'USD ($)' },
                             { value: 'EUR', label: 'EUR (€)' },
+                            { value: 'INR', label: 'INR (₹)' },
                             { value: 'TZS', label: 'TZS' }
                           ]}
                         />
