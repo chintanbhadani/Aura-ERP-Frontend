@@ -10,13 +10,15 @@ import {
   fetchCategories, 
   fetchUnits,
   createInvoice, 
+  updateInvoice,
   fetchInvoiceById,
   createCustomer, 
   createSupplier, 
   createCategory, 
   createSku, 
   createProduct,
-  createUnit
+  createUnit,
+  uploadFile
 } from '../../services/api';
 import type { SkuMaster, Product, Customer, Supplier, Category, Unit } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
@@ -68,21 +70,33 @@ const invoiceValidationSchema = Yup.object({
     otherwise: (schema) => schema.notRequired(),
   }),
   paymentType: Yup.string().required('Payment method is required'),
-  cashAmount: Yup.number().when('paymentType', {
-    is: 'PARTIAL',
-    then: (schema) => schema.min(0).required('Required for partial'),
-    otherwise: (schema) => schema.notRequired(),
-  }),
-  bankAmount: Yup.number().when('paymentType', {
-    is: 'PARTIAL',
-    then: (schema) => schema.min(0).required('Required for partial'),
-    otherwise: (schema) => schema.notRequired(),
-  }),
-  mobileMoneyAmount: Yup.number().when('paymentType', {
-    is: 'PARTIAL',
-    then: (schema) => schema.min(0).notRequired(),
-    otherwise: (schema) => schema.notRequired(),
-  }),
+  cashAmount: Yup.number()
+    .transform((val, orig) => (orig === '' || orig === null || orig === undefined) ? undefined : Number(val))
+    .nullable()
+    .notRequired()
+    .when('paymentType', {
+      is: 'PARTIAL',
+      then: (schema) => schema.min(0, 'Min 0').required('Required for partial'),
+      otherwise: (schema) => schema.notRequired(),
+    }),
+  bankAmount: Yup.number()
+    .transform((val, orig) => (orig === '' || orig === null || orig === undefined) ? undefined : Number(val))
+    .nullable()
+    .notRequired()
+    .when('paymentType', {
+      is: 'PARTIAL',
+      then: (schema) => schema.min(0, 'Min 0').required('Required for partial'),
+      otherwise: (schema) => schema.notRequired(),
+    }),
+  mobileMoneyAmount: Yup.number()
+    .transform((val, orig) => (orig === '' || orig === null || orig === undefined) ? undefined : Number(val))
+    .nullable()
+    .notRequired()
+    .when('paymentType', {
+      is: 'PARTIAL',
+      then: (schema) => schema.min(0, 'Min 0').notRequired(),
+      otherwise: (schema) => schema.notRequired(),
+    }),
   items: Yup.array().of(
     Yup.object({
       productId: Yup.string().required('Item is required'),
@@ -153,6 +167,8 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
   const [newTagInput, setNewTagInput] = useState('');
   const [showAddTag, setShowAddTag] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<{ name: string; url: string; file?: File; isNewFile?: boolean }[]>([]);
 
   // PO Batch Selection State
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
@@ -203,10 +219,41 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       const inv = await fetchInvoiceById(id);
       if (inv) {
         setExistingInvoice(inv);
+        if (inv.imageUrl) {
+          setReceiptImage(inv.imageUrl);
+          setSelectedImageFile(null);
+        }
+        if (inv.attachments && Array.isArray(inv.attachments)) {
+          setAttachments(inv.attachments);
+        }
       }
     } catch (err) {
       console.error('Failed to load existing invoice', err);
     }
+  };
+
+  const getInvoiceInitials = () => {
+    if (existingInvoice) {
+      const party = existingInvoice.customer?.name || existingInvoice.supplier?.name;
+      if (party) {
+        const parts = party.trim().split(/\s+/);
+        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return party.slice(0, 2).toUpperCase();
+      }
+    }
+    const currentPartyId = formikRef.current?.values?.type === 'SALES' ? formikRef.current?.values?.clientId : formikRef.current?.values?.supplierId;
+    if (currentPartyId) {
+      const partyObj = formikRef.current?.values?.type === 'SALES'
+        ? customers.find(c => c.id === currentPartyId)
+        : suppliers.find(s => s.id === currentPartyId);
+      const partyName = partyObj?.name || (partyObj as any)?.companyName;
+      if (partyName) {
+        const parts = partyName.trim().split(/\s+/);
+        if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+        return partyName.slice(0, 2).toUpperCase();
+      }
+    }
+    return (formikRef.current?.values?.type || initialInvoiceType) === 'PURCHASE' ? 'PI' : 'SI';
   };
 
   // Comprehensive list of items from SkuMaster API
@@ -342,13 +389,13 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         invoiceNumber: existingInvoice.invoiceNumber || '',
         date: existingInvoice.date ? new Date(existingInvoice.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         dueDate: existingInvoice.dueDate ? new Date(existingInvoice.dueDate).toISOString().split('T')[0] : '',
-        clientId: existingInvoice.customerId || existingInvoice.clientId || '',
-        supplierId: existingInvoice.supplierId || '',
+        clientId: existingInvoice.customerId || existingInvoice.customer?.id || existingInvoice.clientId || existingInvoice.client?.id || '',
+        supplierId: existingInvoice.supplierId || existingInvoice.supplier?.id || '',
         paymentType: existingInvoice.paymentType || 'CASH',
-        cashAmount: existingInvoice.cashAmount ?? '',
-        bankAmount: existingInvoice.bankAmount ?? '',
-        mobileMoneyAmount: existingInvoice.mobileMoneyAmount ?? '',
-        creditAmount: existingInvoice.creditAmount ?? '',
+        cashAmount: existingInvoice.cashAmount !== undefined && existingInvoice.cashAmount !== null ? Number(existingInvoice.cashAmount) : '',
+        bankAmount: existingInvoice.bankAmount !== undefined && existingInvoice.bankAmount !== null ? Number(existingInvoice.bankAmount) : '',
+        mobileMoneyAmount: existingInvoice.mobileMoneyAmount !== undefined && existingInvoice.mobileMoneyAmount !== null ? Number(existingInvoice.mobileMoneyAmount) : '',
+        creditAmount: existingInvoice.creditAmount !== undefined && existingInvoice.creditAmount !== null ? Number(existingInvoice.creditAmount) : '',
         notes: existingInvoice.notes || '',
         paymentTerms: existingInvoice.paymentTerms || 'Payment due on receipt',
         status: existingInvoice.status || 'PAID',
@@ -456,6 +503,42 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
 
   const handleSubmit = async (values: typeof initialValues, { setSubmitting }: any) => {
     try {
+      // 1. Upload Avatar / Invoice Slip Image if a new file was selected
+      let finalImageUrl = receiptImage;
+      if (selectedImageFile) {
+        try {
+          const uploadRes = await uploadFile(selectedImageFile);
+          finalImageUrl = uploadRes.url;
+        } catch (err) {
+          console.error('Failed to upload invoice slip/image:', err);
+          errorToast('Failed to upload invoice image');
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // 2. Upload new Attachment files if any
+      const newAttachmentItems = attachments.filter(a => a.isNewFile && a.file);
+      const existingAttachmentItems = attachments.filter(a => !a.isNewFile).map(a => ({ name: a.name, url: a.url }));
+
+      let uploadedAttachmentItems: Array<{ name: string; url: string }> = [];
+      if (newAttachmentItems.length > 0) {
+        try {
+          const uploadPromises = newAttachmentItems.map(async (item) => {
+            const res = await uploadFile(item.file!);
+            return { name: res.filename || item.name, url: res.url };
+          });
+          uploadedAttachmentItems = await Promise.all(uploadPromises);
+        } catch (err) {
+          console.error('Failed to upload attachments:', err);
+          errorToast('Failed to upload attachment files');
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      const finalAttachments = [...existingAttachmentItems, ...uploadedAttachmentItems];
+
       const payload: any = {
         type: values.type,
         date: values.date,
@@ -463,6 +546,8 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         paymentType: values.paymentType,
         notes: values.notes,
         paymentTerms: values.paymentTerms,
+        imageUrl: finalImageUrl || undefined,
+        attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
         items: values.items.map((i: any) => ({
           productId: i.productId,
           quantity: Number(i.quantity),
@@ -475,9 +560,9 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       };
 
       if (values.type === 'SALES') {
-        payload.customerId = values.clientId;
+        payload.customerId = values.clientId || (existingInvoice ? (existingInvoice.customerId || existingInvoice.customer?.id || existingInvoice.clientId) : undefined);
       } else {
-        payload.supplierId = values.supplierId;
+        payload.supplierId = values.supplierId || (existingInvoice ? (existingInvoice.supplierId || existingInvoice.supplier?.id) : undefined);
       }
 
       if (values.paymentType === 'PARTIAL') {
@@ -486,16 +571,21 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         payload.mobileMoneyAmount = Number(values.mobileMoneyAmount) || 0;
       }
 
-      const created = await createInvoice(payload);
-      successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice created successfully!`);
+      if (isEditMode && invoiceId) {
+        await updateInvoice(invoiceId, payload);
+        successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice updated successfully!`);
+      } else {
+        await createInvoice(payload);
+        successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice created successfully!`);
+      }
       navigate(values.type === 'SALES' ? '/invoices/sales' : '/invoices/purchase');
     } catch (err: any) {
-      console.error('Invoice creation error:', err);
+      console.error('Invoice save error:', err);
       const errorMsg =
         err.response?.data?.error ||
         err.response?.data?.message ||
         err.message ||
-        'Failed to create invoice';
+        (isEditMode ? 'Failed to update invoice' : 'Failed to create invoice');
       errorToast(errorMsg);
     } finally {
       setSubmitting(false);
@@ -565,6 +655,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                   if (formikRef.current) {
                     const errs = await formikRef.current.validateForm();
                     if (errs && Object.keys(errs).length > 0) {
+                      console.error('Invoice form validation errors:', errs);
                       Object.keys(errs).forEach((key: string) => formikRef.current?.setFieldTouched(key, true, false));
                       const firstErrKey = Object.keys(errs)[0];
                       let firstErrMsg = (errs as any)[firstErrKey];
@@ -574,13 +665,13 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                       errorToast(typeof firstErrMsg === 'string' ? `Cannot save: ${firstErrMsg}` : 'Please complete all required fields.');
                       return;
                     }
-                    submitForm();
+                    await formikRef.current.submitForm();
                   } else {
                     submitForm();
                   }
                 }}
                 isSubmitting={isSubmitting}
-                saveLabel="Save & Issue"
+                saveLabel={isEditMode ? "Save" : "Submit"}
               />
             }
           >
@@ -591,88 +682,120 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                 {/* LEFT META SIDEBAR PANEL (~300px) */}
                 <div className="w-full xl:w-72 shrink-0 space-y-6">
 
-                  {/* Document Box / Receipt Card matching Item Master avatar */}
-                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs p-3">
-                    <div className="relative group w-full h-52 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex flex-col items-center justify-center p-4 text-center select-none">
+                  {/* Image Avatar Box Card matching Item Master */}
+                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs p-2">
+                    <div className="relative group w-full h-56 rounded-xl overflow-hidden cursor-pointer border border-gray-100 bg-gray-50/80 flex items-center justify-center">
                       {receiptImage ? (
                         <img 
                           src={receiptImage} 
-                          alt="Receipt Preview" 
-                          className="w-full h-full object-contain rounded-xl"
+                          alt="Invoice Slip" 
+                          className="w-full h-full object-contain p-1.5 rounded-xl" 
                         />
                       ) : (
-                        <div className="flex flex-col items-center justify-center space-y-2">
-                          <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shadow-xs border border-emerald-100">
-                            {values.type === 'SALES' ? <FileText className="w-7 h-7" /> : <ShoppingCart className="w-7 h-7" />}
-                          </div>
-                          <div>
-                            <p className="text-sm font-extrabold text-gray-900 tracking-tight">
-                              {values.invoiceNumber || 'DRAFT INVOICE'}
-                            </p>
-                            <p className="text-lg font-black text-emerald-700 font-mono mt-0.5">
-                              {format(grandTotalAmount)}
-                            </p>
-                            <p className="text-[11px] text-gray-400 mt-1">
-                              {totalQty} {totalQty === 1 ? 'Unit' : 'Units'} • {values.paymentType === 'MOBILE_MONEY' ? 'AIRTEL MONEY' : values.paymentType}
-                            </p>
-                          </div>
+                        <div className="w-full h-full rounded-xl bg-gray-100/70 flex items-center justify-center text-4xl font-semibold text-gray-400 select-none">
+                          {getInvoiceInitials()}
                         </div>
                       )}
 
-                      {/* Hover Overlay with Change Button */}
+                      {/* Hover Overlay with "Change ▾" Trigger */}
                       <label className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center cursor-pointer rounded-xl backdrop-blur-[1px]">
-                        <span className="bg-white/95 hover:bg-white text-gray-800 text-xs font-bold px-3 py-1.5 rounded-lg shadow-md flex items-center gap-1.5 transition-transform scale-95 group-hover:scale-100">
+                        <span className="bg-white/95 hover:bg-white text-gray-800 text-xs font-bold px-3.5 py-2 rounded-lg shadow-md flex items-center gap-1.5 transition-transform scale-95 group-hover:scale-100 select-none">
                           <Camera className="w-3.5 h-3.5 text-gray-600" />
-                          {receiptImage ? 'Change Receipt' : 'Attach Slip'}
+                          Change
                           <ChevronDown className="w-3 h-3 text-gray-600" />
                         </span>
                         <input
                           type="file"
-                          accept="image/*,.pdf"
+                          accept="image/*"
                           className="hidden"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
-                            if (file) {
-                              setReceiptImage(URL.createObjectURL(file));
-                              successToast('Attached document preview');
-                            }
+                            if (!file) return;
+                            setSelectedImageFile(file);
+                            const previewUrl = URL.createObjectURL(file);
+                            setReceiptImage(previewUrl);
+                            successToast(`Selected invoice slip "${file.name}"`);
                           }}
                         />
                       </label>
-                    </div>
 
-                    {/* Quick remove button */}
-                    {receiptImage && (
-                      <button
-                        type="button"
-                        onClick={() => setReceiptImage(null)}
-                        className="mt-2 w-full text-center text-xs text-red-600 hover:text-red-700 font-medium py-1 cursor-pointer"
-                      >
-                        Remove Attachment
-                      </button>
-                    )}
+                      {/* Quick Remove Button on Hover */}
+                      {receiptImage && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setSelectedImageFile(null);
+                            setReceiptImage(null);
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full shadow-md transition-all opacity-0 group-hover:opacity-100 z-30 cursor-pointer"
+                          title="Remove Image"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Attachments & Tags Card */}
                   <div className="bg-white border border-gray-200 rounded-2xl shadow-xs p-5 space-y-4">
                     {/* Attachments line */}
-                    <div className="flex items-center justify-between text-xs pb-3 border-b border-gray-100">
-                      <div className="flex items-center gap-2 text-gray-600 font-semibold">
-                        <Paperclip className="w-4 h-4 text-gray-400" />
-                        <span>Attachments</span>
+                    <div className="space-y-2 pb-3 border-b border-gray-100">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-gray-600 font-semibold">
+                          <Paperclip className="w-4 h-4 text-gray-400" />
+                          <span>Attachments</span>
+                        </div>
+                        <label className="text-emerald-700 font-bold hover:underline cursor-pointer flex items-center gap-1">
+                          <span>+ Upload</span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const newAtt = {
+                                name: file.name,
+                                url: URL.createObjectURL(file),
+                                file: file,
+                                isNewFile: true
+                              };
+                              setAttachments(prev => [...prev, newAtt]);
+                              successToast(`Added attachment "${file.name}"`);
+                            }}
+                          />
+                        </label>
                       </div>
-                      <label className="text-emerald-700 font-bold hover:underline cursor-pointer">
-                        + Upload
-                        <input
-                          type="file"
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files?.[0]) {
-                              successToast(`File "${e.target.files[0].name}" attached`);
-                            }
-                          }}
-                        />
-                      </label>
+
+                      {attachments.length > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          {attachments.map((att, idx) => (
+                            <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-xl text-[11px] text-gray-700 font-medium">
+                              <a 
+                                href={att.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="truncate hover:text-emerald-700 hover:underline flex items-center gap-1 max-w-[170px]"
+                                title={att.name}
+                              >
+                                <span className="truncate">{att.name}</span>
+                                {att.url !== '#' && <ExternalLink className="w-3 h-3 text-gray-400 shrink-0" />}
+                              </a>
+                              <button 
+                                type="button" 
+                                onClick={() => {
+                                  setAttachments(prev => prev.filter((_, i) => i !== idx));
+                                }} 
+                                className="text-gray-400 hover:text-red-600 font-bold pl-1 cursor-pointer"
+                                title="Remove attachment"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Tags line */}
@@ -894,7 +1017,6 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                 { label: 'Credit (Unpaid)', value: 'CREDIT' },
                                 { label: 'Bank Transfer / Cheque', value: 'BANK' },
                                 { label: 'Airtel Money / Mobile Money', value: 'MOBILE_MONEY' },
-                                { label: 'Partial Split', value: 'PARTIAL' },
                               ]}
                             />
 

@@ -28,7 +28,8 @@ import {
   FileText,
   ClipboardList,
   ShoppingCart,
-  TrendingUp
+  TrendingUp,
+  Scale
 } from 'lucide-react';
 
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -61,6 +62,7 @@ const GLOBAL_NAV_ITEMS: GlobalSearchItem[] = [
   { name: 'Proforma Invoices', href: '/proforma', category: 'CRM', icon: Receipt, moduleName: ModuleName.PROFORMA_INVOICES, requiredPermission: Permission.LIST },
   { name: 'Expenses', href: '/expenses', category: 'Finance', icon: Wallet, moduleName: ModuleName.EXPENSES, requiredPermission: Permission.LIST },
   { name: 'Sales Report', href: '/finance/sales-report', category: 'Finance', icon: TrendingUp, moduleName: ModuleName.TAX_INVOICES, requiredPermission: Permission.LIST },
+  { name: 'Party Ledger', href: '/finance/party-ledger', category: 'Finance', icon: Scale, moduleName: ModuleName.EXPENSES, requiredPermission: Permission.LIST },
   { name: 'Dashboard', href: '/', category: 'General', icon: Home, moduleName: ModuleName.DASHBOARD, requiredPermission: Permission.VIEW_DASHBOARD },
   { name: 'My Profile', href: '/profile', category: 'General', icon: User },
 ];
@@ -97,6 +99,8 @@ const ROUTE_BREADCRUMBS: Record<string, { module: string; page: string }> = {
   '/expenses': { module: 'Finance', page: 'Expenses' },
   '/finance/sales-report': { module: 'Finance', page: 'Sales Report' },
   '/sales-report': { module: 'Finance', page: 'Sales Report' },
+  '/finance/party-ledger': { module: 'Finance', page: 'Party Ledger' },
+  '/party-ledger': { module: 'Finance', page: 'Party Ledger' },
   '/profile': { module: 'User', page: 'My Profile' },
   '/products/new': { module: 'Stock', page: 'New Item' },
   '/products/edit': { module: 'Stock', page: 'Edit Item' },

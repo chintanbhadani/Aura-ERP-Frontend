@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { 
@@ -26,6 +26,7 @@ import {
 } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
 import { TextFieldComponent, SelectOutlinedField } from '../../components/input/index';
+import { PartyLedgerTab } from '../../components/PartyLedger/PartyLedgerTab';
 import { 
   ArrowLeft, 
   Printer, 
@@ -105,14 +106,23 @@ const CustomerFormPageBase: React.FC = () => {
   const { user } = useSelector((state: any) => state.base);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const isEditMode = Boolean(id && id !== 'new');
 
   const [loading, setLoading] = useState(isEditMode);
 
   // Active Tab State
+  const initialTab = searchParams.get('tab') === 'ledger' ? 'ledger' : 'details';
   const [activeTab, setActiveTab] = useState<
-    'details' | 'dashboard' | 'contact' | 'tax' | 'accounting' | 'sales' | 'settings' | 'portal'
-  >('details');
+    'details' | 'dashboard' | 'contact' | 'tax' | 'accounting' | 'sales' | 'settings' | 'portal' | 'ledger'
+  >(initialTab);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'ledger') {
+      setActiveTab('ledger');
+    }
+  }, [searchParams]);
 
   // Left Sidebar States
   const [assignedTo, setAssignedTo] = useState(user?.name || user?.username || 'Administrator');
@@ -926,6 +936,7 @@ const CustomerFormPageBase: React.FC = () => {
                     // { id: 'accounting', label: 'Accounting' },
                     { id: 'sales', label: 'Sales Team' },
                     { id: 'settings', label: 'Settings' },
+                    { id: 'ledger', label: 'Party Ledger' },
                     // { id: 'portal', label: 'Portal Users' }
                   ].map((tab) => (
                     <button
@@ -1565,6 +1576,15 @@ const CustomerFormPageBase: React.FC = () => {
                       </label>
                     </div>
                   </div>
+                )}
+
+                {/* TAB: PARTY LEDGER */}
+                {activeTab === 'ledger' && (
+                  <PartyLedgerTab
+                    partyId={id || ''}
+                    partyType="CUSTOMER"
+                    partyName={values.customerName || initialValues.customerName || initialValues.name || 'Customer'}
+                  />
                 )}
 
                 {/* TAB 8: PORTAL USERS - COMMENTED OUT

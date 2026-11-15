@@ -507,24 +507,11 @@ function RepackFormPageBase() {
                       </span>
                     </div>
 
-                    {/* TARGET PRODUCT (ReusableAutocomplete with + Add New Item) */}
+                    {/* TARGET PRODUCT */}
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-xs font-bold text-gray-700">
-                          Select Retail Pack Item *
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPendingProductName('');
-                            setIsProductModalOpen(true);
-                          }}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>+ Add New Item</span>
-                        </button>
-                      </div>
+                      <label className="block text-xs font-bold text-gray-700">
+                        Select Retail Pack Item *
+                      </label>
 
                       <ReusableAutocomplete
                         keyName="targetProductId"
@@ -588,9 +575,6 @@ function RepackFormPageBase() {
                           }
                         }}
                       />
-                      <p className="text-[11px] text-gray-400">
-                        Type a new pack name or click <strong className="text-emerald-700">+ Add New Item</strong> to create it on the fly.
-                      </p>
                     </div>
 
                     {/* QUANTITY TO PRODUCE */}

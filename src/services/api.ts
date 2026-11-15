@@ -371,6 +371,23 @@ export const deleteSupplier = async (id: string): Promise<void> => {
   await dataService.delete(`/suppliers/${id}`);
 };
 
+export const fetchSupplierLedger = async (id: string, params?: { startDate?: string; endDate?: string }): Promise<any> => {
+  const response = await dataService.get(`/suppliers/${id}/ledger`, { params });
+  return response.data;
+};
+
+export const recordSupplierPayment = async (id: string, data: {
+  amount: number;
+  paymentType?: string;
+  date?: string;
+  description?: string;
+  invoiceId?: string;
+  direction?: 'OUT' | 'IN';
+}): Promise<any> => {
+  const response = await dataService.post(`/suppliers/${id}/payments`, data);
+  return response.data;
+};
+
 export const bulkImportSuppliers = async (items: any[]): Promise<any> => {
   const response = await dataService.post('/suppliers/bulk-import', { items });
   return response.data;
@@ -517,6 +534,28 @@ export const deleteCustomer = async (id: string): Promise<void> => {
   await dataService.delete(`/clients/${id}`);
 };
 
+export const fetchCustomerLedger = async (id: string, params?: { startDate?: string; endDate?: string }): Promise<any> => {
+  const response = await dataService.get(`/clients/${id}/ledger`, { params });
+  return response.data;
+};
+
+export const recordCustomerPayment = async (id: string, data: {
+  amount: number;
+  paymentType?: string;
+  date?: string;
+  description?: string;
+  invoiceId?: string;
+  direction?: 'IN' | 'OUT';
+}): Promise<any> => {
+  const response = await dataService.post(`/clients/${id}/payments`, data);
+  return response.data;
+};
+
+export const fetchPartyLedgerReport = async (params?: { type?: string; search?: string }): Promise<any> => {
+  const response = await dataService.get('/reports/party-ledger', { params });
+  return response.data;
+};
+
 export const bulkImportCustomers = async (items: any[]): Promise<any> => {
   const response = await dataService.post('/clients/bulk-import', { items });
   return response.data;
@@ -547,6 +586,11 @@ export const fetchInvoices = async (paramsOrSearch?: string | Record<string, any
 
 export const createInvoice = async (data: any): Promise<any> => {
   const response = await dataService.post('/invoices', data);
+  return response.data;
+};
+
+export const updateInvoice = async (id: string, data: any): Promise<any> => {
+  const response = await dataService.put(`/invoices/${id}`, data);
   return response.data;
 };
 

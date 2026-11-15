@@ -410,15 +410,18 @@ const ProductMasterListBase: React.FC = () => {
       title: 'Part Of',
       width: '160px',
       sortable: true,
-      render: (val) => {
-        const partVal = val || 'CONSUMABLE';
+      render: (val, record: any) => {
+        const partVal = (val || record?.partOf || '').toString().trim();
+        if (!partVal) {
+          return <span className="text-gray-300 font-mono">-</span>;
+        }
         return (
           <span 
             onClick={(e) => {
               e.stopPropagation();
               setQuickFilters(prev => ({ ...prev, partOf: partVal }));
             }}
-            className="uppercase text-gray-500 font-medium cursor-pointer hover:text-primary-600 hover:underline"
+            className="uppercase text-gray-600 font-medium cursor-pointer hover:text-primary-600 hover:underline"
           >
             {partVal}
           </span>
