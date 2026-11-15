@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { 
   UploadCloud, 
@@ -125,7 +125,37 @@ export const InvoiceItemsBulkUploadModal: React.FC<InvoiceItemsBulkUploadModalPr
   );
   const [filterView, setFilterView] = useState<'ALL' | 'MATCHED' | 'WARNINGS'>('ALL');
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) {
+      setFile(null);
+      setParsedItems([]);
+      setIsProcessing(false);
+      setIsDragging(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }, [isOpen]);
+
+  const totalUnits = useMemo(() => {
+    return parsedItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+  }, [parsedItems]);
+
+  const totalAmount = useMemo(() => {
+    return parsedItems.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)), 0);
+  }, [parsedItems]);
+
+  const matchedCount = useMemo(() => {
+    return parsedItems.filter(i => i.matched).length;
+  }, [parsedItems]);
+
+  const warningsCount = useMemo(() => {
+    return parsedItems.filter(i => !i.matched || Boolean(i.warning)).length;
+  }, [parsedItems]);
+
+  const displayedItems = useMemo(() => {
+    if (filterView === 'MATCHED') return parsedItems.filter(i => i.matched && !i.warning);
+    if (filterView === 'WARNINGS') return parsedItems.filter(i => !i.matched || Boolean(i.warning));
+    return parsedItems;
+  }, [parsedItems, filterView]);
 
   const handleReset = () => {
     setFile(null);
@@ -300,28 +330,6 @@ export const InvoiceItemsBulkUploadModal: React.FC<InvoiceItemsBulkUploadModalPr
     setParsedItems(prev => prev.filter(i => i.id !== idToRemove));
   };
 
-  const totalUnits = useMemo(() => {
-    return parsedItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-  }, [parsedItems]);
-
-  const totalAmount = useMemo(() => {
-    return parsedItems.reduce((sum, item) => sum + ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)), 0);
-  }, [parsedItems]);
-
-  const matchedCount = useMemo(() => {
-    return parsedItems.filter(i => i.matched).length;
-  }, [parsedItems]);
-
-  const warningsCount = useMemo(() => {
-    return parsedItems.filter(i => !i.matched || Boolean(i.warning)).length;
-  }, [parsedItems]);
-
-  const displayedItems = useMemo(() => {
-    if (filterView === 'MATCHED') return parsedItems.filter(i => i.matched && !i.warning);
-    if (filterView === 'WARNINGS') return parsedItems.filter(i => !i.matched || Boolean(i.warning));
-    return parsedItems;
-  }, [parsedItems, filterView]);
-
   const handleConfirmImport = () => {
     if (parsedItems.length === 0) {
       errorToast('No items to import');
@@ -351,6 +359,8 @@ export const InvoiceItemsBulkUploadModal: React.FC<InvoiceItemsBulkUploadModalPr
     onApplyItems(parsedItems, importMode);
     handleClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
