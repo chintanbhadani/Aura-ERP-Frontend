@@ -396,7 +396,7 @@ const CustomerListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={handleBulkExport}
+        onFetchAllRecords={fetchCustomers}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/customers/new')}
         addNewLabel="Add Customer"

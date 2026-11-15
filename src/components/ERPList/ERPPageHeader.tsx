@@ -4,7 +4,11 @@ import {
   RefreshCw, 
   MoreHorizontal, 
   Plus,
-  FileUp
+  FileUp,
+  FileSpreadsheet,
+  FileText,
+  Printer,
+  Download
 } from 'lucide-react';
 import { ButtonComponent } from '../button/ButtonComponent';
 
@@ -17,7 +21,13 @@ export interface ERPPageHeaderProps {
   viewTypeOptions?: string[];
   loading?: boolean;
   onRefresh?: () => void;
+  onExport?: () => void;
   onExportAll?: () => void;
+  onExportExcel?: () => void;
+  onExportPdf?: () => void;
+  excelLabel?: string;
+  pdfLabel?: string;
+  customMenuItems?: React.ReactNode;
   onPrint?: () => void;
   onAddNew?: () => void;
   addNewLabel?: string;
@@ -35,7 +45,13 @@ export const ERPPageHeader: React.FC<ERPPageHeaderProps> = ({
   viewTypeOptions = ['List View', 'Report View', 'Dashboard View', 'Kanban View'],
   loading = false,
   onRefresh,
+  onExport,
   onExportAll,
+  onExportExcel,
+  onExportPdf,
+  excelLabel,
+  pdfLabel,
+  customMenuItems,
   onPrint,
   onAddNew,
   addNewLabel = 'Add Item',
@@ -92,7 +108,7 @@ export const ERPPageHeader: React.FC<ERPPageHeaderProps> = ({
             <MoreHorizontal className="w-3.5 h-3.5" />
           </ButtonComponent>
           {showOptionsMenu && (
-            <div className="absolute right-0 mt-1.5 w-52 bg-white border border-gray-200 rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.18)] py-1.5 z-50 text-xs animate-in fade-in duration-150">
+            <div className="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.18)] py-1.5 z-50 text-xs animate-in fade-in duration-150">
               <button 
                 onClick={() => { onToggleSidebar(); setShowOptionsMenu(false); }} 
                 className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium flex items-center justify-between cursor-pointer"
@@ -103,13 +119,62 @@ export const ERPPageHeader: React.FC<ERPPageHeaderProps> = ({
                 </span>
                 <kbd className="bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded text-[10px] font-mono border border-gray-200">⌘+K</kbd>
               </button>
+              
               <hr className="my-1 border-gray-100" />
-              {onExportAll && (
-                <button onClick={() => { onExportAll(); setShowOptionsMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium cursor-pointer">Export All</button>
-              )}
+
+              {/* PRINT */}
               {onPrint && (
-                <button onClick={() => { onPrint(); setShowOptionsMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium cursor-pointer">Print</button>
+                <button 
+                  onClick={() => { onPrint(); setShowOptionsMenu(false); }} 
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-2 cursor-pointer transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                  <span>Print</span>
+                </button>
               )}
+
+              {/* EXPORT (OPENS MODAL) */}
+              {onExport ? (
+                <button 
+                  onClick={() => { onExport(); setShowOptionsMenu(false); }} 
+                  className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium flex items-center gap-2 cursor-pointer transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                  <span>Export</span>
+                </button>
+              ) : onExportExcel ? (
+                <button 
+                  onClick={() => { onExportExcel(); setShowOptionsMenu(false); }} 
+                  className="w-full text-left px-4 py-2 hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 font-medium flex items-center gap-2 cursor-pointer transition-colors"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>{excelLabel || 'Export to Excel (.xlsx)'}</span>
+                </button>
+              ) : onExportAll ? (
+                <button 
+                  onClick={() => { onExportAll(); setShowOptionsMenu(false); }} 
+                  className="w-full text-left px-4 py-2 hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 font-medium flex items-center gap-2 cursor-pointer transition-colors"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Export All</span>
+                </button>
+              ) : null}
+
+              {/* PDF EXPORT (When onExport modal is not used) */}
+              {!onExport && onExportPdf && (
+                <button 
+                  onClick={() => { onExportPdf(); setShowOptionsMenu(false); }} 
+                  className="w-full text-left px-4 py-2 hover:bg-rose-50 text-gray-700 hover:text-rose-700 font-medium flex items-center gap-2 cursor-pointer transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>{pdfLabel || 'Export to PDF (.pdf)'}</span>
+                </button>
+              )}
+
+              {customMenuItems}
+
+              <hr className="my-1 border-gray-100" />
+
               {onImport ? (
                 <button 
                   onClick={() => { onImport(); setShowOptionsMenu(false); }} 

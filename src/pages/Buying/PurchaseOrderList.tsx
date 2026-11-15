@@ -324,7 +324,7 @@ const PurchaseOrderListBase: React.FC = () => {
       onViewTypeChange={setViewType}
       loading={loading}
       onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-      onExportAll={handleBulkExport}
+      onFetchAllRecords={fetchPurchaseOrders}
       onPrint={() => window.print()}
       onAddNew={() => navigate('/purchase-order/new')}
       addNewLabel="Add Purchase Order"

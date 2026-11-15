@@ -357,7 +357,7 @@ const SupplierListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={handleBulkExport}
+        onFetchAllRecords={fetchSuppliers}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/suppliers/new')}
         addNewLabel="Add Supplier"

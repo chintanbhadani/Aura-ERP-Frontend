@@ -441,7 +441,10 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
       onViewTypeChange={setViewType}
       loading={loading}
       onRefresh={() => { loadInvoices(); successToast('Invoice records refreshed'); }}
-      onExportAll={handleBulkExport}
+      onFetchAllRecords={async () => {
+        const res = await fetchInvoices(fixedType);
+        return res || [];
+      }}
       onPrint={() => window.print()}
       onAddNew={() => navigate(addNewPath)}
       addNewLabel={addNewLabel}

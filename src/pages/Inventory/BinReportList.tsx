@@ -308,7 +308,10 @@ function BinReportListBase() {
       viewTypeOptions={['Report View', 'List View', 'Summary View']}
       loading={loading}
       onRefresh={loadData}
-      onExportAll={handleExportCSV}
+      onFetchAllRecords={async () => {
+        const res = await fetchBinReport();
+        return res || [];
+      }}
       onPrint={handlePrint}
       
       // Sidebar Filters

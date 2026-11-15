@@ -5,6 +5,7 @@ import { ERPPageHeader, type ERPPageHeaderProps } from './ERPPageHeader';
 import { ERPFilterSidebar, type ERPFilterSidebarProps } from './ERPFilterSidebar';
 import { ERPToolbar, type QuickFilterField } from './ERPToolbar';
 import { ERPFilterModal, type FilterRule } from './ERPFilterModal';
+import { ERPExportModal, type ExportFileFormat } from './ERPExportModal';
 
 export interface ERPListPageLayoutProps<T extends Record<string, any> = any> {
   title: string;
@@ -16,7 +17,16 @@ export interface ERPListPageLayoutProps<T extends Record<string, any> = any> {
   viewTypeOptions?: string[];
   loading?: boolean;
   onRefresh?: () => void;
+  onExport?: () => void;
   onExportAll?: () => void;
+  onExportExcel?: () => void;
+  onExportPdf?: () => void;
+  excelLabel?: string;
+  pdfLabel?: string;
+  customMenuItems?: React.ReactNode;
+  onFetchAllRecords?: () => Promise<T[]>;
+  customExportHandler?: (format: ExportFileFormat, records: T[], inBackground?: boolean) => Promise<void> | void;
+  enableExportModal?: boolean;
   onPrint?: () => void;
   onAddNew?: () => void;
   addNewLabel?: string;
@@ -99,7 +109,16 @@ export function ERPListPageLayout<T extends Record<string, any> = any>({
   viewTypeOptions,
   loading = false,
   onRefresh,
+  onExport,
   onExportAll,
+  onExportExcel,
+  onExportPdf,
+  excelLabel,
+  pdfLabel,
+  customMenuItems,
+  onFetchAllRecords,
+  customExportHandler,
+  enableExportModal = true,
   onPrint,
   onAddNew,
   addNewLabel,
@@ -158,6 +177,7 @@ export function ERPListPageLayout<T extends Record<string, any> = any>({
 }: ERPListPageLayoutProps<T>) {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // ⌘+K shortcut to toggle sidebar
   useEffect(() => {
@@ -201,7 +221,13 @@ export function ERPListPageLayout<T extends Record<string, any> = any>({
           viewTypeOptions={viewTypeOptions}
           loading={loading}
           onRefresh={onRefresh}
+          onExport={enableExportModal !== false ? (onExport || (() => setShowExportModal(true))) : undefined}
           onExportAll={onExportAll}
+          onExportExcel={onExportExcel}
+          onExportPdf={onExportPdf}
+          excelLabel={excelLabel}
+          pdfLabel={pdfLabel}
+          customMenuItems={customMenuItems}
           onPrint={onPrint}
           onAddNew={onAddNew}
           addNewLabel={addNewLabel}
@@ -282,6 +308,22 @@ export function ERPListPageLayout<T extends Record<string, any> = any>({
             setShowFilterModal(false);
           }}
         />
+
+        {/* COMMON ERP EXPORT MODAL (EXCEL / CSV / PDF VIA API) */}
+        {enableExportModal !== false && (
+          <ERPExportModal<T>
+            isOpen={showExportModal}
+            onClose={() => setShowExportModal(false)}
+            title={title}
+            columns={columns}
+            data={data}
+            filteredData={data}
+            selectedIds={selectedIds}
+            onFetchAllRecords={onFetchAllRecords}
+            customExportHandler={customExportHandler}
+            fileNamePrefix={title.toLowerCase().replace(/[^a-z0-9]+/g, '_')}
+          />
+        )}
       </div>
     </DashboardLayout>
   );

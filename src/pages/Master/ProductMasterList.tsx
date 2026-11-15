@@ -21,6 +21,7 @@ import {
   MessageSquare, 
   ChevronDown, 
   FileSpreadsheet, 
+  FileText,
   Printer, 
   Trash2, 
   UserPlus, 
@@ -29,6 +30,7 @@ import {
   X 
 } from 'lucide-react';
 import { formatFullDateTime } from '../../helper/helper';
+import { exportProductsToExcel, exportProductsToPdf, exportDataToCsv } from '../../helper/exportHelper';
 
 interface BulkEditFieldConfig {
   label: string;
@@ -182,22 +184,6 @@ const ProductMasterListBase: React.FC = () => {
       setSelectedIds([]);
       successToast('Deleted selected item(s)');
     }
-  };
-
-  const handleBulkExport = () => {
-    if (selectedIds.length === 0) {
-      errorToast('Please select at least one item to export');
-      return;
-    }
-    const exportData = products.filter(p => selectedIds.includes(p.id!));
-    const jsonStr = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(exportData, null, 2))}`;
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', jsonStr);
-    downloadAnchor.setAttribute('download', `item_master_export_${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    downloadAnchor.remove();
-    successToast(`Exported ${exportData.length} item(s)`);
   };
 
   const handleConfirmToggleStatus = async () => {
@@ -400,6 +386,50 @@ const ProductMasterListBase: React.FC = () => {
     filterRules.length > 0
   );
 
+  const selectedProducts = useMemo(() => {
+    return products.filter(p => selectedIds.includes(p.id!));
+  }, [products, selectedIds]);
+
+  const handleExportExcel = (customList?: Product[]) => {
+    let itemsToExport: Product[] = [];
+    if (customList && customList.length > 0) {
+      itemsToExport = customList;
+    } else if (selectedIds.length > 0) {
+      itemsToExport = selectedProducts;
+    } else if (filteredProducts.length > 0) {
+      itemsToExport = filteredProducts;
+    } else {
+      itemsToExport = products;
+    }
+
+    if (itemsToExport.length === 0) {
+      errorToast('No items available to export');
+      return;
+    }
+
+    exportProductsToExcel(itemsToExport);
+  };
+
+  const handleExportPdf = (customList?: Product[]) => {
+    let itemsToExport: Product[] = [];
+    if (customList && customList.length > 0) {
+      itemsToExport = customList;
+    } else if (selectedIds.length > 0) {
+      itemsToExport = selectedProducts;
+    } else if (filteredProducts.length > 0) {
+      itemsToExport = filteredProducts;
+    } else {
+      itemsToExport = products;
+    }
+
+    if (itemsToExport.length === 0) {
+      errorToast('No items available to export');
+      return;
+    }
+
+    exportProductsToPdf(itemsToExport);
+  };
+
   const clearAllFilters = () => {
     setGlobalSearch('');
     setQuickFilters({ id: '', name: '', group: '', partOf: '', company: '' });
@@ -561,7 +591,19 @@ const ProductMasterListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onExportAll={handleBulkExport}
+        onFetchAllRecords={async () => {
+          const res = await fetchInventory();
+          return res || [];
+        }}
+        customExportHandler={async (format, records) => {
+          if (format === 'excel') {
+            exportProductsToExcel(records);
+          } else if (format === 'pdf') {
+            exportProductsToPdf(records);
+          } else {
+            exportDataToCsv({ title: 'Item Master', data: records, columns });
+          }
+        }}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/products/new')}
         addNewLabel="Add Item"
@@ -630,9 +672,10 @@ const ProductMasterListBase: React.FC = () => {
                     <ChevronDown className="w-3.5 h-3.5" />
                   </button>
                   {showActionsMenu && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 rounded-md shadow-xl py-1 z-40 text-xs">
+                    <div className="absolute right-0 mt-1 w-52 bg-white border border-gray-200 rounded-md shadow-xl py-1 z-40 text-xs">
                       <button onClick={() => { setShowBulkEditModal(true); setShowActionsMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 cursor-pointer font-medium"><Edit3 className="w-3.5 h-3.5 text-gray-500" /> Edit (Bulk Edit)</button>
-                      <button onClick={() => { handleBulkExport(); setShowActionsMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"><FileSpreadsheet className="w-3.5 h-3.5 text-gray-500" /> Export</button>
+                      <button onClick={() => { handleExportExcel(selectedProducts); setShowActionsMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-emerald-50 text-gray-700 hover:text-emerald-700 flex items-center gap-2 cursor-pointer font-medium"><FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Export to Excel (.xlsx)</button>
+                      <button onClick={() => { handleExportPdf(selectedProducts); setShowActionsMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-rose-50 text-gray-700 hover:text-rose-700 flex items-center gap-2 cursor-pointer font-medium"><FileText className="w-3.5 h-3.5 text-rose-600" /> Export to PDF (.pdf)</button>
                       <button onClick={() => { successToast('Assigned to user'); setShowActionsMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"><UserPlus className="w-3.5 h-3.5 text-gray-500" /> Assign To</button>
                       <button onClick={() => { successToast('Assignment cleared'); setShowActionsMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"><UserX className="w-3.5 h-3.5 text-gray-500" /> Clear Assignment</button>
                       <button onClick={() => { window.print(); setShowActionsMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"><Printer className="w-3.5 h-3.5 text-gray-500" /> Print</button>
