@@ -44,7 +44,8 @@ export const formatCurrency = (
   if (!activeCurrency || activeCurrency.code === 'USD' || activeCurrency.symbol === '$') {
     activeCurrency = DEFAULT_CURRENCY;
   }
-  const num = Number(amount || 0);
+  const rawNum = typeof amount === 'number' ? amount : Number(amount || 0);
+  const num = isNaN(rawNum) ? 0 : rawNum;
   
   // Standard 3-digit comma grouping (e.g., 123,234,456,345)
   const locale = 'en-US';

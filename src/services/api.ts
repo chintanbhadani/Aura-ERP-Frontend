@@ -378,6 +378,13 @@ export const fetchSupplierLedger = async (id: string, params?: { startDate?: str
   return response.data;
 };
 
+export interface PaymentAllocationItem {
+  invoiceId: string;
+  amount: number;
+  refNo?: string;
+  description?: string;
+}
+
 export const recordSupplierPayment = async (id: string, data: {
   amount: number;
   paymentType?: string;
@@ -385,6 +392,7 @@ export const recordSupplierPayment = async (id: string, data: {
   description?: string;
   invoiceId?: string;
   direction?: 'OUT' | 'IN';
+  allocations?: PaymentAllocationItem[];
 }): Promise<any> => {
   const response = await dataService.post(`/suppliers/${id}/payments`, data);
   return response.data;
@@ -548,6 +556,7 @@ export const recordCustomerPayment = async (id: string, data: {
   description?: string;
   invoiceId?: string;
   direction?: 'IN' | 'OUT';
+  allocations?: PaymentAllocationItem[];
 }): Promise<any> => {
   const response = await dataService.post(`/clients/${id}/payments`, data);
   return response.data;
@@ -1531,5 +1540,81 @@ export const createCashQuickEntry = async (data: {
   const response = await dataService.post('/reports/cash-book/quick-entry', data);
   return response.data;
 };
+
+// ==================== ITEM-WISE STOCK COUNT & RECONCILIATION ====================
+
+export interface StockCountItem {
+  id: string;
+  sessionId: string;
+  productId: string;
+  itemCode: string;
+  itemName: string;
+  itemGroup?: string;
+  uom?: string;
+  location?: string;
+  costPrice: number;
+  systemQty: number;
+  countedQty: number | null;
+  varianceQty: number;
+  varianceValue: number;
+  status: 'Matched' | 'Shortage' | 'Surplus' | 'Pending';
+  reason?: string;
+}
+
+export interface StockCountSession {
+  id: string;
+  sessionNumber: string;
+  periodType: string;
+  countDate: string;
+  title: string;
+  status: 'Draft' | 'In Progress' | 'Reconciled';
+  totalItems: number;
+  matchedItems: number;
+  discrepantItems: number;
+  netVarianceQty: number;
+  netVarianceValue: number;
+  notes?: string;
+  reconciledAt?: string;
+  reconciledBy?: string;
+  items: StockCountItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const fetchStockCountSession = async (params?: { date?: string; periodType?: string }): Promise<StockCountSession> => {
+  const response = await dataService.get('/stock-count/session', { params });
+  return response.data;
+};
+
+export const saveStockCountDraft = async (data: {
+  sessionId: string;
+  items: Array<{ id: string; productId: string; countedQty: number | null; reason?: string }>;
+  notes?: string;
+  title?: string;
+}): Promise<StockCountSession> => {
+  const response = await dataService.post('/stock-count/save', data);
+  return response.data;
+};
+
+export const autoPopulateStockCount = async (sessionId: string, mode?: 'ALL' | 'ONLY_EMPTY'): Promise<StockCountSession> => {
+  const response = await dataService.post('/stock-count/auto-populate', { sessionId, mode });
+  return response.data;
+};
+
+export const reconcileStockCount = async (data: { sessionId: string; notes?: string; user?: string }): Promise<any> => {
+  const response = await dataService.post('/stock-count/reconcile', data);
+  return response.data;
+};
+
+export const fetchStockCountHistory = async (): Promise<any[]> => {
+  const response = await dataService.get('/stock-count/history');
+  return response.data;
+};
+
+export const fetchStockCountSessionById = async (id: string): Promise<StockCountSession> => {
+  const response = await dataService.get(`/stock-count/session/${id}`);
+  return response.data;
+};
+
 
 

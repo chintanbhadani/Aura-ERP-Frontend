@@ -18,12 +18,14 @@ import {
   Scale, 
   CheckCircle2, 
   AlertCircle,
-  Calendar
+  Calendar,
+  Plus
 } from 'lucide-react';
 import { formatCurrency } from '../../helper/currency';
 import { fetchPartyLedgerReport } from '../../services/api';
 import { errorToast } from '../../helper/toast';
 import { ERPExportModal } from '../../components/ERPList/ERPExportModal';
+import { RecordPaymentModal } from '../../components/PartyLedger/RecordPaymentModal';
 import type { ColumnDef } from '../../components/CustomTable';
 
 export const PartyLedgerPageBase: React.FC = () => {
@@ -46,6 +48,8 @@ export const PartyLedgerPageBase: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'ALL' | 'CUSTOMER' | 'SUPPLIER'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
+  const [paymentModalParty, setPaymentModalParty] = useState<{ id: string; name: string; type: 'CUSTOMER' | 'SUPPLIER' } | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -146,6 +150,17 @@ export const PartyLedgerPageBase: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentModalParty(null);
+                setIsRecordPaymentOpen(true);
+              }}
+              className="px-3.5 py-2 bg-[#059669] hover:bg-[#047857] text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-sm hover:shadow-md cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Receive Payment</span>
+            </button>
             <button
               type="button"
               onClick={() => setIsExportModalOpen(true)}
@@ -365,18 +380,35 @@ export const PartyLedgerPageBase: React.FC = () => {
 
                         {/* ACTIONS */}
                         <td className="py-3 px-3 text-center whitespace-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const route = isCust
-                                ? `/master/customers/${row.partyId}?tab=ledger`
-                                : `/master/suppliers/${row.partyId}?tab=ledger`;
-                              navigate(route);
-                            }}
-                            className="px-2.5 py-1 text-[11px] font-bold text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors cursor-pointer"
-                          >
-                            Open Ledger
-                          </button>
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPaymentModalParty({
+                                  id: row.partyId,
+                                  name: row.partyName,
+                                  type: isCust ? 'CUSTOMER' : 'SUPPLIER'
+                                });
+                                setIsRecordPaymentOpen(true);
+                              }}
+                              className="px-2.5 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-300 transition-colors cursor-pointer"
+                              title={`Record ${isCust ? 'Receipt from' : 'Payment to'} ${row.partyName}`}
+                            >
+                              {isCust ? 'Receive' : 'Pay'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const route = isCust
+                                  ? `/master/customers/${row.partyId}?tab=ledger`
+                                  : `/master/suppliers/${row.partyId}?tab=ledger`;
+                                navigate(route);
+                              }}
+                              className="px-2.5 py-1 text-[11px] font-bold text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors cursor-pointer"
+                            >
+                              Open Ledger
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -480,6 +512,19 @@ export const PartyLedgerPageBase: React.FC = () => {
             const res = await fetchPartyLedgerReport({ type: activeTab });
             return res?.rows || filteredRows;
           }}
+        />
+
+        {/* RECORD PAYMENT MODAL (WITH MULTI-SELECT & AUTO-ALLOCATE) */}
+        <RecordPaymentModal
+          isOpen={isRecordPaymentOpen}
+          onClose={() => {
+            setIsRecordPaymentOpen(false);
+            setPaymentModalParty(null);
+          }}
+          initialPartyType={paymentModalParty?.type || (activeTab === 'SUPPLIER' ? 'SUPPLIER' : 'CUSTOMER')}
+          initialPartyId={paymentModalParty?.id || ''}
+          initialPartyName={paymentModalParty?.name || ''}
+          onSuccess={loadData}
         />
       </div>
     </DashboardLayout>

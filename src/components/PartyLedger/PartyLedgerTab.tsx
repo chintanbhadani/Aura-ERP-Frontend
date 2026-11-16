@@ -24,12 +24,11 @@ import {
 import { formatCurrency } from '../../helper/currency';
 import { successToast, errorToast } from '../../helper/toast';
 import { ERPExportModal } from '../ERPList/ERPExportModal';
+import { RecordPaymentModal } from './RecordPaymentModal';
 import type { ColumnDef } from '../CustomTable';
 import { 
   fetchCustomerLedger, 
-  recordCustomerPayment, 
   fetchSupplierLedger, 
-  recordSupplierPayment 
 } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -59,14 +58,6 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
 
   // Payment Modal State
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [submittingPayment, setSubmittingPayment] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({
-    amount: '',
-    paymentType: 'CASH',
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-    invoiceId: '',
-  });
 
   const isCustomer = partyType === 'CUSTOMER';
 
@@ -128,58 +119,6 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
       (tx.paymentMethod && tx.paymentMethod.toLowerCase().includes(q))
     );
   }, [ledgerData?.transactions, searchQuery]);
-
-  // Invoices eligible for payment allocation
-  const pendingInvoices = useMemo(() => {
-    if (!ledgerData?.transactions) return [];
-    return ledgerData.transactions.filter((tx: any) => 
-      tx.type === 'INVOICE' && (tx.status === 'PARTIAL' || tx.status === 'CREDIT' || tx.status === 'UNPAID')
-    );
-  }, [ledgerData?.transactions]);
-
-  // Handle Payment Submit
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = Number(paymentForm.amount);
-    if (!amountNum || amountNum <= 0) {
-      errorToast('Please enter a valid amount');
-      return;
-    }
-
-    setSubmittingPayment(true);
-    try {
-      const payload: any = {
-        amount: amountNum,
-        paymentType: paymentForm.paymentType,
-        date: paymentForm.date ? new Date(paymentForm.date).toISOString() : new Date().toISOString(),
-        description: paymentForm.description || (isCustomer ? `Payment received from ${partyName}` : `Payment made to ${partyName}`),
-        invoiceId: paymentForm.invoiceId || undefined,
-        direction: isCustomer ? 'IN' : 'OUT',
-      };
-
-      if (isCustomer) {
-        await recordCustomerPayment(partyId, payload);
-      } else {
-        await recordSupplierPayment(partyId, payload);
-      }
-
-      successToast(isCustomer ? 'Customer payment recorded successfully!' : 'Supplier payment recorded successfully!');
-      setIsPaymentModalOpen(false);
-      setPaymentForm({
-        amount: '',
-        paymentType: 'CASH',
-        date: new Date().toISOString().split('T')[0],
-        description: '',
-        invoiceId: '',
-      });
-      loadLedger();
-    } catch (err: any) {
-      console.error('Failed to record payment:', err);
-      errorToast(err?.response?.data?.error || 'Failed to record payment');
-    } finally {
-      setSubmittingPayment(false);
-    }
-  };
 
   // Export to CSV
   const exportToCSV = () => {
@@ -630,144 +569,16 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
         )}
       </div>
 
-      {/* 4. RECORD PAYMENT MODAL */}
-      {isPaymentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white rounded-3xl shadow-2xl border border-gray-200 w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-primary-100 text-primary-700">
-                  <Wallet className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-extrabold text-gray-900">
-                    {isCustomer ? 'Record Customer Receipt' : 'Record Supplier Payment'}
-                  </h3>
-                  <p className="text-[11px] text-gray-500">{partyName}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPaymentModalOpen(false)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {/* 4. RECORD PAYMENT MODAL (WITH MULTI-SELECT & AUTO-ALLOCATE) */}
+      <RecordPaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        initialPartyType={partyType}
+        initialPartyId={partyId}
+        initialPartyName={partyName}
+        onSuccess={loadLedger}
+      />
 
-            {/* Modal Form */}
-            <form onSubmit={handlePaymentSubmit} className="p-6 space-y-4">
-              {/* Amount */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-700">
-                  Payment Amount *
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="any"
-                    min="0.01"
-                    placeholder="e.g. 500000"
-                    value={paymentForm.amount}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-                    required
-                    className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 focus:outline-none focus:border-primary-500 font-mono"
-                  />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
-                    UGX / USh
-                  </span>
-                </div>
-              </div>
-
-              {/* Payment Mode & Date */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-700">
-                    Payment Method *
-                  </label>
-                  <select
-                    value={paymentForm.paymentType}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, paymentType: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-primary-500"
-                  >
-                    <option value="CASH">Cash Settlement</option>
-                    <option value="BANK">Bank Transfer / Cheque</option>
-                    <option value="MOBILE_MONEY">Airtel / MTN Mobile Money</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-700">
-                    Payment Date *
-                  </label>
-                  <input
-                    type="date"
-                    value={paymentForm.date}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, date: e.target.value })}
-                    required
-                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-800 focus:outline-none focus:border-primary-500"
-                  />
-                </div>
-              </div>
-
-              {/* Link to Invoice (Optional) */}
-              {pendingInvoices.length > 0 && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-700">
-                    Allocate to Open Invoice (Optional)
-                  </label>
-                  <select
-                    value={paymentForm.invoiceId}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, invoiceId: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-medium text-gray-800 focus:outline-none focus:border-primary-500"
-                  >
-                    <option value="">-- General Account Payment / Advance --</option>
-                    {pendingInvoices.map((inv: any) => (
-                      <option key={inv.invoiceId || inv.id} value={inv.invoiceId}>
-                        {inv.refNo} - Due: {formatCurrency(inv.debit || inv.credit || 0)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Description / Remarks */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-700">
-                  Notes / Reference / Cheque #
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="e.g. Cheque #58421 cleared, Cash received at counter, MTN Mobile Money Ref: 84930..."
-                  value={paymentForm.description}
-                  onChange={(e) => setPaymentForm({ ...paymentForm, description: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs text-gray-800 focus:outline-none focus:border-primary-500 resize-none font-medium"
-                />
-              </div>
-
-              {/* Modal Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsPaymentModalOpen(false)}
-                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 rounded-xl transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingPayment}
-                  className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
-                >
-                  {submittingPayment && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{submittingPayment ? 'Recording...' : 'Record Payment'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       {/* 5. ERP EXPORT MODAL (EXCEL / PDF / CSV) */}
       <ERPExportModal
         isOpen={isExportModalOpen}

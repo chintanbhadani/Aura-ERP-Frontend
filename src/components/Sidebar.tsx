@@ -94,6 +94,7 @@ const navItems: NavItem[] = [
       // { name: 'Stock Entry', href: '/stock-entry', icon: Package },
       { name: 'Stock Ledger', href: '/stock-ledger', icon: Activity, moduleName: ModuleName.STOCK_ENTRIES, requiredPermission: Permission.LIST },
       { name: 'Bin Report (Stock Balance)', href: '/bin-report', icon: Boxes, moduleName: ModuleName.INVENTORY_PRODUCTS, requiredPermission: Permission.LIST },
+      { name: 'Item wise stock count', href: '/stock/stock-count', icon: ClipboardCheck, moduleName: ModuleName.INVENTORY_PRODUCTS, requiredPermission: Permission.LIST },
     ]
   },
   /* Production and CRM commented out temporarily for future work

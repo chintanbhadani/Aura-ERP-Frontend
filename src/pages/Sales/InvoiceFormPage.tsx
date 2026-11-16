@@ -14,10 +14,7 @@ import {
   fetchInvoiceById,
   createCustomer, 
   createSupplier, 
-  createCategory, 
-  createSku, 
   createProduct,
-  createUnit,
   uploadFile
 } from '../../services/api';
 import type { SkuMaster, Product, Customer, Supplier, Category, Unit } from '../../services/api';
@@ -37,12 +34,6 @@ import {
   Camera, 
   ChevronDown, 
   Download,
-  Receipt,
-  QrCode,
-  DollarSign,
-  CreditCard,
-  Building2,
-  Calendar,
   Check,
   X,
   ExternalLink,

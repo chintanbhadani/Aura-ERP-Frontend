@@ -53,6 +53,7 @@ import { PurchaseOrderFormPage } from './pages/Buying/PurchaseOrderFormPage';
 import { BinReportList } from './pages/Inventory/BinReportList';
 import { StockLedgerList } from './pages/Inventory/StockLedgerList';
 import { StockDashboardPage } from './pages/Inventory/StockDashboardPage';
+import { ItemWiseStockCountPage } from './pages/Inventory/ItemWiseStockCountPage';
 import { ProductionOrderList } from './pages/Sales/ProductionOrderList';
 import { ProductionOrderFormPage } from './pages/Sales/ProductionOrderFormPage';
 import { ProductionPlanningPage } from './pages/Sales/ProductionPlanningPage';
@@ -123,6 +124,12 @@ function App() {
         <Route path="/stock/bin-report" element={<BinReportList />} />
         <Route path="/app/query-report/Neelkanth%20Bin%20Report" element={<BinReportList />} />
         <Route path="/app/query-report/Neelkanth Bin Report" element={<BinReportList />} />
+
+        {/* Item Wise Stock Count Routes */}
+        <Route path="/stock/stock-count" element={<ItemWiseStockCountPage />} />
+        <Route path="/stock/item-wise-stock-count" element={<ItemWiseStockCountPage />} />
+        <Route path="/stock-count" element={<ItemWiseStockCountPage />} />
+        <Route path="/item-wise-stock-count" element={<ItemWiseStockCountPage />} />
         
         {/* Purchase Order Routes */}
         <Route path="/purchase-order" element={<PurchaseOrderList />} />
