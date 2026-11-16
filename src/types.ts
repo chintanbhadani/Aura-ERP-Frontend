@@ -88,6 +88,8 @@ export interface Invoice {
   notes?: string | null;
   paymentTerms?: string | null;
   totalAmount: number;
+  shippingCharge?: number;
+  laborCost?: number;
   paymentType?: PaymentType;
   cashAmount?: number;
   bankAmount?: number;

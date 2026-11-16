@@ -90,6 +90,14 @@ const invoiceValidationSchema = Yup.object({
       then: (schema) => schema.min(0, 'Min 0').notRequired(),
       otherwise: (schema) => schema.notRequired(),
     }),
+  shippingCharge: Yup.number()
+    .transform((val, orig) => (orig === '' || orig === null || orig === undefined ? 0 : Number(val)))
+    .min(0, 'Min 0')
+    .notRequired(),
+  laborCost: Yup.number()
+    .transform((val, orig) => (orig === '' || orig === null || orig === undefined ? 0 : Number(val)))
+    .min(0, 'Min 0')
+    .notRequired(),
   items: Yup.array().of(
     Yup.object({
       productId: Yup.string().required('Item is required'),
@@ -392,6 +400,8 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         bankAmount: existingInvoice.bankAmount !== undefined && existingInvoice.bankAmount !== null ? Number(existingInvoice.bankAmount) : '',
         mobileMoneyAmount: existingInvoice.mobileMoneyAmount !== undefined && existingInvoice.mobileMoneyAmount !== null ? Number(existingInvoice.mobileMoneyAmount) : '',
         creditAmount: existingInvoice.creditAmount !== undefined && existingInvoice.creditAmount !== null ? Number(existingInvoice.creditAmount) : '',
+        shippingCharge: existingInvoice.shippingCharge !== undefined && existingInvoice.shippingCharge !== null ? Number(existingInvoice.shippingCharge) : '',
+        laborCost: existingInvoice.laborCost !== undefined && existingInvoice.laborCost !== null ? Number(existingInvoice.laborCost) : '',
         notes: existingInvoice.notes || '',
         paymentTerms: existingInvoice.paymentTerms || 'Payment due on receipt',
         status: existingInvoice.status || 'PAID',
@@ -426,6 +436,8 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       bankAmount: '',
       mobileMoneyAmount: '',
       creditAmount: '',
+      shippingCharge: '',
+      laborCost: '',
       notes: '',
       paymentTerms: 'Payment due on receipt',
       status: 'DRAFT',
@@ -571,6 +583,8 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         paymentType: values.paymentType,
         notes: values.notes,
         paymentTerms: values.paymentTerms,
+        shippingCharge: values.shippingCharge !== '' && values.shippingCharge !== undefined ? Number(values.shippingCharge) : 0,
+        laborCost: values.laborCost !== '' && values.laborCost !== undefined ? Number(values.laborCost) : 0,
         imageUrl: finalImageUrl || undefined,
         attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
         items: values.items.map((i: any) => ({
@@ -626,11 +640,10 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       onSubmit={handleSubmit}
     >
       {({ values, submitForm, isSubmitting, setFieldValue, dirty }) => {
-        const calculateTotal = () => {
-          return values.items.reduce((sum: number, item: any) => sum + ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)), 0);
-        };
-
-        const grandTotalAmount = calculateTotal();
+        const itemsSubtotal = values.items.reduce((sum: number, item: any) => sum + ((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)), 0);
+        const shippingChargeVal = Number(values.shippingCharge || 0);
+        const laborCostVal = Number(values.laborCost || 0);
+        const grandTotalAmount = itemsSubtotal + shippingChargeVal + laborCostVal;
         const totalQty = values.items.reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0);
         const totalCostAmount = values.items.reduce((sum: number, item: any) => sum + ((Number(item.quantity) || 0) * (Number(item.costPrice) || 0)), 0);
         const totalProfitAmount = grandTotalAmount - totalCostAmount;
@@ -1050,6 +1063,24 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                               label="Payment Due Date"
                               type="date"
                             />
+
+                            {/* Shipping Charge (in Row 2 Col 3) */}
+                            <TextFieldComponent
+                              name="shippingCharge"
+                              label={`Shipping Charge (${currency?.symbol || 'USh'})`}
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                            />
+
+                            {/* Labor Cost */}
+                            <TextFieldComponent
+                              name="laborCost"
+                              label={`Labor Cost (${currency?.symbol || 'USh'})`}
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                            />
                           </div>
                         </div>
 
@@ -1356,10 +1387,22 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                           <div className="w-full md:w-80 bg-gray-50/80 border border-gray-200 rounded-2xl p-5 space-y-3 shadow-2xs">
                             <div className="flex justify-between text-xs text-gray-600">
                               <span>Subtotal</span>
-                              <span className="font-mono font-medium">{format(grandTotalAmount)}</span>
+                              <span className="font-mono font-medium">{format(itemsSubtotal)}</span>
                             </div>
 
+                            {Number(values.shippingCharge) > 0 && (
+                              <div className="flex justify-between text-xs text-gray-600">
+                                <span>Shipping Charge</span>
+                                <span className="font-mono font-medium text-emerald-800">+{format(Number(values.shippingCharge))}</span>
+                              </div>
+                            )}
 
+                            {Number(values.laborCost) > 0 && (
+                              <div className="flex justify-between text-xs text-gray-600">
+                                <span>Labor Cost</span>
+                                <span className="font-mono font-medium text-emerald-800">+{format(Number(values.laborCost))}</span>
+                              </div>
+                            )}
 
                             <div className="flex justify-between text-xs text-gray-600">
                               <span>Tax / VAT (0%)</span>

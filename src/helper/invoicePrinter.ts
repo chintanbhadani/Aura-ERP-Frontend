@@ -66,6 +66,13 @@ export const generateInvoiceHtml = (invoice: Invoice, currency?: CurrencySetting
   const totalAmountFormatted = formatCurrency(invoice.totalAmount, activeCurrency);
   const themeColor = THEME_CONFIG.primary || '#0f8b5a';
 
+  const itemsSubtotal = (invoice.items || []).reduce((sum, item) => {
+    const qty = Number(item.quantity || 0);
+    return sum + (Number(item.totalPrice) || (qty * Number(item.unitPrice || 0)));
+  }, 0);
+  const shippingCharge = Number(invoice.shippingCharge || 0);
+  const laborCost = Number(invoice.laborCost || 0);
+
   const itemsRows = (invoice.items || []).map((item, index) => {
     const productName = item.product?.name || item.productId || 'Item';
     const sku = item.product?.sku ? `<span style="color: #6b7280; font-size: 11px;">(SKU: ${item.product.sku})</span>` : '';
@@ -312,7 +319,25 @@ export const generateInvoiceHtml = (invoice: Invoice, currency?: CurrencySetting
 
         <div class="summary-block">
           <div class="summary-card">
-            <div class="summary-total">
+            ${(shippingCharge > 0 || laborCost > 0) ? `
+              <div style="display: flex; justify-content: space-between; font-size: 13px; color: #4b5563; margin-bottom: 6px;">
+                <span>Items Subtotal</span>
+                <span>${formatCurrency(itemsSubtotal, activeCurrency)}</span>
+              </div>
+            ` : ''}
+            ${shippingCharge > 0 ? `
+              <div style="display: flex; justify-content: space-between; font-size: 13px; color: #4b5563; margin-bottom: 6px;">
+                <span>Shipping Charge</span>
+                <span>+${formatCurrency(shippingCharge, activeCurrency)}</span>
+              </div>
+            ` : ''}
+            ${laborCost > 0 ? `
+              <div style="display: flex; justify-content: space-between; font-size: 13px; color: #4b5563; margin-bottom: 6px;">
+                <span>Labor Cost</span>
+                <span>+${formatCurrency(laborCost, activeCurrency)}</span>
+              </div>
+            ` : ''}
+            <div class="summary-total" style="${(shippingCharge > 0 || laborCost > 0) ? 'border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 4px;' : ''}">
               <span>Total Amount</span>
               <span>${totalAmountFormatted}</span>
             </div>
@@ -531,21 +556,56 @@ export const downloadInvoicePdf = async (invoice: Invoice, currency?: CurrencySe
     // Final Y position after table
     const finalY = ((doc as any).lastAutoTable?.finalY || 120) + 8;
 
+    const shippingChargeNum = Number(invoice.shippingCharge || 0);
+    const laborCostNum = Number(invoice.laborCost || 0);
+    const hasAdditionalCharges = shippingChargeNum > 0 || laborCostNum > 0;
+    const cardHeight = hasAdditionalCharges ? (20 + (shippingChargeNum > 0 ? 6 : 0) + (laborCostNum > 0 ? 6 : 0) + 4) : 20;
+
     // Summary Card
     doc.setFillColor(249, 250, 251);
-    doc.roundedRect(120, finalY, 76, 20, 3, 3, 'F');
+    doc.roundedRect(120, finalY, 76, cardHeight, 3, 3, 'F');
     doc.setDrawColor(229, 231, 235);
-    doc.roundedRect(120, finalY, 76, 20, 3, 3, 'S');
+    doc.roundedRect(120, finalY, 76, cardHeight, 3, 3, 'S');
+
+    let currentCardY = finalY + 7;
+    if (hasAdditionalCharges) {
+      const itemsSubtotalNum = (invoice.items || []).reduce((sum, item) => {
+        const qty = Number(item.quantity || 0);
+        return sum + (Number(item.totalPrice) || (qty * Number(item.unitPrice || 0)));
+      }, 0);
+      doc.setFontSize(8.5);
+      doc.setTextColor(107, 114, 128);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Subtotal:', 125, currentCardY);
+      doc.text(formatCurrency(itemsSubtotalNum, activeCurrency), 191, currentCardY, { align: 'right' });
+      currentCardY += 6;
+
+      if (shippingChargeNum > 0) {
+        doc.text('Shipping Charge:', 125, currentCardY);
+        doc.text(`+${formatCurrency(shippingChargeNum, activeCurrency)}`, 191, currentCardY, { align: 'right' });
+        currentCardY += 6;
+      }
+
+      if (laborCostNum > 0) {
+        doc.text('Labor Cost:', 125, currentCardY);
+        doc.text(`+${formatCurrency(laborCostNum, activeCurrency)}`, 191, currentCardY, { align: 'right' });
+        currentCardY += 6;
+      }
+
+      doc.setDrawColor(229, 231, 235);
+      doc.line(125, currentCardY - 1, 191, currentCardY - 1);
+      currentCardY += 2;
+    }
 
     doc.setFontSize(10);
     doc.setTextColor(107, 114, 128);
     doc.setFont('helvetica', 'bold');
-    doc.text('Total Amount:', 125, finalY + 12);
+    doc.text('Total Amount:', 125, currentCardY + 4);
 
     doc.setFontSize(13);
     doc.setTextColor(primaryRgb[0], primaryRgb[1], primaryRgb[2]);
     doc.setFont('helvetica', 'bold');
-    doc.text(totalAmount, 191, finalY + 12, { align: 'right' });
+    doc.text(totalAmount, 191, currentCardY + 4, { align: 'right' });
 
     // Footer
     doc.setFont('helvetica', 'normal');
