@@ -56,7 +56,7 @@ const SubPartOfListBase: React.FC = () => {
     try {
       setLoading(true);
       const data = await fetchSubPartOfs();
-      setItems(data || []);
+      setItems((data || []).map((i: any) => ({ ...i, disabled: Boolean(i.disabled) })));
     } catch (err) {
       console.error('Failed to load Sub Part Of entries:', err);
       errorToast('Failed to load Sub Part Of master');
@@ -237,7 +237,10 @@ const SubPartOfListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onFetchAllRecords={fetchSubPartOfs}
+        onFetchAllRecords={async () => {
+          const res = await fetchSubPartOfs();
+          return (res || []).map((i: any) => ({ ...i, disabled: Boolean(i.disabled) }));
+        }}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/sub-part-of/new')}
         addNewLabel="Add Sub Part Of"

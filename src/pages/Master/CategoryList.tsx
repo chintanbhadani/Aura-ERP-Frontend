@@ -90,7 +90,11 @@ const CategoryListBase: React.FC = () => {
     setLoading(true);
     try {
       const data = await fetchCategories();
-      setCategories(data || []);
+      const normalized = (data || []).map((c: any) => ({
+        ...c,
+        disabled: Boolean(c.disabled !== undefined ? c.disabled : c.status === 'Inactive')
+      }));
+      setCategories(normalized);
     } catch (err) {
       console.error('Failed to fetch categories:', err);
       setCategories([]);
@@ -115,14 +119,19 @@ const CategoryListBase: React.FC = () => {
 
   const handleSubmitCategory = async (values: { name: string; disabled: boolean }, { setSubmitting }: any) => {
     try {
+      const payload = {
+        name: values.name,
+        disabled: values.disabled,
+        status: values.disabled ? 'Inactive' : 'Active'
+      };
       if (editingCategory) {
-        await updateCategory(editingCategory.id, values);
-        setCategories(prev => prev.map(c => c.id === editingCategory.id ? { ...c, ...values, updatedAt: new Date().toISOString() } : c));
+        await updateCategory(editingCategory.id, payload);
+        setCategories(prev => prev.map(c => c.id === editingCategory.id ? { ...c, ...payload, updatedAt: new Date().toISOString() } : c));
         successToast('Category updated successfully');
       } else {
-        const created = await createCategory(values);
+        const created = await createCategory(payload);
         const newId = String(created?.id || categories.length + 1);
-        setCategories(prev => [{ id: newId, displayId: newId, name: values.name, disabled: values.disabled, assignedTo: 'Administrator', tags: 'CUSTOM', updatedAt: new Date().toISOString() }, ...prev]);
+        setCategories(prev => [{ id: newId, displayId: newId, name: values.name, disabled: values.disabled, status: payload.status, assignedTo: 'Administrator', tags: 'CUSTOM', updatedAt: new Date().toISOString() }, ...prev]);
         successToast('Category created successfully');
       }
       setIsModalOpen(false);
@@ -138,9 +147,18 @@ const CategoryListBase: React.FC = () => {
     if (!toggleCategoryTarget) return;
     setIsToggleLoading(true);
     const nextDisabled = !toggleCategoryTarget.disabled;
+    const nextStatus = nextDisabled ? 'Inactive' : 'Active';
     try {
-      await updateCategory(toggleCategoryTarget.id, { disabled: nextDisabled });
-      setCategories(prev => prev.map(c => String(c.id) === String(toggleCategoryTarget.id) ? { ...c, disabled: nextDisabled, updatedAt: new Date().toISOString() } : c));
+      await updateCategory(toggleCategoryTarget.id, { 
+        disabled: nextDisabled,
+        status: nextStatus
+      });
+      setCategories(prev => prev.map(c => String(c.id) === String(toggleCategoryTarget.id) ? { 
+        ...c, 
+        disabled: nextDisabled, 
+        status: nextStatus,
+        updatedAt: new Date().toISOString() 
+      } : c));
       successToast(nextDisabled ? `Disabled "${toggleCategoryTarget.name}"` : `Enabled "${toggleCategoryTarget.name}"`);
       setToggleCategoryTarget(null);
     } catch (err: any) {
@@ -153,8 +171,8 @@ const CategoryListBase: React.FC = () => {
   const handleBulkDisable = async () => {
     if (selectedIds.length === 0) return;
     try {
-      await Promise.all(selectedIds.map(id => updateCategory(id, { disabled: true })));
-      setCategories(prev => prev.map(c => selectedIds.includes(String(c.id)) ? { ...c, disabled: true, updatedAt: new Date().toISOString() } : c));
+      await Promise.all(selectedIds.map(id => updateCategory(id, { disabled: true, status: 'Inactive' })));
+      setCategories(prev => prev.map(c => selectedIds.includes(String(c.id)) ? { ...c, disabled: true, status: 'Inactive', updatedAt: new Date().toISOString() } : c));
       setSelectedIds([]);
       successToast('Disabled selected category/categories');
     } catch (err: any) {
@@ -165,8 +183,8 @@ const CategoryListBase: React.FC = () => {
   const handleBulkEnable = async () => {
     if (selectedIds.length === 0) return;
     try {
-      await Promise.all(selectedIds.map(id => updateCategory(id, { disabled: false })));
-      setCategories(prev => prev.map(c => selectedIds.includes(String(c.id)) ? { ...c, disabled: false, updatedAt: new Date().toISOString() } : c));
+      await Promise.all(selectedIds.map(id => updateCategory(id, { disabled: false, status: 'Active' })));
+      setCategories(prev => prev.map(c => selectedIds.includes(String(c.id)) ? { ...c, disabled: false, status: 'Active', updatedAt: new Date().toISOString() } : c));
       setSelectedIds([]);
       successToast('Enabled selected category/categories');
     } catch (err: any) {
@@ -397,7 +415,13 @@ const CategoryListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onFetchAllRecords={fetchCategories}
+        onFetchAllRecords={async () => {
+          const res = await fetchCategories();
+          return (res || []).map((c: any) => ({
+            ...c,
+            disabled: Boolean(c.disabled !== undefined ? c.disabled : c.status === 'Inactive')
+          }));
+        }}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/categories/new')}
         addNewLabel="Add Item Group"

@@ -8,7 +8,6 @@ import { type ColumnDef } from '../../components/CustomTable';
 import { 
   fetchSuppliers, 
   updateSupplier,
-  deleteSupplier, 
   bulkImportSuppliers,
   type Supplier 
 } from '../../services/api';
@@ -78,7 +77,11 @@ const SupplierListBase: React.FC = () => {
     setLoading(true);
     try {
       const data = await fetchSuppliers();
-      setSuppliers(data || []);
+      const normalized = (data || []).map((s: any) => ({
+        ...s,
+        disabled: Boolean(s.disabled !== undefined ? s.disabled : s.status === 'Inactive')
+      }));
+      setSuppliers(normalized);
     } catch (err) {
       console.error('Failed to fetch suppliers:', err);
       setSuppliers([]);
@@ -100,9 +103,18 @@ const SupplierListBase: React.FC = () => {
     if (!toggleSupplierTarget) return;
     setIsToggleLoading(true);
     const nextDisabled = !toggleSupplierTarget.disabled;
+    const nextStatus = nextDisabled ? 'Inactive' : 'Active';
     try {
-      await updateSupplier(toggleSupplierTarget.id, { disabled: nextDisabled });
-      setSuppliers(prev => prev.map(s => String(s.id) === String(toggleSupplierTarget.id) ? { ...s, disabled: nextDisabled, updatedAt: new Date().toISOString() } : s));
+      await updateSupplier(toggleSupplierTarget.id, { 
+        disabled: nextDisabled,
+        status: nextStatus
+      });
+      setSuppliers(prev => prev.map(s => String(s.id) === String(toggleSupplierTarget.id) ? { 
+        ...s, 
+        disabled: nextDisabled, 
+        status: nextStatus,
+        updatedAt: new Date().toISOString() 
+      } : s));
       successToast(nextDisabled ? `Disabled "${toggleSupplierTarget.name}"` : `Enabled "${toggleSupplierTarget.name}"`);
       setToggleSupplierTarget(null);
     } catch (err: any) {
@@ -357,7 +369,13 @@ const SupplierListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onFetchAllRecords={fetchSuppliers}
+        onFetchAllRecords={async () => {
+          const res = await fetchSuppliers();
+          return (res || []).map((s: any) => ({
+            ...s,
+            disabled: Boolean(s.disabled !== undefined ? s.disabled : s.status === 'Inactive')
+          }));
+        }}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/suppliers/new')}
         addNewLabel="Add Supplier"

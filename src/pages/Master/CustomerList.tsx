@@ -80,7 +80,11 @@ const CustomerListBase: React.FC = () => {
     setLoading(true);
     try {
       const data = await fetchCustomers();
-      setCustomers(data || []);
+      const normalized = (data || []).map((c: any) => ({
+        ...c,
+        disabled: Boolean(c.disabled !== undefined ? c.disabled : c.status === 'Inactive')
+      }));
+      setCustomers(normalized);
     } catch (err) {
       console.error('Failed to fetch customers:', err);
       setCustomers([]);
@@ -102,9 +106,18 @@ const CustomerListBase: React.FC = () => {
     if (!toggleCustomerTarget) return;
     setIsToggleLoading(true);
     const nextDisabled = !toggleCustomerTarget.disabled;
+    const nextStatus = nextDisabled ? 'Inactive' : 'Active';
     try {
-      await updateCustomer(toggleCustomerTarget.id, { disabled: nextDisabled });
-      setCustomers(prev => prev.map(c => String(c.id) === String(toggleCustomerTarget.id) ? { ...c, disabled: nextDisabled, updatedAt: new Date().toISOString() } : c));
+      await updateCustomer(toggleCustomerTarget.id, { 
+        disabled: nextDisabled,
+        status: nextStatus
+      });
+      setCustomers(prev => prev.map(c => String(c.id) === String(toggleCustomerTarget.id) ? { 
+        ...c, 
+        disabled: nextDisabled, 
+        status: nextStatus,
+        updatedAt: new Date().toISOString() 
+      } : c));
       successToast(nextDisabled ? `Disabled "${toggleCustomerTarget.customerName || toggleCustomerTarget.name}"` : `Enabled "${toggleCustomerTarget.customerName || toggleCustomerTarget.name}"`);
       setToggleCustomerTarget(null);
     } catch (err: any) {
@@ -396,7 +409,13 @@ const CustomerListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onFetchAllRecords={fetchCustomers}
+        onFetchAllRecords={async () => {
+          const res = await fetchCustomers();
+          return (res || []).map((c: any) => ({
+            ...c,
+            disabled: Boolean(c.disabled !== undefined ? c.disabled : c.status === 'Inactive')
+          }));
+        }}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/customers/new')}
         addNewLabel="Add Customer"

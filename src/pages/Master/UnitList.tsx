@@ -89,7 +89,11 @@ const UnitListBase: React.FC = () => {
     setLoading(true);
     try {
       const data = await fetchUnits();
-      setUnits(data || []);
+      const normalized = (data || []).map((u: any) => ({
+        ...u,
+        disabled: Boolean(u.disabled !== undefined ? u.disabled : u.status === 'Inactive')
+      }));
+      setUnits(normalized);
     } catch (err) {
       console.error('Failed to fetch units:', err);
       setUnits([]);
@@ -114,14 +118,19 @@ const UnitListBase: React.FC = () => {
 
   const handleSubmitUnit = async (values: { name: string; disabled?: boolean }, { setSubmitting }: any) => {
     try {
+      const payload = {
+        name: values.name,
+        disabled: values.disabled,
+        status: values.disabled ? 'Inactive' : 'Active'
+      };
       if (editingUnit) {
-        await updateUnit(editingUnit.id, values);
-        setUnits(prev => prev.map(u => u.id === editingUnit.id ? { ...u, ...values, updatedAt: new Date().toISOString() } : u));
+        await updateUnit(editingUnit.id, payload);
+        setUnits(prev => prev.map(u => u.id === editingUnit.id ? { ...u, ...payload, updatedAt: new Date().toISOString() } : u));
         successToast('Unit updated successfully');
       } else {
-        const created = await createUnit(values);
+        const created = await createUnit(payload);
         const newId = String(created?.id || units.length + 1);
-        setUnits(prev => [{ id: newId, name: values.name, disabled: values.disabled, assignedTo: 'Administrator', tags: 'CUSTOM', updatedAt: new Date().toISOString() }, ...prev]);
+        setUnits(prev => [{ id: newId, name: values.name, disabled: values.disabled, status: payload.status, assignedTo: 'Administrator', tags: 'CUSTOM', updatedAt: new Date().toISOString() }, ...prev]);
         successToast('Unit created successfully');
       }
       setIsModalOpen(false);
@@ -137,9 +146,18 @@ const UnitListBase: React.FC = () => {
     if (!toggleUnitTarget) return;
     setIsToggleLoading(true);
     const nextDisabled = !toggleUnitTarget.disabled;
+    const nextStatus = nextDisabled ? 'Inactive' : 'Active';
     try {
-      await updateUnit(toggleUnitTarget.id, { disabled: nextDisabled });
-      setUnits(prev => prev.map(u => String(u.id) === String(toggleUnitTarget.id) ? { ...u, disabled: nextDisabled, updatedAt: new Date().toISOString() } : u));
+      await updateUnit(toggleUnitTarget.id, { 
+        disabled: nextDisabled,
+        status: nextStatus
+      });
+      setUnits(prev => prev.map(u => String(u.id) === String(toggleUnitTarget.id) ? { 
+        ...u, 
+        disabled: nextDisabled, 
+        status: nextStatus,
+        updatedAt: new Date().toISOString() 
+      } : u));
       successToast(nextDisabled ? `Disabled "${toggleUnitTarget.name}"` : `Enabled "${toggleUnitTarget.name}"`);
       setToggleUnitTarget(null);
     } catch (err: any) {
@@ -365,7 +383,13 @@ const UnitListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onFetchAllRecords={fetchUnits}
+        onFetchAllRecords={async () => {
+          const res = await fetchUnits();
+          return (res || []).map((u: any) => ({
+            ...u,
+            disabled: Boolean(u.disabled !== undefined ? u.disabled : u.status === 'Inactive')
+          }));
+        }}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/units/new')}
         addNewLabel="Add Unit"

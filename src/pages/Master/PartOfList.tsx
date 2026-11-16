@@ -59,7 +59,7 @@ const PartOfListBase: React.FC = () => {
     try {
       setLoading(true);
       const data = await fetchPartOfs();
-      setItems(data || []);
+      setItems((data || []).map((i: any) => ({ ...i, disabled: Boolean(i.disabled) })));
     } catch (err) {
       console.error('Failed to load Part Of entries:', err);
       errorToast('Failed to load Part Of master');
@@ -240,7 +240,10 @@ const PartOfListBase: React.FC = () => {
         onViewTypeChange={setViewType}
         loading={loading}
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
-        onFetchAllRecords={fetchPartOfs}
+        onFetchAllRecords={async () => {
+          const res = await fetchPartOfs();
+          return (res || []).map((i: any) => ({ ...i, disabled: Boolean(i.disabled) }));
+        }}
         onPrint={() => window.print()}
         onAddNew={() => navigate('/master/part-of/new')}
         addNewLabel="Add Part Of"

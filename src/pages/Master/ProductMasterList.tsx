@@ -158,7 +158,11 @@ const ProductMasterListBase: React.FC = () => {
         fetchPartOfs().catch(() => []),
         fetchSubPartOfs().catch(() => [])
       ]);
-      setProducts(invData || []);
+      const normalized = (invData || []).map((p: any) => ({
+        ...p,
+        disabled: Boolean(p.disabled !== undefined ? p.disabled : p.status === 'Inactive')
+      }));
+      setProducts(normalized);
       setPartOfsData(parts || []);
       setSubPartOfsData(subParts || []);
     } catch (err) {
@@ -190,9 +194,18 @@ const ProductMasterListBase: React.FC = () => {
     if (!toggleProductTarget || !toggleProductTarget.id) return;
     setIsToggleLoading(true);
     const nextDisabled = !toggleProductTarget.disabled;
+    const nextStatus = nextDisabled ? 'Inactive' : 'Active';
     try {
-      await updateProduct(toggleProductTarget.id, { disabled: nextDisabled });
-      setProducts(prev => prev.map(p => String(p.id) === String(toggleProductTarget.id) ? { ...p, disabled: nextDisabled, updatedAt: new Date().toISOString() } : p));
+      await updateProduct(toggleProductTarget.id, { 
+        disabled: nextDisabled,
+        status: nextStatus
+      } as any);
+      setProducts(prev => prev.map(p => String(p.id) === String(toggleProductTarget.id) ? { 
+        ...p, 
+        disabled: nextDisabled, 
+        status: nextStatus,
+        updatedAt: new Date().toISOString() 
+      } : p));
       successToast(nextDisabled ? `Disabled "${toggleProductTarget.name}"` : `Enabled "${toggleProductTarget.name}"`);
       setToggleProductTarget(null);
     } catch (err: any) {
@@ -219,6 +232,11 @@ const ProductMasterListBase: React.FC = () => {
       // Persist updates to backend
       await Promise.all(selectedIds.map(async (prodId) => {
         const updatePayload: any = { [selectedBulkField]: parsedValue };
+        if (selectedBulkField === 'disabled') {
+          updatePayload.status = parsedValue ? 'Inactive' : 'Active';
+        } else if (selectedBulkField === 'status') {
+          updatePayload.disabled = parsedValue === 'Inactive';
+        }
         if (selectedBulkField === 'partOfId') {
           const matched = partOfsData.find(p => String(p.id) === String(parsedValue));
           if (matched) {
@@ -239,6 +257,11 @@ const ProductMasterListBase: React.FC = () => {
       setProducts(prev => prev.map(p => {
         if (selectedIds.includes(p.id!)) {
           const updated: any = { ...p, [selectedBulkField]: parsedValue, updatedAt: new Date().toISOString() };
+          if (selectedBulkField === 'disabled') {
+            updated.status = parsedValue ? 'Inactive' : 'Active';
+          } else if (selectedBulkField === 'status') {
+            updated.disabled = parsedValue === 'Inactive';
+          }
           if (selectedBulkField === 'categoryId') {
             const matchedCat = categoriesList.find(c => c.id === parsedValue);
             if (matchedCat) updated.category = matchedCat;
@@ -593,7 +616,10 @@ const ProductMasterListBase: React.FC = () => {
         onRefresh={() => { loadData(); successToast('Data refreshed'); }}
         onFetchAllRecords={async () => {
           const res = await fetchInventory();
-          return res || [];
+          return (res || []).map((p: any) => ({
+            ...p,
+            disabled: Boolean(p.disabled !== undefined ? p.disabled : p.status === 'Inactive')
+          }));
         }}
         customExportHandler={async (format, records) => {
           if (format === 'excel') {
