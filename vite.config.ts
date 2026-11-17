@@ -9,6 +9,12 @@ export default defineConfig({
     host: true,
     port: 5137,
     allowedHosts: ['erp.postilio.tech', '.postilio.tech', 'localhost'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [
     react(),

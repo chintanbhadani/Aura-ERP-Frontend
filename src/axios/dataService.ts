@@ -1,7 +1,27 @@
 import axios from 'axios';
 import store from '../lib/store';
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000/api";
+const getApiBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_BACKEND_URL;
+  if (typeof window !== 'undefined') {
+    // When served over HTTPS, any HTTP URL causes browser (blocked:mixed-content).
+    // Automatically use relative '/api' so requests are secure and routed through reverse proxy.
+    if (window.location.protocol === 'https:') {
+      if (!envUrl || envUrl.startsWith('http://')) {
+        return '/api';
+      }
+    }
+    // When hosted on a domain (like erp.postilio.tech), use relative '/api' if envUrl points to localhost/http
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      if (!envUrl || envUrl.includes('localhost') || envUrl.startsWith('http://')) {
+        return '/api';
+      }
+    }
+  }
+  return envUrl ? envUrl.replace(/\/+$/, '') : "http://localhost:8000/api";
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const dataService = axios.create({
   baseURL: API_BASE_URL,
