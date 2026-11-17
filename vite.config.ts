@@ -11,7 +11,7 @@ export default defineConfig({
     allowedHosts: ['erp.postilio.tech', '.postilio.tech', 'localhost'],
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8003',
         changeOrigin: true,
       },
     },
