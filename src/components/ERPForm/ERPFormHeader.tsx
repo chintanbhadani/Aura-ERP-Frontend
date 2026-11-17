@@ -32,6 +32,10 @@ export interface ERPFormHeaderProps {
   isSubmitting?: boolean;
   saveLabel?: string;
   showSave?: boolean;
+  onSubmitAction?: () => void;
+  submitLabel?: string;
+  showSubmit?: boolean;
+  isSubmittingAction?: boolean;
   dirty?: boolean;
 }
 
@@ -49,6 +53,10 @@ export const ERPFormHeader: React.FC<ERPFormHeaderProps> = ({
   isSubmitting = false,
   saveLabel = 'Save',
   showSave = true,
+  onSubmitAction,
+  submitLabel = 'Submit',
+  showSubmit = false,
+  isSubmittingAction = false,
   dirty = false,
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -244,12 +252,23 @@ export const ERPFormHeader: React.FC<ERPFormHeaderProps> = ({
 
           {showSave && onSave && (
             <ButtonComponent
-              variant="primary"
+              variant={showSubmit && onSubmitAction ? "outlined" : "primary"}
               onClick={onSave}
-              loading={isSubmitting}
+              loading={isSubmitting && !isSubmittingAction}
               loadingText="Saving..."
             >
               {saveLabel}
+            </ButtonComponent>
+          )}
+
+          {showSubmit && onSubmitAction && (
+            <ButtonComponent
+              variant="primary"
+              onClick={onSubmitAction}
+              loading={isSubmittingAction}
+              loadingText="Submitting..."
+            >
+              {submitLabel}
             </ButtonComponent>
           )}
         </div>

@@ -3,6 +3,7 @@ import { useNavigate, useParams, useLocation, useSearchParams } from 'react-rout
 import { Formik, Form, FieldArray } from 'formik';
 import * as Yup from 'yup';
 import { ERPFormHeader, ERPFormPageLayout } from '../../components/ERPForm';
+import { StatusBadge } from '../../components/StatusBadge';
 import { 
   fetchSkus, 
   fetchCustomers, 
@@ -191,6 +192,8 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
   const supplierResolveRef = useRef<((val: Supplier) => void) | null>(null);
   const productResolveRef = useRef<((val: any) => void) | null>(null);
   const formikRef = useRef<any>(null);
+  const submissionStatusRef = useRef<'Draft' | 'Submitted' | string | null>(null);
+  const [isSubmittingSubmit, setIsSubmittingSubmit] = useState(false);
 
   useEffect(() => {
     loadMasterData();
@@ -404,7 +407,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         laborCost: existingInvoice.laborCost !== undefined && existingInvoice.laborCost !== null ? Number(existingInvoice.laborCost) : '',
         notes: existingInvoice.notes || '',
         paymentTerms: existingInvoice.paymentTerms || 'Payment due on receipt',
-        status: existingInvoice.status || 'PAID',
+        status: existingInvoice.status || 'Draft',
         markAsPaid: true,
         updateStock: true,
         sendEmail: false,
@@ -440,7 +443,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       laborCost: '',
       notes: '',
       paymentTerms: 'Payment due on receipt',
-      status: 'DRAFT',
+      status: 'Draft',
       markAsPaid: true,
       updateStock: true,
       sendEmail: false,
@@ -538,6 +541,40 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     successToast(`Successfully imported ${formattedItems.length} line item(s)`);
   };
 
+  const handleTriggerAction = async (targetAction: 'Draft' | 'Submitted' | 'Edit') => {
+    if (formikRef.current) {
+      const errs = await formikRef.current.validateForm();
+      if (errs && Object.keys(errs).length > 0) {
+        console.error('Invoice form validation errors:', errs);
+        Object.keys(errs).forEach((key: string) => formikRef.current?.setFieldTouched(key, true, false));
+        const firstErrKey = Object.keys(errs)[0];
+        let firstErrMsg = (errs as any)[firstErrKey];
+        if (typeof firstErrMsg === 'object' && firstErrMsg !== null) {
+          firstErrMsg = Object.values(firstErrMsg).flat().join(', ');
+        }
+        errorToast(typeof firstErrMsg === 'string' ? `Cannot save: ${firstErrMsg}` : 'Please complete all required fields.');
+        return;
+      }
+
+      if (targetAction === 'Draft') {
+        submissionStatusRef.current = 'Draft';
+        formikRef.current.setFieldValue('status', 'Draft');
+        setIsSubmittingSubmit(false);
+      } else if (targetAction === 'Submitted') {
+        submissionStatusRef.current = 'Submitted';
+        formikRef.current.setFieldValue('status', 'Submitted');
+        setIsSubmittingSubmit(true);
+      } else {
+        // Edit mode (updating existing invoice)
+        const currentStatus = formikRef.current.values.status || existingInvoice?.status || 'Draft';
+        submissionStatusRef.current = currentStatus;
+        setIsSubmittingSubmit(false);
+      }
+
+      await formikRef.current.submitForm();
+    }
+  };
+
   const handleSubmit = async (values: typeof initialValues, { setSubmitting }: any) => {
     try {
       // 1. Upload Avatar / Invoice Slip Image if a new file was selected
@@ -549,6 +586,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         } catch (err) {
           console.error('Failed to upload invoice slip/image:', err);
           errorToast('Failed to upload invoice image');
+          setIsSubmittingSubmit(false);
           setSubmitting(false);
           return;
         }
@@ -569,12 +607,15 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         } catch (err) {
           console.error('Failed to upload attachments:', err);
           errorToast('Failed to upload attachment files');
+          setIsSubmittingSubmit(false);
           setSubmitting(false);
           return;
         }
       }
 
       const finalAttachments = [...existingAttachmentItems, ...uploadedAttachmentItems];
+
+      const finalStatus = submissionStatusRef.current || values.status || (isEditMode ? (existingInvoice?.status || 'Draft') : 'Draft');
 
       const payload: any = {
         type: values.type,
@@ -587,6 +628,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         laborCost: values.laborCost !== '' && values.laborCost !== undefined ? Number(values.laborCost) : 0,
         imageUrl: finalImageUrl || undefined,
         attachments: finalAttachments.length > 0 ? finalAttachments : undefined,
+        status: finalStatus,
         items: values.items.map((i: any) => ({
           productId: i.productId,
           quantity: Number(i.quantity),
@@ -612,10 +654,18 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
 
       if (isEditMode && invoiceId) {
         await updateInvoice(invoiceId, payload);
-        successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice updated successfully!`);
+        if (submissionStatusRef.current === 'Submitted' && existingInvoice?.status === 'Draft') {
+          successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice submitted successfully!`);
+        } else {
+          successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice updated successfully!`);
+        }
       } else {
         await createInvoice(payload);
-        successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice created successfully!`);
+        if (finalStatus === 'Draft') {
+          successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice saved as draft!`);
+        } else {
+          successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice submitted successfully!`);
+        }
       }
       navigate(values.type === 'SALES' ? '/invoices/sales' : '/invoices/purchase');
     } catch (err: any) {
@@ -627,6 +677,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         (isEditMode ? 'Failed to update invoice' : 'Failed to create invoice');
       errorToast(errorMsg);
     } finally {
+      setIsSubmittingSubmit(false);
       setSubmitting(false);
     }
   };
@@ -661,12 +712,12 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                 onBack={() => navigate(backUrl)}
                 backTitle={values.type === 'SALES' ? 'Back to Sales Invoices' : 'Back to Purchase Invoices'}
                 statusBadge={{
-                  label: values.status || (isEditMode ? 'Completed' : 'Draft'),
-                  variant: values.status === 'PAID' ? 'success' : values.status === 'DRAFT' ? 'warning' : 'blue'
+                  label: values.status || (isEditMode ? 'Draft' : 'Draft'),
                 }}
-                dirty={dirty || !isEditMode}
+                dirty={dirty}
                 onDuplicate={() => {
                   setFieldValue('invoiceNumber', '');
+                  setFieldValue('status', 'Draft');
                   successToast('Invoice duplicated as new draft');
                 }}
                 onPrint={() => {
@@ -689,27 +740,14 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                     onClick: handleCopyLink
                   }
                 ]}
-                onSave={async () => {
-                  if (formikRef.current) {
-                    const errs = await formikRef.current.validateForm();
-                    if (errs && Object.keys(errs).length > 0) {
-                      console.error('Invoice form validation errors:', errs);
-                      Object.keys(errs).forEach((key: string) => formikRef.current?.setFieldTouched(key, true, false));
-                      const firstErrKey = Object.keys(errs)[0];
-                      let firstErrMsg = (errs as any)[firstErrKey];
-                      if (typeof firstErrMsg === 'object' && firstErrMsg !== null) {
-                        firstErrMsg = Object.values(firstErrMsg).flat().join(', ');
-                      }
-                      errorToast(typeof firstErrMsg === 'string' ? `Cannot save: ${firstErrMsg}` : 'Please complete all required fields.');
-                      return;
-                    }
-                    await formikRef.current.submitForm();
-                  } else {
-                    submitForm();
-                  }
-                }}
-                isSubmitting={isSubmitting}
-                saveLabel={isEditMode ? "Save" : "Submit"}
+                saveLabel={isEditMode ? "Edit" : "Save"}
+                onSave={() => handleTriggerAction(isEditMode ? 'Edit' : 'Draft')}
+                showSave={true}
+                isSubmitting={isSubmitting && !isSubmittingSubmit}
+                submitLabel="Submit"
+                onSubmitAction={() => handleTriggerAction('Submitted')}
+                showSubmit={!isEditMode || values.status === 'Draft'}
+                isSubmittingAction={isSubmittingSubmit}
               />
             }
           >
@@ -914,9 +952,9 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                       <span>Created By:</span>
                       <span className="font-semibold text-gray-800">Administrator</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span>Status:</span>
-                      <span className="font-semibold text-emerald-700">{values.status || 'Draft'}</span>
+                      <StatusBadge status={values.status || 'Draft'} size="xs" />
                     </div>
                     <div className="flex justify-between">
                       <span>Last Updated:</span>
