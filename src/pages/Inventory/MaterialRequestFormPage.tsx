@@ -97,12 +97,11 @@ const MaterialRequestFormPageBase: React.FC = () => {
   const [following, setFollowing] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState<boolean>(!isEditMode);
 
-  // Top Header Actions (Actions Dropdown, Create Dropdown, Print Modal & Jump to Field Modal)
+  // Top Header Actions (Create Dropdown, Print Modal & Jump to Field Modal)
   const formikRef = useRef<any>(null);
-  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [isSubmittingSubmit, setIsSubmittingSubmit] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showGetItemsMenu, setShowGetItemsMenu] = useState(false);
-  const actionsMenuRef = useRef<HTMLDivElement>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
   const getItemsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -112,9 +111,6 @@ const MaterialRequestFormPageBase: React.FC = () => {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
-        setShowActionsMenu(false);
-      }
       if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
         setShowCreateMenu(false);
       }
@@ -698,53 +694,15 @@ const MaterialRequestFormPageBase: React.FC = () => {
               </div>
 
 
-              {/* Actions Dropdown Button */}
-              <div className="relative" ref={actionsMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowActionsMenu(prev => !prev)}
-                  className="h-9 px-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer select-none"
-                >
-                  <span>Actions</span>
-                  <ChevronsUpDown className="w-3.5 h-3.5 text-gray-500" />
-                </button>
-
-                {showActionsMenu && (
-                  <div className="absolute right-0 mt-1.5 w-40 bg-white border border-gray-200 rounded-2xl shadow-xl py-1.5 z-50 text-xs font-medium animate-in fade-in zoom-in-95">
-                    {initialValues.status === 'Submitted' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowActionsMenu(false);
-                          handleReject();
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 font-semibold flex items-center gap-2 cursor-pointer"
-                      >
-                        <XCircle className="w-3.5 h-3.5 text-red-600" />
-                        <span>Reject</span>
-                      </button>
-                    )}
-                    {(initialValues.status === 'Draft' || !initialValues.status) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowActionsMenu(false);
-                          handleFinalSubmit();
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-800 font-semibold flex items-center gap-2 cursor-pointer"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-primary-600" />
-                        <span>Submit</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
             </div>
           }
           onPrint={() => setShowPrintModal(true)}
           moreMenuItems={[
+            ...(initialValues.status === 'Submitted' ? [{
+              label: 'Reject',
+              onClick: () => handleReject(),
+              danger: true
+            }] : []),
             {
               label: 'Duplicate',
               onClick: () => successToast('Material Request duplicated successfully')
@@ -794,7 +752,28 @@ const MaterialRequestFormPageBase: React.FC = () => {
               if (formElem) formElem.requestSubmit();
             }
           }}
-          isSubmitting={loading}
+          isSubmitting={loading && !isSubmittingSubmit}
+          showSubmit={initialValues.status !== 'Submitted'}
+          submitLabel="Submit"
+          onSubmitAction={async () => {
+            if (formikRef.current) {
+              const errs = await formikRef.current.validateForm();
+              if (errs && Object.keys(errs).length > 0) {
+                Object.keys(errs).forEach((key: string) => formikRef.current?.setFieldTouched(key, true, false));
+                const firstErrKey = Object.keys(errs)[0];
+                const firstErrMsg = (errs as any)[firstErrKey];
+                errorToast(typeof firstErrMsg === 'string' ? `Cannot submit: ${firstErrMsg}` : 'Please fix the errors in the form');
+                return;
+              }
+            }
+            setIsSubmittingSubmit(true);
+            try {
+              await handleFinalSubmit();
+            } finally {
+              setIsSubmittingSubmit(false);
+            }
+          }}
+          isSubmittingAction={isSubmittingSubmit}
         />
       }
       sidebar={

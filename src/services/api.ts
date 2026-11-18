@@ -149,6 +149,19 @@ export const fetchProducts = async (search?: string): Promise<Product[]> => {
   return response.data;
 };
 
+export interface PointInTimeStockInfo {
+  stockAsOfDate: number;
+  currentStock: number;
+  firstStockDate: string | null;
+  name: string;
+  sku: string;
+}
+
+export const fetchStockAsOfDate = async (date: string): Promise<Record<string, PointInTimeStockInfo>> => {
+  const response = await dataService.get('/products/stock-as-of-date', { params: { date } });
+  return response.data;
+};
+
 export interface BinReportItem {
   id: string;
   itemCode: string;

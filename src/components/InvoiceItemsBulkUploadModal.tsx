@@ -48,7 +48,8 @@ export interface InvoiceItemsBulkUploadModalProps {
 export const downloadInvoiceItemTemplate = (
   availableProducts: any[] = [],
   invoiceType: string = 'SALES',
-  fileName: string = 'Invoice_Items_Template.xlsx'
+  fileName?: string,
+  currentItems: any[] = []
 ) => {
   try {
     const headers = [
@@ -56,32 +57,64 @@ export const downloadInvoiceItemTemplate = (
       'Item Name',
       'Quantity',
       'Rate (USh)',
-      'Unit (UOM)'
+      'Unit (UOM)',
+      'Amount (USh)'
     ];
 
     let rows: any[][] = [];
+    const validCurrentItems = Array.isArray(currentItems)
+      ? currentItems.filter(item => item && (item.productId || item.name))
+      : [];
 
-    // Use up to 3 real products from availableProducts if provided
-    if (availableProducts && availableProducts.length > 0) {
-      const sampleSlice = availableProducts.slice(0, 3);
+    if (validCurrentItems.length > 0) {
+      // Export ALL active items on the invoice
+      rows = validCurrentItems.map((item, idx) => {
+        const prod = availableProducts.find(
+          p => p && (p.id === item.productId || String(p.id) === String(item.productId))
+        );
+        const sku = prod?.sku || prod?.item_code || prod?.code || item.sku || `SKU-${idx + 101}`;
+        const name = prod?.name || item.name || 'Item';
+        const qty = Number(item.quantity) || 1;
+        const rate = Number(
+          item.unitPrice !== undefined && item.unitPrice !== null && item.unitPrice !== ''
+            ? item.unitPrice
+            : (invoiceType === 'PURCHASE' ? (prod?.cost_price || prod?.price) : (prod?.selling_price || prod?.price))
+        ) || 0;
+        const uom = prod?.uom || prod?.unit || item.uom || 'Pcs';
+        const amount = qty * rate;
+
+        return [
+          sku,
+          name,
+          qty,
+          rate,
+          uom,
+          amount
+        ];
+      });
+    } else if (availableProducts && availableProducts.length > 0) {
+      // Fallback: If table is empty, generate sample template rows
+      const sampleSlice = availableProducts.slice(0, 5);
       rows = sampleSlice.map((p, idx) => {
         const rate = invoiceType === 'PURCHASE' 
           ? (p.cost_price || p.price || 5000) 
           : (p.selling_price || p.price || 8000);
+        const qty = (idx + 1) * 5;
         return [
           p.sku || `SKU-${idx + 101}`,
           p.name || 'Sample Product',
-          (idx + 1) * 5,
+          qty,
           rate,
-          p.uom || 'Pcs'
+          p.uom || 'Pcs',
+          qty * rate
         ];
       });
     } else {
-      // Fallback realistic examples
+      // Realistic fallback examples
       rows = [
-        ['MAT-002', 'Battery', 2, 8240, 'Nos'],
-        ['PSTL001', 'UltraTech Cement', 10, 34000, 'Bag'],
-        ['PSTL002', 'Plane Steel', 5, 205200, 'Kg']
+        ['MAT-002', 'Battery', 2, 8240, 'Nos', 16480],
+        ['PSTL001', 'UltraTech Cement', 10, 34000, 'Bag', 340000],
+        ['PSTL002', 'Plane Steel', 5, 205200, 'Kg', 1026000]
       ];
     }
 
@@ -90,20 +123,30 @@ export const downloadInvoiceItemTemplate = (
 
     // Auto-fit column widths
     ws['!cols'] = [
-      { wch: 18 }, // SKU
-      { wch: 28 }, // Item Name
+      { wch: 20 }, // SKU
+      { wch: 32 }, // Item Name
       { wch: 12 }, // Quantity
       { wch: 16 }, // Rate
-      { wch: 14 }  // UOM
+      { wch: 14 }, // UOM
+      { wch: 18 }  // Amount
     ];
 
+    const targetFileName = fileName || (validCurrentItems.length > 0
+      ? `${invoiceType === 'PURCHASE' ? 'Purchase' : 'Sales'}_Invoice_Items.xlsx`
+      : 'Invoice_Items_Template.xlsx');
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Items Template');
-    XLSX.writeFile(wb, fileName);
-    successToast('Invoice items template downloaded');
+    XLSX.utils.book_append_sheet(wb, ws, validCurrentItems.length > 0 ? 'Invoice Items' : 'Items Template');
+    XLSX.writeFile(wb, targetFileName);
+
+    if (validCurrentItems.length > 0) {
+      successToast(`Downloaded ${rows.length} invoice item(s)`);
+    } else {
+      successToast('Invoice items template downloaded');
+    }
   } catch (err: any) {
-    console.error('Failed to download template:', err);
-    errorToast('Failed to generate template file');
+    console.error('Failed to download invoice items:', err);
+    errorToast('Failed to generate Excel file');
   }
 };
 

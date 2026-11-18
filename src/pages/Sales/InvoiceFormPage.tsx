@@ -16,7 +16,9 @@ import {
   createCustomer, 
   createSupplier, 
   createProduct,
-  uploadFile
+  uploadFile,
+  fetchStockAsOfDate,
+  type PointInTimeStockInfo
 } from '../../services/api';
 import type { SkuMaster, Product, Customer, Supplier, Category, Unit } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
@@ -195,7 +197,25 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
   const submissionStatusRef = useRef<'Draft' | 'Submitted' | string | null>(null);
   const [isSubmittingSubmit, setIsSubmittingSubmit] = useState(false);
 
+  const [pointInTimeStockMap, setPointInTimeStockMap] = useState<Record<string, PointInTimeStockInfo>>({});
+  const [loadingStockDate, setLoadingStockDate] = useState(false);
+
+  const loadPointInTimeStock = async (targetDateStr?: string) => {
+    if (!targetDateStr) return;
+    try {
+      setLoadingStockDate(true);
+      const stockData = await fetchStockAsOfDate(targetDateStr);
+      setPointInTimeStockMap(stockData || {});
+    } catch (err) {
+      console.warn('Could not fetch point-in-time stock:', err);
+    } finally {
+      setLoadingStockDate(false);
+    }
+  };
+
   useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    loadPointInTimeStock(today);
     loadMasterData();
     if (invoiceId) {
       loadExistingInvoice(invoiceId);
@@ -226,6 +246,10 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       const inv = await fetchInvoiceById(id);
       if (inv) {
         setExistingInvoice(inv);
+        if (inv.date) {
+          const invDateStr = new Date(inv.date).toISOString().split('T')[0];
+          loadPointInTimeStock(invDateStr);
+        }
         if (inv.imageUrl) {
           setReceiptImage(inv.imageUrl);
           setSelectedImageFile(null);
@@ -263,18 +287,24 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     return (formikRef.current?.values?.type || initialInvoiceType) === 'PURCHASE' ? 'PI' : 'SI';
   };
 
-  // Comprehensive list of items from SkuMaster API
+  // Comprehensive list of items from SkuMaster API with point-in-time stock evaluation
   const itemMasterOptions = useMemo(() => {
-    return skus.map((s: any) => ({
-      id: s.id,
-      name: s.name || s.sku || 'Item',
-      sku: s.sku || '',
-      uom: s.uom || s.unit?.name || 'Pcs',
-      selling_price: Number(s.selling_price ?? s.price) || 0,
-      cost_price: Number(s.cost_price) || 0,
-      quantity: Number(s.quantity) || 0,
-    }));
-  }, [skus]);
+    return skus.map((s: any) => {
+      const pit = pointInTimeStockMap[s.id];
+      const stockAsOfDate = pit !== undefined ? pit.stockAsOfDate : (Number(s.quantity) || 0);
+      return {
+        id: s.id,
+        name: s.name || s.sku || 'Item',
+        sku: s.sku || '',
+        uom: s.uom || s.unit?.name || 'Pcs',
+        selling_price: Number(s.selling_price ?? s.price) || 0,
+        cost_price: Number(s.cost_price) || 0,
+        quantity: stockAsOfDate,
+        currentStock: Number(s.quantity) || 0,
+        firstStockDate: pit?.firstStockDate || null,
+      };
+    });
+  }, [skus, pointInTimeStockMap]);
 
   useEffect(() => {
     const paramName = searchParams.get('name');
@@ -515,7 +545,48 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
   const handleApplyImportedItems = (importedItems: any[], mode: 'replace' | 'append') => {
     if (!importedItems || importedItems.length === 0) return;
 
-    const formattedItems = importedItems.map((item: any) => ({
+    let itemsToProcess = importedItems;
+    let skippedCount = 0;
+    let clampedCount = 0;
+
+    if (formikRef.current?.values?.type === 'SALES') {
+      const validItems: any[] = [];
+      for (const item of importedItems) {
+        if (!item.productId) {
+          validItems.push(item);
+          continue;
+        }
+        const prod = itemMasterOptions.find(p => p.id === item.productId);
+        const originalQty = isEditMode
+          ? Number(existingInvoice?.items?.find((it: any) => it.productId === item.productId)?.quantity || 0)
+          : 0;
+        const availableStock = Math.max(0, Number(prod?.quantity || 0) + (existingInvoice?.status === 'Submitted' ? originalQty : 0));
+
+        if (availableStock <= 0) {
+          skippedCount++;
+          continue;
+        }
+
+        let qty = Number(item.quantity) || 1;
+        if (qty > availableStock) {
+          qty = availableStock;
+          clampedCount++;
+        }
+
+        validItems.push({
+          ...item,
+          quantity: qty
+        });
+      }
+      itemsToProcess = validItems;
+    }
+
+    if (itemsToProcess.length === 0) {
+      errorToast('No items could be added because all imported items are out of stock.');
+      return;
+    }
+
+    const formattedItems = itemsToProcess.map((item: any) => ({
       productId: item.productId || '',
       quantity: Number(item.quantity) || 1,
       unitPrice: Number(item.unitPrice) || 0,
@@ -538,7 +609,10 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       }
     }
 
-    successToast(`Successfully imported ${formattedItems.length} line item(s)`);
+    let toastMsg = `Successfully imported ${formattedItems.length} line item(s)`;
+    if (skippedCount > 0) toastMsg += ` (${skippedCount} out-of-stock skipped)`;
+    if (clampedCount > 0) toastMsg += ` (${clampedCount} clamped to stock limit)`;
+    successToast(toastMsg);
   };
 
   const handleTriggerAction = async (targetAction: 'Draft' | 'Submitted' | 'Edit') => {
@@ -554,6 +628,41 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         }
         errorToast(typeof firstErrMsg === 'string' ? `Cannot save: ${firstErrMsg}` : 'Please complete all required fields.');
         return;
+      }
+
+      // Strict available stock check for Sales Invoices (user can add only available stock)
+      if (formikRef.current.values.type === 'SALES') {
+        const items = formikRef.current.values.items || [];
+        const productUsage: Record<string, number> = {};
+        for (const it of items) {
+          if (!it.productId) continue;
+          const qty = Number(it.quantity) || 0;
+          productUsage[it.productId] = (productUsage[it.productId] || 0) + qty;
+        }
+
+        for (const [prodId, totalRequested] of Object.entries(productUsage)) {
+          const product = itemMasterOptions.find(p => p.id === prodId);
+          const prodName = product?.name || 'Item';
+          const productStock = Number(product?.quantity || 0);
+          const originalQty = isEditMode
+            ? Number(existingInvoice?.items?.find((it: any) => it.productId === prodId)?.quantity || 0)
+            : 0;
+          const maxAvailable = Math.max(0, productStock + (existingInvoice?.status === 'Submitted' ? originalQty : 0));
+
+          if (maxAvailable <= 0) {
+            const dateStr = formikRef.current.values.date ? ` on ${formikRef.current.values.date}` : '';
+            const firstDateStr = product?.firstStockDate ? ` (Stock first arrived on ${new Date(product.firstStockDate).toLocaleDateString('en-GB')})` : '';
+            errorToast(`Strict Audit Check Failed: Cannot ${targetAction === 'Submitted' ? 'submit' : 'save'}: "${prodName}" had 0 in stock${dateStr}${firstDateStr}.`);
+            return;
+          }
+
+          if (totalRequested > maxAvailable) {
+            const dateStr = formikRef.current.values.date ? ` on ${formikRef.current.values.date}` : '';
+            const firstDateStr = product?.firstStockDate ? ` (Stock first arrived on ${new Date(product.firstStockDate).toLocaleDateString('en-GB')})` : '';
+            errorToast(`Strict Audit Check Failed: Cannot ${targetAction === 'Submitted' ? 'submit' : 'save'}: Requested ${totalRequested} of "${prodName}", but only ${maxAvailable} was in stock${dateStr}${firstDateStr}.`);
+            return;
+          }
+        }
       }
 
       if (targetAction === 'Draft') {
@@ -740,8 +849,8 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                     onClick: handleCopyLink
                   }
                 ]}
-                saveLabel={isEditMode ? "Edit" : "Save"}
-                onSave={() => handleTriggerAction(isEditMode ? 'Edit' : 'Draft')}
+                saveLabel={isEditMode ? (values.status === 'Draft' ? "Save" : "Edit") : "Save"}
+                onSave={() => handleTriggerAction(isEditMode && values.status !== 'Draft' ? 'Edit' : 'Draft')}
                 showSave={true}
                 isSubmitting={isSubmitting && !isSubmittingSubmit}
                 submitLabel="Submit"
@@ -1039,6 +1148,13 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                               name="date"
                               label="Invoice Date *"
                               type="date"
+                              onChange={(e: any) => {
+                                const newDate = e.target.value;
+                                setFieldValue('date', newDate);
+                                if (newDate) {
+                                  loadPointInTimeStock(newDate);
+                                }
+                              }}
                             />
 
                             {/* Customer Autocomplete (Sales) */}
@@ -1181,7 +1297,13 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                                 placeholder={values.type === 'SALES' ? 'Select stock available item...' : 'Select or add item...'}
                                                 options={
                                                   values.type === 'SALES'
-                                                    ? itemMasterOptions.filter((o) => o.quantity > 0 || o.id === item.productId)
+                                                    ? itemMasterOptions.filter((o) => {
+                                                        const originalQty = isEditMode
+                                                          ? Number(existingInvoice?.items?.find((it: any) => it.productId === o.id)?.quantity || 0)
+                                                          : 0;
+                                                        const available = Number(o.quantity || 0) + (existingInvoice?.status === 'Submitted' ? originalQty : 0);
+                                                        return available > 0;
+                                                      })
                                                     : itemMasterOptions
                                                 }
                                                 getOptionLabel={(option: any) => `${option.name}${option.sku ? ` [${option.sku}]` : ''}`}
@@ -1225,6 +1347,18 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                                 }}
                                                 onChange={(selectedProduct: any) => {
                                                   if (selectedProduct) {
+                                                    const originalQty = isEditMode
+                                                      ? Number(existingInvoice?.items?.find((it: any) => it.productId === selectedProduct.id)?.quantity || 0)
+                                                      : 0;
+                                                    const availableStock = Number(selectedProduct.quantity || 0) + (existingInvoice?.status === 'Submitted' ? originalQty : 0);
+
+                                                    if (values.type === 'SALES' && availableStock <= 0) {
+                                                      const dateStr = values.date ? ` on ${values.date}` : '';
+                                                      const arrivalStr = selectedProduct.firstStockDate ? ` (Stock first arrived on ${new Date(selectedProduct.firstStockDate).toLocaleDateString('en-GB')})` : '';
+                                                      errorToast(`Strict Audit: "${selectedProduct.name}" had 0 in stock${dateStr}${arrivalStr}. Cannot add to Sales Invoice on this date.`);
+                                                      return;
+                                                    }
+
                                                     setFieldValue(`items.${index}.productId`, selectedProduct.id);
                                                     setFieldValue(`items.${index}.uom`, selectedProduct.uom || 'Pcs');
                                                     const priceToUse = values.type === 'SALES' ? selectedProduct.selling_price : selectedProduct.cost_price;
@@ -1233,6 +1367,12 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                                     setFieldValue(`items.${index}.purchaseInvoiceNo`, '');
                                                     setFieldValue(`items.${index}.purchaseItemId`, '');
                                                     setFieldValue(`items.${index}.poAllocations`, []);
+
+                                                    if (values.type === 'SALES') {
+                                                      const currentQty = Number(values.items[index]?.quantity) || 1;
+                                                      const safeQty = Math.max(1, Math.min(currentQty, availableStock));
+                                                      setFieldValue(`items.${index}.quantity`, safeQty);
+                                                    }
                                                   } else {
                                                     setFieldValue(`items.${index}.productId`, '');
                                                     setFieldValue(`items.${index}.unitPrice`, 0);
@@ -1243,14 +1383,34 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                                   }
                                                 }}
                                               />
-                                              {values.type === 'SALES' && item.productId && (
-                                                <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500 px-1">
-                                                  <span>In Stock:</span>
-                                                  <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                                                    {itemMasterOptions.find((o) => o.id === item.productId)?.quantity ?? 0} {item.uom || 'Pcs'}
-                                                  </span>
-                                                </div>
-                                              )}
+                                              {values.type === 'SALES' && item.productId && (() => {
+                                                const prod = itemMasterOptions.find((o) => o.id === item.productId);
+                                                const productQty = prod?.quantity ?? 0;
+                                                const isNegative = productQty < 0;
+                                                const isZero = productQty === 0;
+                                                const firstDateStr = prod?.firstStockDate ? new Date(prod.firstStockDate).toLocaleDateString('en-GB') : null;
+                                                return (
+                                                  <div className="mt-1 flex flex-col gap-0.5 px-1">
+                                                    <div className="flex items-center justify-between text-[11px] text-gray-500">
+                                                      <span>Stock on {values.date || 'date'}:</span>
+                                                      <span className={`font-semibold px-1.5 py-0.5 rounded border ${
+                                                        isNegative
+                                                          ? 'text-rose-700 bg-rose-50 border-rose-300'
+                                                          : isZero
+                                                            ? 'text-amber-700 bg-amber-50 border-amber-300'
+                                                            : 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                                                      }`}>
+                                                        {productQty} {item.uom || 'Pcs'}
+                                                      </span>
+                                                    </div>
+                                                    {isZero && firstDateStr && (
+                                                      <div className="text-[10px] text-amber-700 font-medium text-right">
+                                                        First arrived: {firstDateStr}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })()}
                                             </td>
 
                                             {/* PO Batch Column (Sales Invoice Only) */}
@@ -1316,14 +1476,48 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                             </td>
 
                                             <td className="py-2.5 px-3 w-32 min-w-[110px] border-r border-gray-200">
-                                              <TextFieldComponent
-                                                name={`items.${index}.quantity`}
-                                                type="number"
-                                                placeholder="1"
-                                                onChange={(e: any) => {
-                                                  setFieldValue(`items.${index}.quantity`, e.target.value);
-                                                }}
-                                              />
+                                              {(() => {
+                                                const itemProd = itemMasterOptions.find((o) => o.id === item.productId);
+                                                const originalQty = isEditMode
+                                                  ? Number(existingInvoice?.items?.find((it: any) => it.productId === item.productId)?.quantity || 0)
+                                                  : 0;
+                                                const maxAvailable = values.type === 'SALES' && item.productId
+                                                  ? Math.max(0, Number(itemProd?.quantity || 0) + (existingInvoice?.status === 'Submitted' ? originalQty : 0))
+                                                  : undefined;
+
+                                                return (
+                                                  <div>
+                                                    <TextFieldComponent
+                                                      name={`items.${index}.quantity`}
+                                                      type="number"
+                                                      placeholder="1"
+                                                      inputProps={{
+                                                        min: 1,
+                                                        ...(maxAvailable !== undefined ? { max: maxAvailable } : {})
+                                                      }}
+                                                      onChange={(e: any) => {
+                                                        const val = Number(e.target.value);
+                                                        if (maxAvailable !== undefined && val > maxAvailable) {
+                                                          const dateStr = values.date ? ` on ${values.date}` : '';
+                                                          const firstDateStr = itemProd?.firstStockDate ? ` (Stock first arrived on ${new Date(itemProd.firstStockDate).toLocaleDateString('en-GB')})` : '';
+                                                          errorToast(`Strict Audit: Cannot enter ${val}. Only ${maxAvailable} available in stock${dateStr} for "${itemProd?.name || 'this item'}"${firstDateStr}.`);
+                                                          setFieldValue(`items.${index}.quantity`, maxAvailable);
+                                                          return;
+                                                        }
+                                                        setFieldValue(`items.${index}.quantity`, e.target.value);
+                                                      }}
+                                                    />
+                                                    {maxAvailable !== undefined && (
+                                                      <div className="mt-1 flex items-center justify-between text-[10px] text-gray-500 font-medium px-0.5">
+                                                        <span>Max:</span>
+                                                        <span className={maxAvailable === 0 ? 'text-rose-600 font-bold' : 'text-slate-700 font-bold'}>
+                                                          {maxAvailable} {item.uom || 'Pcs'}
+                                                        </span>
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                );
+                                              })()}
                                             </td>
 
                                             <td className="py-2.5 px-3 w-36 min-w-[140px] border-r border-gray-200">
@@ -1382,9 +1576,16 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                     <div className="flex items-center gap-2">
                                       <button
                                         type="button"
-                                        onClick={() => downloadInvoiceItemTemplate(itemMasterOptions, values.type)}
+                                        onClick={() => {
+                                          const activeItems = values.items.filter((it: any) => it.productId);
+                                          const invNum = existingInvoice?.invoiceNumber || values.invoiceNumber;
+                                          const fileName = activeItems.length > 0
+                                            ? `${invNum ? `${invNum}_Items` : `${values.type === 'SALES' ? 'Sales' : 'Purchase'}_Invoice_Items`}.xlsx`
+                                            : `${values.type === 'SALES' ? 'Sales' : 'Purchase'}_Items_Template.xlsx`;
+                                          downloadInvoiceItemTemplate(itemMasterOptions, values.type, fileName, activeItems);
+                                        }}
                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-lg border border-gray-300 shadow-2xs transition-colors cursor-pointer"
-                                        title="Download Sample Items Excel Template"
+                                        title={values.items.some((it: any) => it.productId) ? "Download all invoice items as Excel" : "Download Sample Items Excel Template"}
                                       >
                                         <Download className="w-3.5 h-3.5 text-gray-500" />
                                         <span>Download</span>

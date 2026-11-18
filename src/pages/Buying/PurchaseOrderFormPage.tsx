@@ -86,7 +86,7 @@ const PurchaseOrderFormPageBase: React.FC = () => {
   // Modals for "Get Items From" & "Create"
   const [showGetItemsMenu, setShowGetItemsMenu] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
-  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [isSubmittingSubmit, setIsSubmittingSubmit] = useState(false);
   const [showMRPickerModal, setShowMRPickerModal] = useState(false);
   const [showSQPickerModal, setShowSQPickerModal] = useState(false);
   const [showSkuPickerModal, setShowSkuPickerModal] = useState(false);
@@ -95,7 +95,6 @@ const PurchaseOrderFormPageBase: React.FC = () => {
   const formikRef = useRef<any>(null);
   const getItemsMenuRef = useRef<HTMLDivElement>(null);
   const createMenuRef = useRef<HTMLDivElement>(null);
-  const actionsMenuRef = useRef<HTMLDivElement>(null);
 
   // Left Sidebar Interactive States
   const [assignedTo, setAssignedTo] = useState(currentUserName);
@@ -153,9 +152,6 @@ const PurchaseOrderFormPageBase: React.FC = () => {
       }
       if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
         setShowCreateMenu(false);
-      }
-      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
-        setShowActionsMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -801,52 +797,15 @@ const PurchaseOrderFormPageBase: React.FC = () => {
                 )}
               </div>
 
-              {/* Actions Dropdown Button */}
-              <div className="relative" ref={actionsMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setShowActionsMenu(prev => !prev)}
-                  className="h-9 px-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer select-none"
-                >
-                  <span>Actions</span>
-                  <ChevronsUpDown className="w-3.5 h-3.5 text-gray-500" />
-                </button>
-
-                {showActionsMenu && (
-                  <div className="absolute right-0 mt-1.5 w-40 bg-white border border-gray-200 rounded-2xl shadow-xl py-1.5 z-50 text-xs font-medium animate-in fade-in zoom-in-95">
-                    {initialValues.status === 'Submitted' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowActionsMenu(false);
-                          handleReject();
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 font-semibold flex items-center gap-2 cursor-pointer"
-                      >
-                        <XCircle className="w-3.5 h-3.5 text-red-600" />
-                        <span>Reject</span>
-                      </button>
-                    )}
-                    {(initialValues.status === 'Draft' || !initialValues.status) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowActionsMenu(false);
-                          handleFinalSubmit();
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 text-gray-800 font-semibold flex items-center gap-2 cursor-pointer"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-primary-600" />
-                        <span>Submit</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           }
           onPrint={() => setShowPrintModal(true)}
           moreMenuItems={[
+            ...(initialValues.status === 'Submitted' ? [{
+              label: 'Reject',
+              onClick: () => handleReject(),
+              danger: true
+            }] : []),
             {
               label: 'Duplicate',
               onClick: () => successToast('Purchase Order duplicated successfully')
@@ -883,7 +842,28 @@ const PurchaseOrderFormPageBase: React.FC = () => {
               if (formElem) formElem.requestSubmit();
             }
           }}
-          isSubmitting={loading}
+          isSubmitting={loading && !isSubmittingSubmit}
+          showSubmit={initialValues.status !== 'Submitted'}
+          submitLabel="Submit"
+          onSubmitAction={async () => {
+            if (formikRef.current) {
+              const errs = await formikRef.current.validateForm();
+              if (errs && Object.keys(errs).length > 0) {
+                Object.keys(errs).forEach((key: string) => formikRef.current?.setFieldTouched(key, true, false));
+                const firstErrKey = Object.keys(errs)[0];
+                const firstErrMsg = (errs as any)[firstErrKey];
+                errorToast(typeof firstErrMsg === 'string' ? `Cannot submit: ${firstErrMsg}` : 'Please fix the errors in the form');
+                return;
+              }
+            }
+            setIsSubmittingSubmit(true);
+            try {
+              await handleFinalSubmit();
+            } finally {
+              setIsSubmittingSubmit(false);
+            }
+          }}
+          isSubmittingAction={isSubmittingSubmit}
         />
       }
       sidebar={
@@ -1460,9 +1440,16 @@ const PurchaseOrderFormPageBase: React.FC = () => {
                           <div className="flex items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => downloadInvoiceItemTemplate(products, 'PURCHASE', 'Purchase_Order_Items_Template.xlsx')}
+                              onClick={() => {
+                                const activeItems = (itemsList || []).filter((it: any) => it.productId || it.item);
+                                const poNum = poId || (initialValues as any)?.id;
+                                const fileName = activeItems.length > 0
+                                  ? `${poNum ? `${poNum}_Items` : 'Purchase_Order_Items'}.xlsx`
+                                  : 'Purchase_Order_Items_Template.xlsx';
+                                downloadInvoiceItemTemplate(products, 'PURCHASE', fileName, activeItems);
+                              }}
                               className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-lg border border-gray-300 shadow-2xs transition-colors cursor-pointer"
-                              title="Download Sample Items Excel Template"
+                              title={(itemsList || []).length > 0 ? "Download all PO items as Excel" : "Download Sample Items Excel Template"}
                             >
                               <Download className="w-3.5 h-3.5 text-gray-500" />
                               <span>Download</span>
