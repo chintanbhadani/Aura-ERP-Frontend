@@ -68,4 +68,17 @@ dataService.interceptors.request.use(function (config) {
   return config;
 });
 
+// Automatic redirect to maintenance page on 503 Service Unavailable
+dataService.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 503 || error.response?.data?.maintenance) {
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('maintenance.html')) {
+        window.location.href = '/maintenance.html';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default dataService;

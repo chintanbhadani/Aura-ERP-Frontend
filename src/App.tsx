@@ -61,12 +61,14 @@ import { BomListPage } from './pages/Production/BomListPage';
 import { BomFormPage } from './pages/Production/BomFormPage';
 import { ProductionWeighingLedger } from './pages/Production/ProductionWeighingLedger';
 import { RollDetailPage } from './pages/Production/RollDetailPage';
+import MaintenanceGuard from './components/MaintenanceGuard';
 
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Auth Routes */}
+      <MaintenanceGuard>
+        <Routes>
+          {/* Auth Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         
@@ -232,6 +234,7 @@ function App() {
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </MaintenanceGuard>
       <ToastContainer position="top-right" autoClose={4000} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover />
     </Router>
   );

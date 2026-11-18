@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Skeleton } from '@mui/material';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
 import { 
@@ -982,7 +983,13 @@ export const ItemWiseStockCountPageBase: React.FC = () => {
                     COUNT SCHEDULE & TIME PERIOD
                   </div>
                   <div className="text-sm font-extrabold text-gray-900 mt-0.5 flex items-center gap-2">
-                    <span>{session?.title || `Weekly Count - Monday, ${selectedMonday.toLocaleDateString('en-GB')}`}</span>
+                    <span>
+                      {loading ? (
+                        <Skeleton variant="text" width={220} height={20} animation="wave" sx={{ display: 'inline-block' }} />
+                      ) : (
+                        session?.title || `Weekly Count - Monday, ${selectedMonday.toLocaleDateString('en-GB')}`
+                      )}
+                    </span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
                       isReconciled 
                         ? 'bg-emerald-100 text-emerald-900 border-emerald-300' 
@@ -1057,7 +1064,7 @@ export const ItemWiseStockCountPageBase: React.FC = () => {
                   <Boxes className="w-3.5 h-3.5 text-gray-400" />
                 </div>
                 <div className="text-xl font-black text-gray-900 mt-1 font-mono">
-                  {stats.total}
+                  {loading ? <Skeleton variant="text" width={40} height={28} animation="wave" /> : stats.total}
                 </div>
                 <p className="text-[10px] text-gray-400 mt-0.5">Active Master SKUs</p>
               </div>
@@ -1065,10 +1072,18 @@ export const ItemWiseStockCountPageBase: React.FC = () => {
               <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-2xs">
                 <div className="flex items-center justify-between text-gray-500 text-[11px] font-bold uppercase tracking-wider">
                   <span>Counted</span>
-                  <span className="text-[11px] font-mono font-bold text-emerald-600">{stats.percentCounted}%</span>
+                  <span className="text-[11px] font-mono font-bold text-emerald-600">
+                    {loading ? <Skeleton variant="text" width={28} height={16} animation="wave" /> : `${stats.percentCounted}%`}
+                  </span>
                 </div>
                 <div className="text-xl font-black text-gray-900 mt-1 font-mono">
-                  {stats.countedCount} <span className="text-xs font-normal text-gray-400">/ {stats.total}</span>
+                  {loading ? (
+                    <Skeleton variant="text" width={60} height={28} animation="wave" />
+                  ) : (
+                    <>
+                      {stats.countedCount} <span className="text-xs font-normal text-gray-400">/ {stats.total}</span>
+                    </>
+                  )}
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-1 mt-1.5 overflow-hidden">
                   <div 
@@ -1084,7 +1099,7 @@ export const ItemWiseStockCountPageBase: React.FC = () => {
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 </div>
                 <div className="text-xl font-black text-emerald-700 mt-1 font-mono">
-                  {stats.matchedCount}
+                  {loading ? <Skeleton variant="text" width={40} height={28} animation="wave" /> : stats.matchedCount}
                 </div>
                 <p className="text-[10px] text-emerald-600/80 mt-0.5">0 Physical Variance</p>
               </div>
@@ -1095,7 +1110,7 @@ export const ItemWiseStockCountPageBase: React.FC = () => {
                   <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                 </div>
                 <div className="text-xl font-black text-amber-700 mt-1 font-mono">
-                  {stats.discrepantCount}
+                  {loading ? <Skeleton variant="text" width={40} height={28} animation="wave" /> : stats.discrepantCount}
                 </div>
                 <p className="text-[10px] text-amber-600/80 mt-0.5">
                   {stats.shortageCount} Short · {stats.surplusCount} Surplus
@@ -1114,7 +1129,7 @@ export const ItemWiseStockCountPageBase: React.FC = () => {
                   {stats.netVarianceVal < 0 ? <TrendingDown className="w-3.5 h-3.5 text-rose-600" /> : <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />}
                 </div>
                 <div className="text-lg font-black mt-1 font-mono">
-                  {formatCurrency(stats.netVarianceVal)}
+                  {loading ? <Skeleton variant="text" width={90} height={28} animation="wave" /> : formatCurrency(stats.netVarianceVal)}
                 </div>
                 <p className="text-[10px] opacity-80 mt-0.5 font-mono">
                   {stats.netVarianceQty >= 0 ? `+${stats.netVarianceQty}` : stats.netVarianceQty} Units Net Diff
@@ -1264,9 +1279,16 @@ export const ItemWiseStockCountPageBase: React.FC = () => {
 
             <div className="p-6 overflow-y-auto space-y-3 flex-1">
               {loadingHistory ? (
-                <div className="p-12 text-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-emerald-600 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">Loading history sessions...</p>
+                <div className="space-y-3 p-1">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="p-4 rounded-2xl border border-gray-100 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <Skeleton variant="text" width="45%" height={20} animation="wave" />
+                        <Skeleton variant="rounded" width={70} height={18} sx={{ borderRadius: '9999px' }} animation="wave" />
+                      </div>
+                      <Skeleton variant="text" width="65%" height={16} animation="wave" />
+                    </div>
+                  ))}
                 </div>
               ) : historyList.length === 0 ? (
                 <div className="p-8 text-center text-gray-400 text-xs">

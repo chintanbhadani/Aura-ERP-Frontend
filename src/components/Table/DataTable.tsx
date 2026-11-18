@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Skeleton } from '@mui/material';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -45,6 +46,7 @@ export interface DataTableProps<T = any> {
   idField?: string;
   toolbar?: React.ReactNode;
   compact?: boolean;
+  skeletonRows?: number;
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -62,7 +64,8 @@ export function DataTable<T extends Record<string, any>>({
   onSelectionChange,
   idField = 'id',
   toolbar,
-  compact = false
+  compact = false,
+  skeletonRows = 8
 }: DataTableProps<T>) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(defaultPageSize);
@@ -197,7 +200,8 @@ export function DataTable<T extends Record<string, any>>({
                       if (el) el.indeterminate = isSomeCurrentSelected;
                     }}
                     onChange={handleSelectAll}
-                    className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer accent-primary-600"
+                    disabled={loading}
+                    className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer accent-primary-600 disabled:opacity-40"
                   />
                 </th>
               )}
@@ -252,12 +256,72 @@ export function DataTable<T extends Record<string, any>>({
 
           <tbody className="divide-y divide-gray-100 text-sm">
             {loading ? (
-              <tr>
-                <td colSpan={columns.length + (selectable ? 1 : 0)} className="py-16 text-center text-gray-400">
-                  <RefreshCw className="w-7 h-7 animate-spin mx-auto mb-2.5 text-primary-600" />
-                  <span className="text-gray-500 font-medium text-sm">Loading records...</span>
-                </td>
-              </tr>
+              Array.from({ length: skeletonRows || Math.min(itemsPerPage || 8, 8) }).map((_, rowIndex) => (
+                <tr key={`data-table-skeleton-${rowIndex}`} className="border-b border-gray-100 last:border-b-0">
+                  {selectable && (
+                    <td className="py-3.5 px-4 text-center w-10">
+                      <Skeleton
+                        variant="rectangular"
+                        width={16}
+                        height={16}
+                        sx={{ borderRadius: '4px', mx: 'auto' }}
+                        animation="wave"
+                      />
+                    </td>
+                  )}
+
+                  {columns.map((col, index) => {
+                    const colKey = String(col.id || col.key || (col.accessorKey as string) || index);
+                    const isRight = col.align === 'right';
+                    const isCenter = col.align === 'center';
+                    const keyLower = colKey.toLowerCase();
+
+                    if (keyLower.includes('status')) {
+                      return (
+                        <td key={colKey} style={col.width ? { width: col.width } : undefined} className="py-3.5 px-4">
+                          <div className={`flex items-center ${isRight ? 'justify-end' : isCenter ? 'justify-center' : 'justify-start'}`}>
+                            <Skeleton variant="rounded" width={72} height={22} sx={{ borderRadius: '9999px' }} animation="wave" />
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    if (keyLower.includes('action')) {
+                      return (
+                        <td key={colKey} style={col.width ? { width: col.width } : undefined} className="py-3.5 px-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <Skeleton variant="circular" width={22} height={22} animation="wave" />
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    let skeletonWidth: string | number = '70%';
+                    if (isCenter) skeletonWidth = '45%';
+                    else if (isRight) skeletonWidth = '50%';
+                    else if (keyLower.includes('name') || keyLower.includes('title') || keyLower.includes('item') || keyLower.includes('desc')) {
+                      skeletonWidth = rowIndex % 2 === 0 ? '85%' : '70%';
+                    } else if (keyLower.includes('code') || keyLower.includes('id') || keyLower.includes('sku') || keyLower.includes('category')) {
+                      skeletonWidth = rowIndex % 2 === 0 ? '55%' : '45%';
+                    } else {
+                      const widths = ['65%', '80%', '50%', '75%', '60%'];
+                      skeletonWidth = widths[(rowIndex + index) % widths.length];
+                    }
+
+                    return (
+                      <td
+                        key={colKey}
+                        style={col.width ? { width: col.width } : undefined}
+                        className={`py-3.5 px-4 ${isRight ? 'text-right' : isCenter ? 'text-center' : 'text-left'}`}
+                      >
+                        <div className={`flex items-center ${isRight ? 'justify-end' : isCenter ? 'justify-center' : 'justify-start'}`}>
+                          <Skeleton variant="text" width={skeletonWidth} height={22} sx={{ borderRadius: '4px' }} animation="wave" />
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))
             ) : displayData.length === 0 ? (
               <tr>
                 <td colSpan={columns.length + (selectable ? 1 : 0)} className="py-16 text-center text-gray-400">
@@ -342,7 +406,8 @@ export function DataTable<T extends Record<string, any>>({
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="bg-white border border-gray-200 hover:border-primary-400 focus:border-primary-600 focus:ring-2 focus:ring-primary-500/20 rounded-lg px-2.5 py-1 text-xs text-gray-700 outline-none cursor-pointer font-semibold transition-all shadow-2xs"
+                disabled={loading}
+                className="bg-white border border-gray-200 hover:border-primary-400 focus:border-primary-600 focus:ring-2 focus:ring-primary-500/20 rounded-lg px-2.5 py-1 text-xs text-gray-700 outline-none cursor-pointer font-semibold transition-all shadow-2xs disabled:opacity-50"
               >
                 {rowsPerPageOptions.map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
@@ -351,7 +416,15 @@ export function DataTable<T extends Record<string, any>>({
             </div>
 
             <span className="text-gray-500 font-medium">
-              {totalItems > 0 ? (
+              {loading ? (
+                <Skeleton
+                  variant="text"
+                  width={160}
+                  height={18}
+                  animation="wave"
+                  sx={{ display: 'inline-block', verticalAlign: 'middle' }}
+                />
+              ) : totalItems > 0 ? (
                 <>
                   Showing <span className="font-bold text-gray-900">{startIndex + 1}</span> to{' '}
                   <span className="font-bold text-gray-900">{endIndex}</span> of{' '}
