@@ -4,7 +4,6 @@ import {
   Layers, 
   Package, 
   TrendingUp, 
-  Sparkles, 
   AlertCircle, 
   Check, 
   RefreshCw,
@@ -44,20 +43,17 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
   productName,
   productSku,
   invoiceDate,
-  initialTargetQty = 1,
   initialAllocations = [],
   onConfirmAllocation,
 }) => {
   const { format, currency } = useCurrency();
   const [loading, setLoading] = useState(false);
   const [batchData, setBatchData] = useState<ProductBatchData | null>(null);
-  const [targetQty, setTargetQty] = useState<number>(initialTargetQty || 1);
   const [allocations, setAllocations] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (isOpen && productId) {
       loadBatches();
-      setTargetQty(initialTargetQty || 1);
       if (initialAllocations && initialAllocations.length > 0) {
         const initialMap: Record<string, number> = {};
         initialAllocations.forEach(a => {
@@ -71,7 +67,7 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
       setBatchData(null);
       setAllocations({});
     }
-  }, [isOpen, productId, initialTargetQty, invoiceDate, JSON.stringify(initialAllocations)]);
+  }, [isOpen, productId, invoiceDate, JSON.stringify(initialAllocations)]);
 
   const loadBatches = async () => {
     try {
@@ -87,24 +83,6 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
   };
 
   const batches = batchData?.batches || [];
-
-  // Auto-Fill FIFO Helper
-  const handleAutoFillFIFO = () => {
-    let remainingToPick = Number(targetQty) || 0;
-    const newAllocations: Record<string, number> = {};
-
-    for (const b of batches) {
-      if (b.isFutureBatch || b.availableQuantity <= 0) continue;
-      if (remainingToPick <= 0) break;
-      const pick = Math.min(b.availableQuantity, remainingToPick);
-      if (pick > 0) {
-        newAllocations[b.purchaseItemId] = pick;
-        remainingToPick -= pick;
-      }
-    }
-
-    setAllocations(newAllocations);
-  };
 
   const handleClear = () => {
     setAllocations({});
@@ -210,37 +188,17 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
           </button>
         </div>
 
-        {/* Target and Controls Bar */}
-        <div className="p-6 bg-white border-b border-gray-100 flex flex-wrap items-end justify-between gap-4">
-          <div className="w-full sm:w-80">
-            <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-1">
-              Total Desired Quantity *
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="1"
-                value={targetQty}
-                onChange={(e) => setTargetQty(Math.max(1, parseInt(e.target.value) || 0))}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
-              />
-              <button
-                type="button"
-                onClick={handleAutoFillFIFO}
-                className="shrink-0 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                title="Auto-fill starting from oldest POs"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                Auto FIFO
-              </button>
-            </div>
-          </div>
+        {/* Controls Bar without redundant Desired Qty input */}
+        <div className="px-6 py-4 bg-white border-b border-gray-100 flex items-center justify-between gap-4">
+          <p className="text-xs text-gray-500 font-medium">
+            Enter the quantity to pick for each PO batch in the table below:
+          </p>
 
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleClear}
-              className="px-3.5 py-2 text-gray-500 hover:text-gray-800 text-xs font-semibold hover:bg-gray-100 rounded-xl transition-colors cursor-pointer border border-gray-200"
+              className="px-3.5 py-2 text-gray-600 hover:text-gray-900 text-xs font-semibold hover:bg-gray-100 rounded-xl transition-colors cursor-pointer border border-gray-200"
             >
               Reset Pick
             </button>
@@ -388,8 +346,8 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs">
             <div>
               <p className="text-[11px] font-bold text-gray-400 uppercase">Allocated Qty</p>
-              <p className={`text-base font-black ${totalAllocatedQty === targetQty ? 'text-emerald-700' : 'text-gray-900'}`}>
-                {totalAllocatedQty} <span className="text-xs text-gray-400 font-normal">/ {targetQty} Units</span>
+              <p className={`text-base font-black ${totalAllocatedQty > 0 ? 'text-emerald-700' : 'text-gray-900'}`}>
+                {totalAllocatedQty} <span className="text-xs text-gray-400 font-normal">Units</span>
               </p>
             </div>
 
@@ -411,10 +369,14 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-1">
             <div className="text-xs text-gray-500">
-              {totalAllocatedQty !== targetQty && (
-                <span className="flex items-center gap-1.5 text-amber-700 font-semibold">
-                  <AlertCircle className="w-4 h-4 text-amber-500" />
-                  Allocated {totalAllocatedQty} units (Target was {targetQty} units).
+              {totalAllocatedQty === 0 ? (
+                <span className="text-gray-400 font-medium">
+                  Enter pick quantity in the table above.
+                </span>
+              ) : (
+                <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  {totalAllocatedQty} unit(s) selected from {Object.keys(allocations).filter((k) => (allocations[k] || 0) > 0).length} batch(es).
                 </span>
               )}
             </div>

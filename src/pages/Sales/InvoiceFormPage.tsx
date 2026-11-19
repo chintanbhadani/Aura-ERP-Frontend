@@ -916,29 +916,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
             }
           >
             <Form noValidate className="space-y-6 w-full">
-              {/* STATUS & AUDIT NOTIFICATIONS */}
-              {isSubmitted && (
-                <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 text-xs shadow-2xs">
-                  <div className="flex items-start sm:items-center gap-2.5">
-                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
-                    <span>
-                      This invoice is <strong>Submitted</strong>. Stock and financial ledgers have been finalized. Direct editing of date and stock quantities is disabled to protect stock ledger integrity. If changes are needed, cancel this invoice and create a new one.
-                    </span>
-                  </div>
-                  {canCancel && (
-                    <button
-                      type="button"
-                      onClick={handleCancelInvoice}
-                      disabled={isCancelling}
-                      className="shrink-0 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                    >
-                      <Ban className="w-3.5 h-3.5 text-white" />
-                      {isCancelling ? 'Cancelling...' : 'Cancel Invoice'}
-                    </button>
-                  )}
-                </div>
-              )}
-
+              {/* STATUS NOTIFICATIONS */}
               {isCancelled && (
                 <div className="p-4 bg-rose-50/90 border border-rose-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-rose-900 text-xs shadow-2xs">
                   <div className="flex items-start sm:items-center gap-2.5">
