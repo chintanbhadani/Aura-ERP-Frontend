@@ -76,7 +76,7 @@ export const CancelInvoiceConfirmModal: React.FC<CancelInvoiceConfirmModalProps>
         <p className="mt-3 text-xs text-gray-600 text-center leading-relaxed">
           {isPurchase
             ? 'Are you sure you want to cancel this Purchase Invoice? This will safely revert the added inventory stock. This purchase invoice can only be cancelled if its items have not been used in any sales invoice.'
-            : 'Are you sure you want to cancel this draft Sales Invoice? This draft invoice will be marked as Cancelled.'}
+            : 'Are you sure you want to cancel this Sales Invoice? Any deducted stock will be safely returned to inventory, financial entries will be reversed, and the invoice will be marked as Cancelled.'}
         </p>
 
         <div className="mt-6 flex items-center gap-3">

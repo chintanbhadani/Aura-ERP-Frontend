@@ -768,6 +768,21 @@ export const createRepack = async (data: RepackEntryData): Promise<RepackEntryDa
   return response.data;
 };
 
+export const fetchRepackById = async (id: string): Promise<RepackEntryData> => {
+  const response = await dataService.get(`/repack/${id}`);
+  return response.data;
+};
+
+export const submitRepack = async (id: string): Promise<RepackEntryData> => {
+  const response = await dataService.post(`/repack/${id}/submit`);
+  return response.data;
+};
+
+export const cancelRepack = async (id: string): Promise<{ message: string; entry: RepackEntryData }> => {
+  const response = await dataService.post(`/repack/${id}/cancel`);
+  return response.data;
+};
+
 export const deleteRepack = async (id: string): Promise<{ message: string }> => {
   const response = await dataService.delete(`/repack/${id}`);
   return response.data;

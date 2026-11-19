@@ -40,6 +40,10 @@ export interface ERPFormHeaderProps {
   onCancelAction?: () => void;
   cancelLabel?: string;
   isCancellingAction?: boolean;
+  showAmend?: boolean;
+  onAmendAction?: () => void;
+  amendLabel?: string;
+  isAmendingAction?: boolean;
   dirty?: boolean;
 }
 
@@ -65,6 +69,10 @@ export const ERPFormHeader: React.FC<ERPFormHeaderProps> = ({
   onCancelAction,
   cancelLabel = 'Cancel',
   isCancellingAction = false,
+  showAmend = false,
+  onAmendAction,
+  amendLabel = 'Amended',
+  isAmendingAction = false,
   dirty = false,
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -125,11 +133,14 @@ export const ERPFormHeader: React.FC<ERPFormHeaderProps> = ({
     if (v === 'success' || v === 'approved' || v === 'enabled' || v === 'submitted') {
       return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     }
-    if (v === 'warning' || v === 'partially received' || v === 'pending') {
-      return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (v === 'warning' || v === 'draft' || v === 'partially received' || v === 'pending') {
+      return 'bg-amber-50 text-amber-800 border-amber-200';
     }
-    if (v === 'error' || v === 'disabled' || v === 'cancelled' || v === 'draft') {
-      return 'bg-red-50 text-red-600 border-red-200';
+    if (v === 'error' || v === 'disabled' || v === 'cancelled') {
+      return 'bg-rose-50 text-rose-700 border-rose-200';
+    }
+    if (v === 'not saved' || v === 'not save') {
+      return 'bg-gray-100 text-gray-700 border-gray-300';
     }
     if (v === 'blue' || v === 'info') {
       return 'bg-blue-50 text-blue-700 border-blue-200';
@@ -256,6 +267,24 @@ export const ERPFormHeader: React.FC<ERPFormHeaderProps> = ({
                 </div>
               )}
             </div>
+          )}
+
+          {showAmend && onAmendAction && (
+            <ButtonComponent
+              variant="primary"
+              onClick={onAmendAction}
+              loading={isAmendingAction}
+              loadingText="Amending..."
+              sx={{
+                backgroundColor: '#059669',
+                fontWeight: 700,
+                '&:hover': {
+                  backgroundColor: '#047857',
+                }
+              }}
+            >
+              {amendLabel}
+            </ButtonComponent>
           )}
 
           {showCancel && onCancelAction && (

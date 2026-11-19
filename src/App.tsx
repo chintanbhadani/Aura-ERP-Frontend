@@ -212,6 +212,7 @@ function App() {
         <Route path="/invoices/:id" element={<InvoiceFormPage />} />
         <Route path="/repack" element={<RepackListPage />} />
         <Route path="/repack/new" element={<RepackFormPage />} />
+        <Route path="/repack/:id" element={<RepackFormPage />} />
         
         {/* Item Master Detail Routes */}
         <Route path="/products" element={<ProductMasterList />} />

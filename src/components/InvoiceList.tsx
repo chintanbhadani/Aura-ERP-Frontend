@@ -433,9 +433,8 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
       width: '105px',
       render: (_, row) => {
         const isCancelled = row.status === 'Cancelled';
-        const isDraftSales = row.type === 'SALES' && row.status === 'Draft';
         const isPurchase = row.type === 'PURCHASE';
-        const canCancel = !isCancelled && (isPurchase || isDraftSales);
+        const canCancel = !isCancelled;
 
         return (
           <div className="flex items-center justify-end gap-1.5 text-gray-500 text-xs select-none">
@@ -446,7 +445,7 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
                   setCancelModalInvoice(row);
                 }}
                 className="p-1 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                title={isPurchase ? "Cancel Purchase Invoice" : "Cancel Draft Sales Invoice"}
+                title={isPurchase ? "Cancel Purchase Invoice" : "Cancel Sales Invoice"}
               >
                 <Ban className="w-3.5 h-3.5 text-rose-500 hover:text-rose-700" />
               </button>

@@ -43,6 +43,7 @@ import {
   ExternalLink,
   Layers,
   TrendingUp,
+  FileEdit,
   Sparkles,
   Upload,
   AlertCircle,
@@ -408,6 +409,44 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     }
   };
 
+  const handleAmendInvoice = () => {
+    const currentValues = formikRef.current?.values || existingInvoice;
+    if (!currentValues) return;
+
+    const amendedData = {
+      type: currentValues.type || initialInvoiceType,
+      invoiceNumber: '',
+      date: new Date().toISOString().split('T')[0],
+      dueDate: currentValues.dueDate || '',
+      clientId: currentValues.clientId || '',
+      supplierId: currentValues.supplierId || '',
+      paymentType: currentValues.paymentType || 'CASH',
+      cashAmount: currentValues.cashAmount,
+      bankAmount: currentValues.bankAmount,
+      mobileMoneyAmount: currentValues.mobileMoneyAmount,
+      creditAmount: currentValues.creditAmount,
+      shippingCharge: currentValues.shippingCharge,
+      laborCost: currentValues.laborCost,
+      notes: currentValues.notes || '',
+      paymentTerms: currentValues.paymentTerms || 'Payment due on receipt',
+      status: 'Draft',
+      items: (currentValues.items || []).map((i: any) => ({
+        productId: i.productId || i.product?.id || '',
+        quantity: Number(i.quantity) || 1,
+        unitPrice: Number(i.unitPrice) || 0,
+        costPrice: Number(i.costPrice) || 0,
+        purchaseInvoiceNo: i.purchaseInvoiceNo || '',
+        purchaseItemId: i.purchaseItemId || '',
+        poAllocations: i.poAllocations || [],
+        uom: i.uom || i.product?.unit?.name || 'Pcs',
+      }))
+    };
+
+    const targetUrl = currentValues.type === 'SALES' ? '/invoices/sales/new' : '/invoices/purchase/new';
+    navigate(targetUrl, { state: { amendedInvoice: amendedData } });
+    successToast('Amended invoice loaded as a new draft. You can now adjust details and submit.');
+  };
+
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopiedLink(true);
@@ -461,6 +500,18 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
               poAllocations: i.poAllocations || [],
               uom: i.product?.unit?.name || i.product?.uom || 'Pcs',
             }))
+          : [{ productId: '', quantity: 1, unitPrice: 0, costPrice: 0, purchaseInvoiceNo: '', purchaseItemId: '', poAllocations: [], uom: 'Pcs' }]
+      };
+    }
+
+    const amended = (location.state as any)?.amendedInvoice;
+    if (amended) {
+      return {
+        ...amended,
+        invoiceNumber: '',
+        status: 'Draft',
+        items: (amended.items && amended.items.length > 0)
+          ? amended.items
           : [{ productId: '', quantity: 1, unitPrice: 0, costPrice: 0, purchaseInvoiceNo: '', purchaseItemId: '', poAllocations: [], uom: 'Pcs' }]
       };
     }
@@ -840,11 +891,29 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         const pageTitle = values.invoiceNumber || (values.type === 'SALES' ? 'New Sales Invoice' : 'New Purchase Invoice');
         const recordCode = values.invoiceNumber || (values.type === 'SALES' ? 'INV-SALES-NEW' : 'INV-PURCHASE-NEW');
 
-        const isDraft = !isEditMode || values.status === 'Draft';
-        const isCancelled = values.status === 'Cancelled';
+        const isNew = !isEditMode;
+        const isDraft = isEditMode && values.status === 'Draft';
         const isSubmitted = isEditMode && values.status === 'Submitted';
-        const isReadOnly = !isDraft;
-        const canCancel = isEditMode && !isCancelled && (values.type === 'PURCHASE' || values.status === 'Draft');
+        const isCancelled = isEditMode && values.status === 'Cancelled';
+        const isReadOnly = isSubmitted || isCancelled;
+
+        // Button Visibility Lifecycle:
+        // Not save   -> Save
+        // Draft      -> Submit (and Save if editing)
+        // Submitted  -> Cancel
+        // Cancelled  -> Amended
+        const showSaveBtn = isNew || isDraft;
+        const showSubmitBtn = isDraft;
+        const showCancelBtn = isSubmitted || isDraft;
+        const showAmendBtn = isCancelled;
+
+        const statusBadgeConfig = isNew
+          ? { label: 'Not Saved', variant: 'gray' as const }
+          : isDraft
+          ? { label: 'Draft', variant: 'warning' as const }
+          : isSubmitted
+          ? { label: 'Submitted', variant: 'success' as const }
+          : { label: 'Cancelled', variant: 'error' as const };
 
         return (
           <ERPFormPageLayout
@@ -854,9 +923,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                 title={pageTitle}
                 onBack={() => navigate(backUrl)}
                 backTitle={values.type === 'SALES' ? 'Back to Sales Invoices' : 'Back to Purchase Invoices'}
-                statusBadge={{
-                  label: values.status || (isEditMode ? 'Draft' : 'Draft'),
-                }}
+                statusBadge={statusBadgeConfig}
                 dirty={dirty}
                 onDuplicate={() => {
                   setFieldValue('invoiceNumber', '');
@@ -882,35 +949,32 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                     label: 'Copy Invoice Link',
                     onClick: handleCopyLink
                   },
-                  ...(canCancel ? [{
+                  ...(showCancelBtn ? [{
                     label: 'Cancel Invoice',
                     onClick: handleCancelInvoice,
                     danger: true,
                     icon: <Ban className="w-3.5 h-3.5 text-rose-600" />
+                  }] : []),
+                  ...(showAmendBtn ? [{
+                    label: 'Amend Invoice',
+                    onClick: handleAmendInvoice,
+                    icon: <FileEdit className="w-3.5 h-3.5 text-emerald-600" />
                   }] : [])
                 ]}
-                customActions={
-                  isCancelled ? (
-                    <button
-                      type="button"
-                      onClick={() => navigate(values.type === 'SALES' ? '/invoices/sales/new' : '/invoices/purchase/new')}
-                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                    >
-                      + Create New Invoice
-                    </button>
-                  ) : undefined
-                }
-                showCancel={canCancel}
+                showCancel={showCancelBtn}
                 onCancelAction={handleCancelInvoice}
                 cancelLabel="Cancel"
                 isCancellingAction={isCancelling}
+                showAmend={showAmendBtn}
+                onAmendAction={handleAmendInvoice}
+                amendLabel="Amended"
                 saveLabel="Save"
                 onSave={() => handleTriggerAction('Draft')}
-                showSave={isDraft}
+                showSave={showSaveBtn}
                 isSubmitting={isSubmitting && !isSubmittingSubmit}
                 submitLabel="Submit"
                 onSubmitAction={() => handleTriggerAction('Submitted')}
-                showSubmit={isDraft}
+                showSubmit={showSubmitBtn}
                 isSubmittingAction={isSubmittingSubmit}
               />
             }

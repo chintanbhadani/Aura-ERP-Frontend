@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, Link } from 'react-router-dom';
 import { 
   Boxes, 
   ArrowLeft, 
@@ -13,7 +13,12 @@ import {
   Layers,
   DollarSign,
   Plus,
-  X
+  X,
+  Ban,
+  FileEdit,
+  AlertTriangle,
+  Loader2,
+  Check
 } from 'lucide-react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -26,9 +31,13 @@ import {
   fetchUnits, 
   createProduct, 
   createRepack, 
+  fetchRepackById,
+  submitRepack,
+  cancelRepack,
   type Product,
   type Category,
-  type Unit 
+  type Unit,
+  type RepackEntryData
 } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
 import { useCurrency } from '../../helper/currency';
@@ -50,6 +59,7 @@ interface RepackFormValues {
   targetUom: string;
   targetQuantity: number | '';
   packagingCost: number | '';
+  status?: string;
 }
 
 const repackValidationSchema = Yup.object({
@@ -74,14 +84,22 @@ const productModalValidationSchema = Yup.object({
 });
 
 function RepackFormPageBase() {
+  const { id: repackId } = useParams();
+  const location = useLocation();
+  const isEditMode = Boolean(repackId);
   const navigate = useNavigate();
   const { format } = useCurrency();
 
+  const [existingRepack, setExistingRepack] = useState<RepackEntryData | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+
+  const formikRef = useRef<any>(null);
 
   // PO Modal State
   const [isPOModalOpen, setIsPOModalOpen] = useState(false);
@@ -95,42 +113,243 @@ function RepackFormPageBase() {
 
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [repackId]);
 
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [invData, catData, unitData] = await Promise.all([
+      const promises: Promise<any>[] = [
         fetchInventory(),
         fetchCategories(),
         fetchUnits(),
-      ]);
+      ];
+      if (repackId) {
+        promises.push(fetchRepackById(repackId));
+      }
+
+      const [invData, catData, unitData, repackData] = await Promise.all(promises);
       setProducts(invData || []);
       setCategories(catData || []);
       setUnits(unitData || []);
+
+      if (repackData) {
+        setExistingRepack(repackData);
+        if (repackData.poAllocations && Array.isArray(repackData.poAllocations)) {
+          setPoAllocations(repackData.poAllocations);
+        }
+      }
     } catch (err: any) {
       console.error('Failed to load initial data for repack:', err);
-      errorToast('Failed to load product catalog');
+      errorToast('Failed to load repack data');
     } finally {
       setLoading(false);
     }
   };
 
-  const initialValues: RepackFormValues = {
-    date: new Date().toISOString().split('T')[0],
-    notes: '',
-    sourceProductId: '',
-    sourceProductName: '',
-    sourceProductSku: '',
-    sourceUom: 'Units',
-    sourceAvailableStock: 0,
-    sourceUnitCost: 0,
-    sourceQuantity: '',
-    targetProductId: '',
-    targetProductName: '',
-    targetUom: 'Packs',
-    targetQuantity: '',
-    packagingCost: '',
+  const initialValues: RepackFormValues = useMemo(() => {
+    if (existingRepack) {
+      return {
+        date: existingRepack.date ? new Date(existingRepack.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        notes: existingRepack.notes || '',
+        sourceProductId: existingRepack.sourceProductId || '',
+        sourceProductName: existingRepack.sourceProduct?.name || '',
+        sourceProductSku: existingRepack.sourceProduct?.sku || '',
+        sourceUom: existingRepack.sourceProduct?.unit?.name || 'Units',
+        sourceAvailableStock: Number(existingRepack.sourceProduct?.quantity) || 0,
+        sourceUnitCost: Number(existingRepack.sourceProduct?.cost_price) || 0,
+        sourceQuantity: Number(existingRepack.sourceQuantity) || '',
+        targetProductId: existingRepack.targetProductId || '',
+        targetProductName: existingRepack.targetProduct?.name || '',
+        targetUom: existingRepack.targetProduct?.unit?.name || 'Packs',
+        targetQuantity: Number(existingRepack.targetQuantity) || '',
+        packagingCost: Number(existingRepack.packagingCost) || '',
+        status: existingRepack.status || 'Draft',
+      };
+    }
+
+    const amended = (location.state as any)?.amendedRepack;
+    if (amended) {
+      return {
+        ...amended,
+        date: new Date().toISOString().split('T')[0],
+        status: 'Draft',
+      };
+    }
+
+    return {
+      date: new Date().toISOString().split('T')[0],
+      notes: '',
+      sourceProductId: '',
+      sourceProductName: '',
+      sourceProductSku: '',
+      sourceUom: 'Units',
+      sourceAvailableStock: 0,
+      sourceUnitCost: 0,
+      sourceQuantity: '',
+      targetProductId: '',
+      targetProductName: '',
+      targetUom: 'Packs',
+      targetQuantity: '',
+      packagingCost: '',
+      status: 'Draft',
+    };
+  }, [existingRepack, location.state]);
+
+  const isNew = !isEditMode;
+  const currentStatus = existingRepack?.status || 'Draft';
+  const isDraft = isEditMode && currentStatus === 'Draft';
+  const isSubmitted = isEditMode && (currentStatus === 'Submitted' || currentStatus === 'Completed');
+  const isCancelled = isEditMode && currentStatus === 'Cancelled';
+  const isReadOnly = isSubmitted || isCancelled;
+
+  // Button Visibility Mapping:
+  // Not save   -> Save
+  // Draft      -> Submit (and Save if editing)
+  // Submitted  -> Cancel
+  // Cancelled  -> Amended
+  const showSaveBtn = isNew || isDraft;
+  const showSubmitBtn = isDraft;
+  const showCancelBtn = isSubmitted || isDraft;
+  const showAmendBtn = isCancelled;
+
+  const statusBadgeConfig = isNew
+    ? { label: 'Not Saved', variant: 'gray' as const }
+    : isDraft
+    ? { label: 'Draft', variant: 'warning' as const }
+    : isSubmitted
+    ? { label: 'Submitted', variant: 'success' as const }
+    : { label: 'Cancelled', variant: 'error' as const };
+
+  const handleSaveDraft = async () => {
+    if (!formikRef.current) return;
+    const values = formikRef.current.values;
+
+    if (!values.sourceProductId || !values.targetProductId) {
+      errorToast('Please select both source bulk item and target packed item');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const srcQty = Number(values.sourceQuantity) || 0;
+      const tgtQty = Number(values.targetQuantity) || 0;
+
+      const created = await createRepack({
+        sourceProductId: values.sourceProductId,
+        sourceQuantity: srcQty,
+        targetProductId: values.targetProductId,
+        targetQuantity: tgtQty,
+        packagingCost: Number(values.packagingCost || 0),
+        purchaseItemId: poAllocations.length > 0 ? poAllocations[0].purchaseItemId : undefined,
+        purchaseInvoiceNo: poAllocations.length > 0 ? poAllocations.map(a => a.poNumber).filter(Boolean).join(', ') : undefined,
+        poAllocations: poAllocations.length > 0 ? poAllocations : undefined,
+        date: values.date,
+        notes: values.notes.trim() || undefined,
+        status: 'Draft',
+      });
+
+      successToast(`Repack ${created.repackNumber || ''} saved as Draft`);
+      navigate(`/repack/${created.id}`);
+    } catch (err: any) {
+      console.error(err);
+      errorToast(err.response?.data?.error || err.message || 'Failed to save repack draft');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmitRepack = async () => {
+    if (!formikRef.current) return;
+    const values = formikRef.current.values;
+
+    if (values.sourceProductId === values.targetProductId) {
+      errorToast('Source item and Target item cannot be identical');
+      return;
+    }
+
+    const srcQty = Number(values.sourceQuantity);
+    const tgtQty = Number(values.targetQuantity);
+
+    if (srcQty <= 0 || tgtQty <= 0) {
+      errorToast('Source and Target quantities must be greater than 0');
+      return;
+    }
+
+    if (srcQty > values.sourceAvailableStock) {
+      errorToast(`Cannot consume ${srcQty}. Only ${values.sourceAvailableStock} available in stock.`);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (repackId) {
+        await submitRepack(repackId);
+      } else {
+        await createRepack({
+          sourceProductId: values.sourceProductId,
+          sourceQuantity: srcQty,
+          targetProductId: values.targetProductId,
+          targetQuantity: tgtQty,
+          packagingCost: Number(values.packagingCost || 0),
+          purchaseItemId: poAllocations.length > 0 ? poAllocations[0].purchaseItemId : undefined,
+          purchaseInvoiceNo: poAllocations.length > 0 ? poAllocations.map(a => a.poNumber).filter(Boolean).join(', ') : undefined,
+          poAllocations: poAllocations.length > 0 ? poAllocations : undefined,
+          date: values.date,
+          notes: values.notes.trim() || undefined,
+          status: 'Submitted',
+        });
+      }
+
+      successToast(`Repacked ${srcQty} ${values.sourceUom} into ${tgtQty} ${values.targetUom} of ${values.targetProductName}! Stock converted.`);
+      navigate('/repack');
+    } catch (err: any) {
+      console.error(err);
+      errorToast(err.response?.data?.error || err.message || 'Failed to submit repack');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancelRepack = async () => {
+    if (!repackId) return;
+    setIsCancelling(true);
+    try {
+      const res = await cancelRepack(repackId);
+      successToast(res.message || 'Repack cancelled successfully. Stock has been restored.');
+      setExistingRepack(prev => prev ? { ...prev, status: 'Cancelled' } : null);
+      setIsCancelConfirmOpen(false);
+    } catch (err: any) {
+      console.error(err);
+      errorToast(err.response?.data?.error || err.message || 'Failed to cancel repack');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleAmendRepack = () => {
+    const currentValues = formikRef.current?.values || existingRepack;
+    if (!currentValues) return;
+
+    const amendedData = {
+      date: new Date().toISOString().split('T')[0],
+      notes: currentValues.notes || '',
+      sourceProductId: currentValues.sourceProductId,
+      sourceProductName: currentValues.sourceProductName || currentValues.sourceProduct?.name || '',
+      sourceProductSku: currentValues.sourceProductSku || currentValues.sourceProduct?.sku || '',
+      sourceUom: currentValues.sourceUom || currentValues.sourceProduct?.unit?.name || 'Units',
+      sourceAvailableStock: currentValues.sourceAvailableStock || Number(currentValues.sourceProduct?.quantity) || 0,
+      sourceUnitCost: currentValues.sourceUnitCost || Number(currentValues.sourceProduct?.cost_price) || 0,
+      sourceQuantity: currentValues.sourceQuantity,
+      targetProductId: currentValues.targetProductId,
+      targetProductName: currentValues.targetProductName || currentValues.targetProduct?.name || '',
+      targetUom: currentValues.targetUom || currentValues.targetProduct?.unit?.name || 'Packs',
+      targetQuantity: currentValues.targetQuantity,
+      packagingCost: currentValues.packagingCost,
+      status: 'Draft',
+    };
+
+    navigate('/repack/new', { state: { amendedRepack: amendedData } });
+    successToast('Amended repack loaded as a new draft. You can now adjust details and submit.');
   };
 
   const handleSaveQuickProduct = async (values: any, resetForm: () => void) => {
@@ -167,47 +386,6 @@ function RepackFormPageBase() {
     }
   };
 
-  const handleSubmit = async (values: RepackFormValues) => {
-    if (values.sourceProductId === values.targetProductId) {
-      errorToast('Source item and Target item cannot be identical');
-      return;
-    }
-
-    const srcQty = Number(values.sourceQuantity);
-    const tgtQty = Number(values.targetQuantity);
-
-    if (srcQty > values.sourceAvailableStock) {
-      errorToast(`Cannot consume ${srcQty}. Only ${values.sourceAvailableStock} available in stock.`);
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await createRepack({
-        sourceProductId: values.sourceProductId,
-        sourceQuantity: srcQty,
-        targetProductId: values.targetProductId,
-        targetQuantity: tgtQty,
-        packagingCost: Number(values.packagingCost || 0),
-        purchaseItemId: poAllocations.length > 0 ? poAllocations[0].purchaseItemId : undefined,
-        purchaseInvoiceNo: poAllocations.length > 0 ? poAllocations.map(a => a.poNumber).filter(Boolean).join(', ') : undefined,
-        poAllocations: poAllocations.length > 0 ? poAllocations : undefined,
-        date: values.date,
-        notes: values.notes.trim() || undefined,
-      });
-
-      successToast(
-        `Repacked ${srcQty} ${values.sourceUom} into ${tgtQty} ${values.targetUom} of ${values.targetProductName}!`
-      );
-      navigate('/repack');
-    } catch (err: any) {
-      console.error(err);
-      errorToast(err.response?.data?.error || err.message || 'Failed to create repack conversion');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   return (
     <DashboardLayout>
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
@@ -221,35 +399,141 @@ function RepackFormPageBase() {
                 <span>Repack</span>
               </Link>
               <span>/</span>
-              <span className="text-gray-700">Create Repack / Stock Conversion</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
-              <span>Create Repack & Stock Conversion</span>
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
-                Bulk ➔ Retail Pack
+              <span className="text-gray-700">
+                {isNew ? 'New Repack' : (existingRepack?.repackNumber || 'Repack Entry')}
               </span>
-            </h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
+                <span>{isNew ? 'New Repack Entry' : (existingRepack?.repackNumber || 'Repack Entry')}</span>
+              </h1>
+              {/* Status Badge */}
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                statusBadgeConfig.variant === 'gray'
+                  ? 'bg-gray-100 text-gray-700 border-gray-200'
+                  : statusBadgeConfig.variant === 'warning'
+                  ? 'bg-amber-100 text-amber-800 border-amber-200'
+                  : statusBadgeConfig.variant === 'success'
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                  : 'bg-rose-100 text-rose-800 border-rose-200'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  statusBadgeConfig.variant === 'gray'
+                    ? 'bg-gray-400'
+                    : statusBadgeConfig.variant === 'warning'
+                    ? 'bg-amber-500'
+                    : statusBadgeConfig.variant === 'success'
+                    ? 'bg-emerald-500'
+                    : 'bg-rose-500'
+                }`} />
+                {statusBadgeConfig.label}
+              </span>
+            </div>
             <p className="text-xs text-gray-500">
-              Convert raw bulk material or PO lots (e.g. 5 KG Screws) into retail packages (e.g. 50 x 100g packs) ready for sale.
+              Convert raw bulk material or PO lots into retail packages ready for sale.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <Link
               to="/repack"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold transition shadow-2xs"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold transition shadow-2xs"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Repacks</span>
+              <span>Back</span>
             </Link>
+
+            {/* Cancel Button (Submitted or Draft) */}
+            {showCancelBtn && (
+              <button
+                type="button"
+                onClick={() => setIsCancelConfirmOpen(true)}
+                disabled={isCancelling}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                {isCancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4 text-rose-600" />}
+                <span>Cancel</span>
+              </button>
+            )}
+
+            {/* Amend Button (Cancelled) */}
+            {showAmendBtn && (
+              <button
+                type="button"
+                onClick={handleAmendRepack}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-2xs cursor-pointer"
+              >
+                <FileEdit className="w-4 h-4" />
+                <span>Amended</span>
+              </button>
+            )}
+
+            {/* Save Button (Not Saved or Draft) */}
+            {showSaveBtn && (
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                disabled={submitting}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                <span>Save</span>
+              </button>
+            )}
+
+            {/* Submit Button (Draft) */}
+            {showSubmitBtn && (
+              <button
+                type="button"
+                onClick={handleSubmitRepack}
+                disabled={submitting}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                <span>Submit</span>
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Status Notification Banners */}
+        {isCancelled && (
+          <div className="p-4 bg-rose-50/90 border border-rose-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-rose-900 text-xs shadow-2xs">
+            <div className="flex items-start sm:items-center gap-2.5">
+              <Ban className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
+              <span>
+                This repack entry is <strong>Cancelled</strong>. Stock conversions have been reversed and restored.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleAmendRepack}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-colors cursor-pointer shrink-0"
+            >
+              <FileEdit className="w-3.5 h-3.5" />
+              <span>Amended (Create New Draft)</span>
+            </button>
+          </div>
+        )}
+
+        {isSubmitted && (
+          <div className="p-4 bg-amber-50/90 border border-amber-200/80 rounded-2xl flex items-center justify-between text-amber-900 text-xs shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                This repack is <strong>Submitted</strong>. Bulk stock was deducted and packaged products added. To make modifications, cancel this repack first.
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* FORMIK FORM WRAPPER */}
         <Formik
+          innerRef={formikRef}
           initialValues={initialValues}
+          enableReinitialize
           validationSchema={repackValidationSchema}
-          onSubmit={handleSubmit}
+          onSubmit={handleSubmitRepack}
         >
           {({ values, setFieldValue, errors, touched }) => {
             formikSetFieldValueRef.current = setFieldValue;
@@ -280,8 +564,9 @@ function RepackFormPageBase() {
                       type="date"
                       value={values.date}
                       onChange={(e) => setFieldValue('date', e.target.value)}
+                      disabled={isReadOnly}
                       required
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:border-emerald-500 transition-colors"
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:bg-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
 
@@ -295,7 +580,8 @@ function RepackFormPageBase() {
                       placeholder="e.g. Bulk 5 KG screw opened and repacked into 100g retail packets"
                       value={values.notes}
                       onChange={(e) => setFieldValue('notes', e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:bg-white focus:outline-none focus:border-emerald-500 transition-colors"
+                      disabled={isReadOnly}
+                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:bg-white focus:outline-none focus:border-emerald-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -332,6 +618,7 @@ function RepackFormPageBase() {
                         keyName="sourceProductId"
                         placeholder="Select stock available item..."
                         options={products.filter((p) => p.quantity > 0 || p.id === values.sourceProductId)}
+                        disabled={isReadOnly}
                         getOptionLabel={(option: any) => `${option.name}${option.sku ? ` [${option.sku}]` : ''}`}
                         renderOption={(props, option: any) => {
                           const { key, ...optionProps } = props as any;
@@ -398,9 +685,11 @@ function RepackFormPageBase() {
 
                       {poAllocations.length > 0 ? (
                         <div
-                          onClick={() => setIsPOModalOpen(true)}
-                          className="group flex flex-col gap-2 p-3 bg-blue-50/70 hover:bg-blue-100/60 rounded-2xl border border-blue-200/90 hover:border-blue-300 transition-all cursor-pointer select-none"
-                          title="Click to view or edit PO allocations"
+                          onClick={() => !isReadOnly && setIsPOModalOpen(true)}
+                          className={`group flex flex-col gap-2 p-3 bg-blue-50/70 rounded-2xl border border-blue-200/90 transition-all select-none ${
+                            isReadOnly ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-100/60 hover:border-blue-300 cursor-pointer'
+                          }`}
+                          title={isReadOnly ? "Allocations locked" : "Click to view or edit PO allocations"}
                         >
                           <div className="flex items-center justify-between gap-1 text-xs">
                             <span className="font-bold text-blue-900 flex items-center gap-1.5">
@@ -409,9 +698,11 @@ function RepackFormPageBase() {
                                 ? `${poAllocations.length} PO Batches Allocated`
                                 : 'PO Batch Allocated'}
                             </span>
-                            <span className="text-xs text-blue-600 font-bold group-hover:underline">
-                              Change Batches
-                            </span>
+                            {!isReadOnly && (
+                              <span className="text-xs text-blue-600 font-bold group-hover:underline">
+                                Change Batches
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap gap-1.5">
@@ -434,7 +725,7 @@ function RepackFormPageBase() {
                       ) : (
                         <button
                           type="button"
-                          disabled={!values.sourceProductId}
+                          disabled={isReadOnly || !values.sourceProductId}
                           onClick={() => setIsPOModalOpen(true)}
                           className="w-full px-4 py-3 bg-blue-50/80 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed text-blue-800 rounded-2xl text-xs font-bold border border-blue-200/80 flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-2xs"
                           title="Select PO batches for this item"
@@ -451,7 +742,7 @@ function RepackFormPageBase() {
                         <label className="text-xs font-bold text-gray-700">
                           Quantity to Consume (Bulk) *
                         </label>
-                        {values.sourceAvailableStock > 0 && (
+                        {!isReadOnly && values.sourceAvailableStock > 0 && (
                           <button
                             type="button"
                             onClick={() => setFieldValue('sourceQuantity', values.sourceAvailableStock)}
@@ -469,8 +760,9 @@ function RepackFormPageBase() {
                           placeholder="e.g. 5"
                           value={values.sourceQuantity}
                           onChange={(e) => setFieldValue('sourceQuantity', e.target.value === '' ? '' : Number(e.target.value))}
+                          disabled={isReadOnly}
                           required
-                          className={`w-full px-3.5 py-2.5 bg-white border rounded-xl text-xs font-bold text-gray-900 focus:outline-none transition-colors ${
+                          className={`w-full px-3.5 py-2.5 bg-white border rounded-xl text-xs font-bold text-gray-900 focus:outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${
                             isStockInsufficient 
                               ? 'border-red-500 bg-red-50/50 text-red-600 focus:border-red-600' 
                               : 'border-gray-300 focus:border-amber-500'
@@ -517,6 +809,7 @@ function RepackFormPageBase() {
                         keyName="targetProductId"
                         placeholder="Select or type to create retail pack item..."
                         options={products.filter((p) => p.id !== values.sourceProductId)}
+                        disabled={isReadOnly}
                         getOptionLabel={(option: any) => `${option.name}${option.sku ? ` [${option.sku}]` : ''}`}
                         renderOption={(props, option: any) => {
                           const { key, ...optionProps } = props as any;
@@ -590,8 +883,9 @@ function RepackFormPageBase() {
                           placeholder="e.g. 50"
                           value={values.targetQuantity}
                           onChange={(e) => setFieldValue('targetQuantity', e.target.value === '' ? '' : Number(e.target.value))}
+                          disabled={isReadOnly}
                           required
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-emerald-500"
+                          className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                         <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">
                           {values.targetUom}
@@ -616,7 +910,8 @@ function RepackFormPageBase() {
                           placeholder="e.g. 2500"
                           value={values.packagingCost}
                           onChange={(e) => setFieldValue('packagingCost', e.target.value === '' ? '' : Number(e.target.value))}
-                          className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-emerald-500"
+                          disabled={isReadOnly}
+                          className="w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-xl text-xs font-bold text-gray-900 focus:outline-none focus:border-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                       </div>
                       <p className="text-[11px] text-gray-400">
@@ -708,22 +1003,68 @@ function RepackFormPageBase() {
                     to="/repack"
                     className="px-5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-700 text-xs font-bold hover:bg-gray-50 transition shadow-2xs"
                   >
-                    Cancel
+                    Back to Repacks
                   </Link>
-                  <button
-                    type="submit"
-                    disabled={submitting || isStockInsufficient || !values.sourceProductId || !values.targetProductId || srcQtyNum <= 0 || tgtQtyNum <= 0}
-                    className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
-                  >
-                    {submitting ? (
-                      <span>Processing Conversion...</span>
-                    ) : (
-                      <>
-                        <Boxes className="w-4 h-4" />
-                        <span>Convert & Produce Stock</span>
-                      </>
-                    )}
-                  </button>
+
+                  {/* Cancel Button (Submitted or Draft) */}
+                  {showCancelBtn && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCancelConfirmOpen(true)}
+                      disabled={isCancelling}
+                      className="px-5 py-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition shadow-2xs cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isCancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4 text-rose-600" />}
+                      <span>Cancel</span>
+                    </button>
+                  )}
+
+                  {/* Amend Button (Cancelled) */}
+                  {showAmendBtn && (
+                    <button
+                      type="button"
+                      onClick={handleAmendRepack}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer"
+                    >
+                      <FileEdit className="w-4 h-4" />
+                      <span>Amended</span>
+                    </button>
+                  )}
+
+                  {/* Save Button (Not Saved or Draft) */}
+                  {showSaveBtn && (
+                    <button
+                      type="button"
+                      onClick={handleSaveDraft}
+                      disabled={submitting || !values.sourceProductId || !values.targetProductId}
+                      className="px-5 py-2.5 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 text-xs font-bold transition shadow-2xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                      <span>Save</span>
+                    </button>
+                  )}
+
+                  {/* Submit Button (Draft) */}
+                  {showSubmitBtn && (
+                    <button
+                      type="button"
+                      onClick={handleSubmitRepack}
+                      disabled={submitting || isStockInsufficient || !values.sourceProductId || !values.targetProductId || srcQtyNum <= 0 || tgtQtyNum <= 0}
+                      className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Submitting...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4" />
+                          <span>Submit</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
                 {/* SELECT PO BATCHES MODAL (Same modal as Sales Invoice) */}
@@ -839,6 +1180,74 @@ function RepackFormPageBase() {
             );
           }}
         </Formik>
+
+        {/* REPACK CANCEL CONFIRMATION MODAL */}
+        {isCancelConfirmOpen && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150"
+            onClick={() => setIsCancelConfirmOpen(false)}
+          >
+            <div 
+              className="bg-white rounded-3xl shadow-2xl border border-gray-200 max-w-md w-full overflow-hidden text-gray-900 p-6 animate-in zoom-in-95 duration-150 relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setIsCancelConfirmOpen(false)}
+                disabled={isCancelling}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center mx-auto mb-3 shadow-2xs">
+                <AlertTriangle className="w-6 h-6 text-rose-600" />
+              </div>
+
+              <h3 className="text-base font-bold text-gray-900 text-center">
+                Cancel Repack Entry
+              </h3>
+
+              <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-200 flex items-center justify-between text-xs font-medium">
+                <span className="text-gray-500">Repack Number:</span>
+                <span className="font-mono font-bold text-gray-900">{existingRepack?.repackNumber || repackId}</span>
+              </div>
+
+              <p className="mt-3 text-xs text-gray-600 text-center leading-relaxed">
+                {isSubmitted
+                  ? 'Are you sure you want to cancel this Repack? Target produced items will be deducted and source bulk items will be restored. This repack can only be cancelled if produced packs have not already been consumed or sold.'
+                  : 'Are you sure you want to cancel this draft repack?'}
+              </p>
+
+              <div className="mt-6 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsCancelConfirmOpen(false)}
+                  disabled={isCancelling}
+                  className="w-1/2 py-2.5 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                >
+                  Keep Repack
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCancelRepack}
+                  disabled={isCancelling}
+                  className="w-1/2 py-2.5 px-4 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isCancelling ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Cancelling...</span>
+                    </>
+                  ) : (
+                    <span>Confirm Cancel</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </DashboardLayout>

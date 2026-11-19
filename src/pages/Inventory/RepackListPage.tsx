@@ -199,10 +199,16 @@ function RepackListPageBase() {
                     const srcUnit = src?.unit?.name || 'Units';
                     const tgtUnit = tgt?.unit?.name || 'Packs';
 
+                    const isDraft = r.status === 'Draft';
+                    const isCancelled = r.status === 'Cancelled';
+                    const isSubmitted = !isDraft && !isCancelled;
+
                     return (
                       <tr key={r.id} className="hover:bg-gray-50/70 transition">
                         <td className="py-3.5 px-4 font-mono font-bold text-emerald-700">
-                          {r.repackNumber}
+                          <Link to={`/repack/${r.id}`} className="hover:underline flex items-center gap-1.5">
+                            {r.repackNumber}
+                          </Link>
                         </td>
                         <td className="py-3.5 px-4 text-gray-600 font-medium">
                           {r.date ? new Date(r.date).toLocaleDateString() : '-'}
@@ -235,19 +241,31 @@ function RepackListPageBase() {
                           {format(Number(r.calculatedCost || 0))}
                         </td>
                         <td className="py-3.5 px-4">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Completed
-                          </span>
+                          {isDraft ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              Draft
+                            </span>
+                          ) : isCancelled ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                              Cancelled
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Submitted
+                            </span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 text-right">
-                          <button
-                            onClick={() => setDeleteConfirmId(r.id!)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title="Revert Repack"
+                          <Link
+                            to={`/repack/${r.id}`}
+                            className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors inline-block"
+                            title="View / Edit Repack"
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <FileText className="w-4 h-4" />
+                          </Link>
                         </td>
                       </tr>
                     );
