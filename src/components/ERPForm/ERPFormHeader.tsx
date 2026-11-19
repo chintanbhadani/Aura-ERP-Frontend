@@ -36,6 +36,10 @@ export interface ERPFormHeaderProps {
   submitLabel?: string;
   showSubmit?: boolean;
   isSubmittingAction?: boolean;
+  showCancel?: boolean;
+  onCancelAction?: () => void;
+  cancelLabel?: string;
+  isCancellingAction?: boolean;
   dirty?: boolean;
 }
 
@@ -57,6 +61,10 @@ export const ERPFormHeader: React.FC<ERPFormHeaderProps> = ({
   submitLabel = 'Submit',
   showSubmit = false,
   isSubmittingAction = false,
+  showCancel = false,
+  onCancelAction,
+  cancelLabel = 'Cancel',
+  isCancellingAction = false,
   dirty = false,
 }) => {
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -248,6 +256,27 @@ export const ERPFormHeader: React.FC<ERPFormHeaderProps> = ({
                 </div>
               )}
             </div>
+          )}
+
+          {showCancel && onCancelAction && (
+            <ButtonComponent
+              variant="outlined"
+              color="error"
+              onClick={onCancelAction}
+              loading={isCancellingAction}
+              loadingText="Cancelling..."
+              sx={{
+                borderColor: '#e11d48',
+                color: '#e11d48',
+                fontWeight: 700,
+                '&:hover': {
+                  borderColor: '#be123c',
+                  backgroundColor: '#fff1f2',
+                }
+              }}
+            >
+              {cancelLabel}
+            </ButtonComponent>
           )}
 
           {showSave && onSave && (

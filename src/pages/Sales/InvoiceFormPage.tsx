@@ -5,6 +5,7 @@ import * as Yup from 'yup';
 import { ERPFormHeader, ERPFormPageLayout } from '../../components/ERPForm';
 import { StatusBadge } from '../../components/StatusBadge';
 import { 
+  cancelInvoice,
   fetchSkus, 
   fetchCustomers, 
   fetchSuppliers, 
@@ -43,7 +44,9 @@ import {
   Layers,
   TrendingUp,
   Sparkles,
-  Upload
+  Upload,
+  AlertCircle,
+  Ban
 } from 'lucide-react';
 import { useCurrency } from '../../helper/currency';
 import WithAuth from '../../components/WithAuth';
@@ -51,6 +54,7 @@ import { ModuleName, Permission } from '../../helper/constants';
 import { printInvoice, downloadInvoicePdf } from '../../helper/invoicePrinter';
 import { SelectPOBatchesModal, type SelectedPOAllocation } from '../../components/SelectPOBatchesModal';
 import { InvoiceItemsBulkUploadModal, downloadInvoiceItemTemplate } from '../../components/InvoiceItemsBulkUploadModal';
+import { CancelInvoiceConfirmModal } from '../../components/CancelInvoiceConfirmModal';
 
 const invoiceValidationSchema = Yup.object({
   type: Yup.string().required(),
@@ -189,6 +193,8 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
 
   // Bulk Upload Items State
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   const customerResolveRef = useRef<((val: Customer) => void) | null>(null);
   const supplierResolveRef = useRef<((val: Supplier) => void) | null>(null);
@@ -301,7 +307,9 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         cost_price: Number(s.cost_price) || 0,
         quantity: stockAsOfDate,
         currentStock: Number(s.quantity) || 0,
-        firstStockDate: pit?.firstStockDate || null,
+        nextStockDate: pit?.nextStockDate || null,
+        formattedNextStockDate: pit?.formattedNextStockDate || null,
+        statusMessage: pit?.statusMessage || '',
       };
     });
   }, [skus, pointInTimeStockMap]);
@@ -615,6 +623,20 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     successToast(toastMsg);
   };
 
+  const handleCancelInvoice = () => {
+    if (!invoiceId) return;
+
+    const currentType = formikRef.current?.values?.type || existingInvoice?.type;
+    const currentStatus = formikRef.current?.values?.status || existingInvoice?.status;
+
+    if (currentType === 'SALES' && currentStatus !== 'Draft') {
+      errorToast('Cannot cancel Sales Invoice: Only draft sales invoices can be cancelled.');
+      return;
+    }
+
+    setIsCancelModalOpen(true);
+  };
+
   const handleTriggerAction = async (targetAction: 'Draft' | 'Submitted' | 'Edit') => {
     if (formikRef.current) {
       const errs = await formikRef.current.validateForm();
@@ -650,16 +672,22 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
           const maxAvailable = Math.max(0, productStock + (existingInvoice?.status === 'Submitted' ? originalQty : 0));
 
           if (maxAvailable <= 0) {
-            const dateStr = formikRef.current.values.date ? ` on ${formikRef.current.values.date}` : '';
-            const firstDateStr = product?.firstStockDate ? ` (Stock first arrived on ${new Date(product.firstStockDate).toLocaleDateString('en-GB')})` : '';
-            errorToast(`Strict Audit Check Failed: Cannot ${targetAction === 'Submitted' ? 'submit' : 'save'}: "${prodName}" had 0 in stock${dateStr}${firstDateStr}.`);
+            const dateStr = formikRef.current.values.date ? new Date(formikRef.current.values.date).toLocaleDateString('en-GB') : 'the selected date';
+            if (product?.formattedNextStockDate) {
+              errorToast(`Cannot ${targetAction === 'Submitted' ? 'submit' : 'save'}: Stock not available on ${dateStr} for "${prodName}". Stock will be available on ${product.formattedNextStockDate}.`);
+            } else {
+              errorToast(`Cannot ${targetAction === 'Submitted' ? 'submit' : 'save'}: Stock not available for "${prodName}".`);
+            }
             return;
           }
 
           if (totalRequested > maxAvailable) {
             const dateStr = formikRef.current.values.date ? ` on ${formikRef.current.values.date}` : '';
-            const firstDateStr = product?.firstStockDate ? ` (Stock first arrived on ${new Date(product.firstStockDate).toLocaleDateString('en-GB')})` : '';
-            errorToast(`Strict Audit Check Failed: Cannot ${targetAction === 'Submitted' ? 'submit' : 'save'}: Requested ${totalRequested} of "${prodName}", but only ${maxAvailable} was in stock${dateStr}${firstDateStr}.`);
+            if (product?.formattedNextStockDate) {
+              errorToast(`Strict Audit Check Failed: Cannot ${targetAction === 'Submitted' ? 'submit' : 'save'}: Requested ${totalRequested} of "${prodName}", but only ${maxAvailable} was in stock${dateStr}. Stock will be available on ${product.formattedNextStockDate}.`);
+            } else {
+              errorToast(`Strict Audit Check Failed: Cannot ${targetAction === 'Submitted' ? 'submit' : 'save'}: Requested ${totalRequested} of "${prodName}", but only ${maxAvailable} was in stock${dateStr}.`);
+            }
             return;
           }
         }
@@ -812,6 +840,12 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         const pageTitle = values.invoiceNumber || (values.type === 'SALES' ? 'New Sales Invoice' : 'New Purchase Invoice');
         const recordCode = values.invoiceNumber || (values.type === 'SALES' ? 'INV-SALES-NEW' : 'INV-PURCHASE-NEW');
 
+        const isDraft = !isEditMode || values.status === 'Draft';
+        const isCancelled = values.status === 'Cancelled';
+        const isSubmitted = isEditMode && values.status === 'Submitted';
+        const isReadOnly = !isDraft;
+        const canCancel = isEditMode && !isCancelled && (values.type === 'PURCHASE' || values.status === 'Draft');
+
         return (
           <ERPFormPageLayout
             recordCode={recordCode}
@@ -847,20 +881,81 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                   {
                     label: 'Copy Invoice Link',
                     onClick: handleCopyLink
-                  }
+                  },
+                  ...(canCancel ? [{
+                    label: 'Cancel Invoice',
+                    onClick: handleCancelInvoice,
+                    danger: true,
+                    icon: <Ban className="w-3.5 h-3.5 text-rose-600" />
+                  }] : [])
                 ]}
-                saveLabel={isEditMode ? (values.status === 'Draft' ? "Save" : "Edit") : "Save"}
-                onSave={() => handleTriggerAction(isEditMode && values.status !== 'Draft' ? 'Edit' : 'Draft')}
-                showSave={true}
+                customActions={
+                  isCancelled ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(values.type === 'SALES' ? '/invoices/sales/new' : '/invoices/purchase/new')}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    >
+                      + Create New Invoice
+                    </button>
+                  ) : undefined
+                }
+                showCancel={canCancel}
+                onCancelAction={handleCancelInvoice}
+                cancelLabel="Cancel"
+                isCancellingAction={isCancelling}
+                saveLabel="Save"
+                onSave={() => handleTriggerAction('Draft')}
+                showSave={isDraft}
                 isSubmitting={isSubmitting && !isSubmittingSubmit}
                 submitLabel="Submit"
                 onSubmitAction={() => handleTriggerAction('Submitted')}
-                showSubmit={!isEditMode || values.status === 'Draft'}
+                showSubmit={isDraft}
                 isSubmittingAction={isSubmittingSubmit}
               />
             }
           >
             <Form noValidate className="space-y-6 w-full">
+              {/* STATUS & AUDIT NOTIFICATIONS */}
+              {isSubmitted && (
+                <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 text-xs shadow-2xs">
+                  <div className="flex items-start sm:items-center gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                    <span>
+                      This invoice is <strong>Submitted</strong>. Stock and financial ledgers have been finalized. Direct editing of date and stock quantities is disabled to protect stock ledger integrity. If changes are needed, cancel this invoice and create a new one.
+                    </span>
+                  </div>
+                  {canCancel && (
+                    <button
+                      type="button"
+                      onClick={handleCancelInvoice}
+                      disabled={isCancelling}
+                      className="shrink-0 px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    >
+                      <Ban className="w-3.5 h-3.5 text-white" />
+                      {isCancelling ? 'Cancelling...' : 'Cancel Invoice'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {isCancelled && (
+                <div className="p-4 bg-rose-50/90 border border-rose-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-rose-900 text-xs shadow-2xs">
+                  <div className="flex items-start sm:items-center gap-2.5">
+                    <Ban className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
+                    <span>
+                      This invoice is <strong>Cancelled</strong>. Stock adjustments have been reverted and transactions are void.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(values.type === 'SALES' ? '/invoices/sales/new' : '/invoices/purchase/new')}
+                    className="shrink-0 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                  >
+                    + Create New Invoice
+                  </button>
+                </div>
+              )}
               {/* MAIN 2-COLUMN LAYOUT ALIGNED WITH ITEM MASTER DETAIL PAGE */}
               <div className="flex flex-col xl:flex-row gap-6 items-start">
 
@@ -1127,6 +1222,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                             <SelectOutlinedField
                               name="type"
                               label="Invoice Type *"
+                              disabled={isReadOnly}
                               options={[
                                 { label: 'Sales Invoice', value: 'SALES' },
                                 { label: 'Purchase Invoice', value: 'PURCHASE' }
@@ -1148,6 +1244,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                               name="date"
                               label="Invoice Date *"
                               type="date"
+                              disabled={isReadOnly}
                               onChange={(e: any) => {
                                 const newDate = e.target.value;
                                 setFieldValue('date', newDate);
@@ -1163,6 +1260,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                 keyName="clientId"
                                 label="Customer (Party Name) *"
                                 placeholder="Search or add customer..."
+                                disabled={isReadOnly}
                                 options={customers}
                                 getOptionLabel={(c: Customer) => c.name || (c as any).companyName || ''}
                                 compareKey="id"
@@ -1184,6 +1282,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                 keyName="supplierId"
                                 label="Supplier (Party Name) *"
                                 placeholder="Search or add supplier..."
+                                disabled={isReadOnly}
                                 options={suppliers}
                                 getOptionLabel={(s: Supplier) => s.name || (s as any).companyName || ''}
                                 compareKey="id"
@@ -1204,6 +1303,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                             <SelectOutlinedField
                               name="paymentType"
                               label="Payment Method *"
+                              disabled={isReadOnly}
                               options={[
                                 { label: 'Cash Settlement', value: 'CASH' },
                                 { label: 'Credit (Unpaid)', value: 'CREDIT' },
@@ -1216,6 +1316,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                               name="dueDate"
                               label="Payment Due Date"
                               type="date"
+                              disabled={isReadOnly}
                             />
 
                             {/* Shipping Charge (in Row 2 Col 3) */}
@@ -1225,6 +1326,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                               type="number"
                               min="0"
                               placeholder="0"
+                              disabled={isReadOnly}
                             />
 
                             {/* Labor Cost */}
@@ -1234,6 +1336,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                               type="number"
                               min="0"
                               placeholder="0"
+                              disabled={isReadOnly}
                             />
                           </div>
                         </div>
@@ -1295,6 +1398,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                               <ReusableAutocomplete
                                                 keyName={`items.${index}.productId`}
                                                 placeholder={values.type === 'SALES' ? 'Select stock available item...' : 'Select or add item...'}
+                                                disabled={isReadOnly}
                                                 options={
                                                   values.type === 'SALES'
                                                     ? itemMasterOptions.filter((o) => {
@@ -1353,9 +1457,12 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                                     const availableStock = Number(selectedProduct.quantity || 0) + (existingInvoice?.status === 'Submitted' ? originalQty : 0);
 
                                                     if (values.type === 'SALES' && availableStock <= 0) {
-                                                      const dateStr = values.date ? ` on ${values.date}` : '';
-                                                      const arrivalStr = selectedProduct.firstStockDate ? ` (Stock first arrived on ${new Date(selectedProduct.firstStockDate).toLocaleDateString('en-GB')})` : '';
-                                                      errorToast(`Strict Audit: "${selectedProduct.name}" had 0 in stock${dateStr}${arrivalStr}. Cannot add to Sales Invoice on this date.`);
+                                                      const dateFormatted = values.date ? new Date(values.date).toLocaleDateString('en-GB') : 'the selected date';
+                                                      if (selectedProduct.formattedNextStockDate) {
+                                                        errorToast(`Stock not available on ${dateFormatted}. Stock will be available on ${selectedProduct.formattedNextStockDate}.`);
+                                                      } else {
+                                                        errorToast(`Stock not available`);
+                                                      }
                                                       return;
                                                     }
 
@@ -1386,28 +1493,35 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                               {values.type === 'SALES' && item.productId && (() => {
                                                 const prod = itemMasterOptions.find((o) => o.id === item.productId);
                                                 const productQty = prod?.quantity ?? 0;
-                                                const isNegative = productQty < 0;
-                                                const isZero = productQty === 0;
-                                                const firstDateStr = prod?.firstStockDate ? new Date(prod.firstStockDate).toLocaleDateString('en-GB') : null;
-                                                return (
-                                                  <div className="mt-1 flex flex-col gap-0.5 px-1">
-                                                    <div className="flex items-center justify-between text-[11px] text-gray-500">
-                                                      <span>Stock on {values.date || 'date'}:</span>
-                                                      <span className={`font-semibold px-1.5 py-0.5 rounded border ${
-                                                        isNegative
-                                                          ? 'text-rose-700 bg-rose-50 border-rose-300'
-                                                          : isZero
-                                                            ? 'text-amber-700 bg-amber-50 border-amber-300'
-                                                            : 'text-emerald-700 bg-emerald-50 border-emerald-200'
-                                                      }`}>
-                                                        {productQty} {item.uom || 'Pcs'}
+                                                const isAvailable = productQty > 0;
+                                                const dateFormatted = values.date ? new Date(values.date).toLocaleDateString('en-GB') : 'date';
+
+                                                if (isAvailable) {
+                                                  return (
+                                                    <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500 px-1">
+                                                      <span>Stock on {dateFormatted}:</span>
+                                                      <span className="font-semibold px-1.5 py-0.5 rounded border text-emerald-700 bg-emerald-50 border-emerald-200">
+                                                        {productQty} {item.uom || 'Nos'}
                                                       </span>
                                                     </div>
-                                                    {isZero && firstDateStr && (
-                                                      <div className="text-[10px] text-amber-700 font-medium text-right">
-                                                        First arrived: {firstDateStr}
-                                                      </div>
-                                                    )}
+                                                  );
+                                                }
+
+                                                if (prod?.formattedNextStockDate) {
+                                                  return (
+                                                    <div className="mt-1 p-1.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-[10.5px] leading-tight flex items-start gap-1">
+                                                      <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                                                      <span>
+                                                        Stock not available on <strong>{dateFormatted}</strong>. Stock will be available on <strong>{prod.formattedNextStockDate}</strong>.
+                                                      </span>
+                                                    </div>
+                                                  );
+                                                }
+
+                                                return (
+                                                  <div className="mt-1 p-1.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 text-[10.5px] font-semibold leading-tight flex items-center gap-1">
+                                                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                                    <span>Stock not available</span>
                                                   </div>
                                                 );
                                               })()}
@@ -1418,9 +1532,13 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                               <td className="py-2 px-3 border-r border-gray-200 min-w-[220px]">
                                                 {item.purchaseInvoiceNo ? (
                                                   <div
-                                                    onClick={() => handleOpenPOModal(index, item)}
-                                                    className="group flex flex-col gap-1.5 p-2 bg-slate-50 hover:bg-blue-50/60 rounded-xl border border-slate-200/90 hover:border-blue-300 transition-all cursor-pointer select-none"
-                                                    title="Click to view or edit PO allocations"
+                                                    onClick={() => {
+                                                      if (!isReadOnly) handleOpenPOModal(index, item);
+                                                    }}
+                                                    className={`group flex flex-col gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200/90 transition-all select-none ${
+                                                      isReadOnly ? 'cursor-default opacity-90' : 'hover:bg-blue-50/60 hover:border-blue-300 cursor-pointer'
+                                                    }`}
+                                                    title={isReadOnly ? "PO allocations (read-only)" : "Click to view or edit PO allocations"}
                                                   >
                                                     <div className="flex items-center justify-between gap-1 text-[11px]">
                                                       <span className="font-bold text-slate-700 group-hover:text-blue-900 flex items-center gap-1">
@@ -1491,6 +1609,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                                       name={`items.${index}.quantity`}
                                                       type="number"
                                                       placeholder="1"
+                                                      disabled={isReadOnly}
                                                       inputProps={{
                                                         min: 1,
                                                         ...(maxAvailable !== undefined ? { max: maxAvailable } : {})
@@ -1498,9 +1617,16 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                                       onChange={(e: any) => {
                                                         const val = Number(e.target.value);
                                                         if (maxAvailable !== undefined && val > maxAvailable) {
-                                                          const dateStr = values.date ? ` on ${values.date}` : '';
-                                                          const firstDateStr = itemProd?.firstStockDate ? ` (Stock first arrived on ${new Date(itemProd.firstStockDate).toLocaleDateString('en-GB')})` : '';
-                                                          errorToast(`Strict Audit: Cannot enter ${val}. Only ${maxAvailable} available in stock${dateStr} for "${itemProd?.name || 'this item'}"${firstDateStr}.`);
+                                                          const dateFormatted = values.date ? new Date(values.date).toLocaleDateString('en-GB') : 'selected date';
+                                                          if (maxAvailable === 0) {
+                                                            if (itemProd?.formattedNextStockDate) {
+                                                              errorToast(`Stock not available on ${dateFormatted}. Stock will be available on ${itemProd.formattedNextStockDate}.`);
+                                                            } else {
+                                                              errorToast(`Stock not available for "${itemProd?.name || 'this item'}".`);
+                                                            }
+                                                          } else {
+                                                            errorToast(`Strict Audit: Cannot enter ${val}. Only ${maxAvailable} available in stock on ${dateFormatted} for "${itemProd?.name || 'this item'}".`);
+                                                          }
                                                           setFieldValue(`items.${index}.quantity`, maxAvailable);
                                                           return;
                                                         }
@@ -1525,6 +1651,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                                 name={`items.${index}.unitPrice`}
                                                 type="number"
                                                 placeholder="0.00"
+                                                disabled={isReadOnly}
                                                 onChange={(e: any) => {
                                                   setFieldValue(`items.${index}.unitPrice`, e.target.value);
                                                 }}
@@ -1536,17 +1663,21 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                             </td>
 
                                             <td className="py-2.5 px-3 w-14 min-w-[56px] text-center">
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  if (values.items.length > 1) remove(index);
-                                                  else errorToast('Invoice must contain at least 1 item');
-                                                }}
-                                                className="text-gray-400 hover:text-red-600 p-1 rounded-md transition-colors cursor-pointer"
-                                                title="Delete Row"
-                                              >
-                                                <Trash2 className="w-4 h-4" />
-                                              </button>
+                                              {!isReadOnly ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    if (values.items.length > 1) remove(index);
+                                                    else errorToast('Invoice must contain at least 1 item');
+                                                  }}
+                                                  className="text-gray-400 hover:text-red-600 p-1 rounded-md transition-colors cursor-pointer"
+                                                  title="Delete Row"
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </button>
+                                              ) : (
+                                                <span className="text-gray-300 text-xs">-</span>
+                                              )}
                                             </td>
                                           </tr>
                                         );
@@ -1557,14 +1688,16 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
 
                                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                                   <div className="flex items-center gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => push({ productId: '', quantity: 1, unitPrice: 0, costPrice: 0, purchaseInvoiceNo: '', purchaseItemId: '', uom: 'Pcs' })}
-                                      className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-emerald-200 shadow-2xs"
-                                    >
-                                      <Plus className="w-3.5 h-3.5 text-emerald-700" />
-                                      <span>Add Line Item</span>
-                                    </button>
+                                    {!isReadOnly && (
+                                      <button
+                                        type="button"
+                                        onClick={() => push({ productId: '', quantity: 1, unitPrice: 0, costPrice: 0, purchaseInvoiceNo: '', purchaseItemId: '', uom: 'Pcs' })}
+                                        className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors cursor-pointer border border-emerald-200 shadow-2xs"
+                                      >
+                                        <Plus className="w-3.5 h-3.5 text-emerald-700" />
+                                        <span>Add Line Item</span>
+                                      </button>
+                                    )}
                                   </div>
 
                                   {/* Right: Stats & Download / Upload Buttons (Matching ERPNext & User Mockup) */}
@@ -1591,15 +1724,17 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                         <span>Download</span>
                                       </button>
 
-                                      <button
-                                        type="button"
-                                        onClick={() => setIsBulkUploadOpen(true)}
-                                        className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#059669] hover:bg-[#047857] active:bg-[#065f46] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer"
-                                        title="Bulk Upload Line Items from Excel or CSV"
-                                      >
-                                        <Upload className="w-3.5 h-3.5" />
-                                        <span>Upload</span>
-                                      </button>
+                                      {!isReadOnly && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setIsBulkUploadOpen(true)}
+                                          className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#059669] hover:bg-[#047857] active:bg-[#065f46] text-white text-xs font-bold rounded-lg shadow-sm hover:shadow transition-all cursor-pointer"
+                                          title="Bulk Upload Line Items from Excel or CSV"
+                                        >
+                                          <Upload className="w-3.5 h-3.5" />
+                                          <span>Upload</span>
+                                        </button>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -1897,6 +2032,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
               productId={selectedPOProduct?.id || ''}
               productName={selectedPOProduct?.name || ''}
               productSku={selectedPOProduct?.sku}
+              invoiceDate={values.date}
               initialTargetQty={selectedPOProduct?.quantity || 1}
               initialAllocations={selectedPOProduct?.initialAllocations}
               onConfirmAllocation={handleConfirmPOAllocation}
@@ -1910,6 +2046,26 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
               availableProducts={itemMasterOptions}
               existingItemsCount={values.items?.length || 0}
               onApplyItems={handleApplyImportedItems}
+            />
+
+            {/* Cancel Invoice Confirmation Modal */}
+            <CancelInvoiceConfirmModal
+              isOpen={isCancelModalOpen}
+              onClose={() => setIsCancelModalOpen(false)}
+              invoice={existingInvoice ? {
+                id: existingInvoice.id,
+                invoiceNumber: existingInvoice.invoiceNumber,
+                type: existingInvoice.type,
+                status: existingInvoice.status,
+              } : (invoiceId ? {
+                id: invoiceId,
+                invoiceNumber: values.invoiceNumber,
+                type: values.type,
+                status: values.status,
+              } : null)}
+              onSuccess={() => {
+                if (invoiceId) loadExistingInvoice(invoiceId);
+              }}
             />
           </ERPFormPageLayout>
         );

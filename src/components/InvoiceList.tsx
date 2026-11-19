@@ -13,9 +13,10 @@ import {
   Wallet,
   Heart,
   MessageSquare,
-  Trash2
+  Trash2,
+  Ban
 } from 'lucide-react';
-import { fetchInvoices, deleteInvoice, bulkImportInvoices } from '../services/api';
+import { fetchInvoices, deleteInvoice, cancelInvoice, bulkImportInvoices } from '../services/api';
 import { successToast, errorToast } from '../helper/toast';
 import type { Invoice } from '../types';
 import { printInvoice, downloadInvoicePdf } from '../helper/invoicePrinter';
@@ -27,6 +28,7 @@ import WithAuth from './WithAuth';
 import { ModuleName, Permission } from '../helper/constants';
 import { formatFullDateTime } from '../helper/helper';
 import { getInvoiceImportColumns, PURCHASE_INVOICE_IMPORT_SAMPLE_DATA, SALES_INVOICE_IMPORT_SAMPLE_DATA } from '../pages/Sales/invoiceImportConfig';
+import { CancelInvoiceConfirmModal } from './CancelInvoiceConfirmModal';
 
 export interface InvoiceListProps {
   fixedType?: 'SALES' | 'PURCHASE';
@@ -67,6 +69,7 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
   const [tagFilter, setTagFilter] = useState('All');
   const [showTags, setShowTags] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [cancelModalInvoice, setCancelModalInvoice] = useState<Invoice | null>(null);
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -253,6 +256,28 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
     }
   };
 
+  const handleCancelInvoice = async (row: Invoice) => {
+    if (row.type === 'SALES' && row.status !== 'Draft') {
+      errorToast('Cannot cancel Sales Invoice: Only draft sales invoices can be cancelled.');
+      return;
+    }
+
+    const confirmMsg = row.type === 'PURCHASE'
+      ? `Are you sure you want to cancel Purchase Invoice "${row.invoiceNumber}"? This will revert added stock in inventory.`
+      : `Are you sure you want to cancel draft Sales Invoice "${row.invoiceNumber}"?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await cancelInvoice(row.id);
+      successToast(res.message || 'Invoice cancelled successfully');
+      loadInvoices();
+    } catch (err: any) {
+      console.error('Failed to cancel invoice:', err);
+      errorToast(err.response?.data?.error || 'Failed to cancel invoice');
+    }
+  };
+
   // Table Columns aligned with Item Master (CustomTable layout)
   const columns: ColumnDef<Invoice>[] = [
     {
@@ -405,31 +430,50 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
       key: 'actions',
       title: '',
       align: 'right',
-      width: '80px',
-      render: (_, row) => (
-        <div className="flex items-center justify-end gap-2 text-gray-500 text-xs select-none">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              printInvoice(row);
-            }}
-            className="p-1 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
-            title="Print Invoice"
-          >
-            <Printer className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              downloadInvoicePdf(row);
-            }}
-            className="p-1 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
-            title="Download PDF"
-          >
-            <Download className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )
+      width: '105px',
+      render: (_, row) => {
+        const isCancelled = row.status === 'Cancelled';
+        const isDraftSales = row.type === 'SALES' && row.status === 'Draft';
+        const isPurchase = row.type === 'PURCHASE';
+        const canCancel = !isCancelled && (isPurchase || isDraftSales);
+
+        return (
+          <div className="flex items-center justify-end gap-1.5 text-gray-500 text-xs select-none">
+            {canCancel && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCancelModalInvoice(row);
+                }}
+                className="p-1 hover:text-rose-700 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                title={isPurchase ? "Cancel Purchase Invoice" : "Cancel Draft Sales Invoice"}
+              >
+                <Ban className="w-3.5 h-3.5 text-rose-500 hover:text-rose-700" />
+              </button>
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                printInvoice(row);
+              }}
+              className="p-1 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+              title="Print Invoice"
+            >
+              <Printer className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadInvoicePdf(row);
+              }}
+              className="p-1 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+              title="Download PDF"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        );
+      }
     }
   ];
 
@@ -579,6 +623,14 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
         loadInvoices();
         successToast('Invoices imported successfully!');
       }}
+    />
+
+    {/* CANCEL INVOICE CONFIRMATION MODAL */}
+    <CancelInvoiceConfirmModal
+      isOpen={Boolean(cancelModalInvoice)}
+      invoice={cancelModalInvoice}
+      onClose={() => setCancelModalInvoice(null)}
+      onSuccess={() => loadInvoices()}
     />
   </>
   );

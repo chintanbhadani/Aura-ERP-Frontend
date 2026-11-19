@@ -152,7 +152,11 @@ export const fetchProducts = async (search?: string): Promise<Product[]> => {
 export interface PointInTimeStockInfo {
   stockAsOfDate: number;
   currentStock: number;
-  firstStockDate: string | null;
+  isAvailable: boolean;
+  nextStockDate: string | null;
+  formattedNextStockDate: string | null;
+  earliestStockDate: string | null;
+  statusMessage: string;
   name: string;
   sku: string;
 }
@@ -628,6 +632,11 @@ export const deleteInvoice = async (id: string): Promise<any> => {
   return response.data;
 };
 
+export const cancelInvoice = async (id: string): Promise<any> => {
+  const response = await dataService.post(`/invoices/${id}/cancel`);
+  return response.data;
+};
+
 export const bulkImportInvoices = async (items: any[], type: 'PURCHASE' | 'SALES' = 'PURCHASE'): Promise<{
   successCount: number;
   createdCount?: number;
@@ -663,6 +672,10 @@ export interface AvailableBatch {
   unitCost: number;
   initialQuantity: number;
   availableQuantity: number;
+  totalBatchQuantity?: number;
+  isFutureBatch?: boolean;
+  futureArrivalDate?: string | null;
+  batchWarning?: string;
 }
 
 export interface ProductBatchData {
@@ -672,10 +685,17 @@ export interface ProductBatchData {
   totalStock: number;
   defaultSellingPrice: number;
   batches: AvailableBatch[];
+  hasAvailableBatchesOnDate?: boolean;
+  nextAvailableBatchDate?: string | null;
+  formattedNextBatchDate?: string | null;
+  statusMessage?: string;
 }
 
-export const fetchAvailableBatches = async (productId: string): Promise<ProductBatchData> => {
-  const response = await dataService.get(`/invoices/available-batches/${productId}`);
+export const fetchAvailableBatches = async (productId: string, invoiceDate?: string): Promise<ProductBatchData> => {
+  const url = invoiceDate
+    ? `/invoices/available-batches/${productId}?invoiceDate=${encodeURIComponent(invoiceDate)}`
+    : `/invoices/available-batches/${productId}`;
+  const response = await dataService.get(url);
   return response.data;
 };
 

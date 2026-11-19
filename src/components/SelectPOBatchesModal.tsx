@@ -31,6 +31,7 @@ export interface SelectPOBatchesModalProps {
   productId: string;
   productName: string;
   productSku?: string;
+  invoiceDate?: string;
   initialTargetQty?: number;
   initialAllocations?: { purchaseItemId: string; quantity: number }[];
   onConfirmAllocation: (allocations: SelectedPOAllocation[], totalAllocatedQty: number, weightedCost: number) => void;
@@ -42,6 +43,7 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
   productId,
   productName,
   productSku,
+  invoiceDate,
   initialTargetQty = 1,
   initialAllocations = [],
   onConfirmAllocation,
@@ -69,12 +71,12 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
       setBatchData(null);
       setAllocations({});
     }
-  }, [isOpen, productId, initialTargetQty, JSON.stringify(initialAllocations)]);
+  }, [isOpen, productId, initialTargetQty, invoiceDate, JSON.stringify(initialAllocations)]);
 
   const loadBatches = async () => {
     try {
       setLoading(true);
-      const data = await fetchAvailableBatches(productId);
+      const data = await fetchAvailableBatches(productId, invoiceDate);
       setBatchData(data);
     } catch (err: any) {
       console.error('Failed to load available PO batches', err);
@@ -92,6 +94,7 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
     const newAllocations: Record<string, number> = {};
 
     for (const b of batches) {
+      if (b.isFutureBatch || b.availableQuantity <= 0) continue;
       if (remainingToPick <= 0) break;
       const pick = Math.min(b.availableQuantity, remainingToPick);
       if (pick > 0) {
@@ -108,6 +111,11 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
   };
 
   const handleQtyChange = (purchaseItemId: string, maxQty: number, val: string) => {
+    const batch = batches.find(b => b.purchaseItemId === purchaseItemId);
+    if (batch?.isFutureBatch) {
+      errorToast(`Cannot pick batch "${batch.poNumber}". It only arrives on ${new Date(batch.date).toLocaleDateString('en-GB')}, which is after your invoice date.`);
+      return;
+    }
     const num = parseFloat(val);
     if (isNaN(num) || num <= 0) {
       const copy = { ...allocations };
@@ -249,6 +257,13 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
 
         {/* Batches Table */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {batchData?.statusMessage && !batchData?.hasAvailableBatchesOnDate && (
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-2.5 text-xs text-amber-900 font-semibold shadow-2xs">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>{batchData.statusMessage}</span>
+            </div>
+          )}
+
           {loading ? (
             <div className="py-16 text-center text-gray-400 flex flex-col items-center justify-center gap-2">
               <RefreshCw className="w-7 h-7 animate-spin text-emerald-600" />
@@ -281,23 +296,35 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
                   {batches.map((batch) => {
                     const picked = allocations[batch.purchaseItemId] || 0;
                     const isSelected = picked > 0;
+                    const isFuture = Boolean(batch.isFutureBatch);
 
                     return (
                       <tr 
                         key={batch.purchaseItemId}
                         className={`transition-colors ${
-                          isSelected ? 'bg-emerald-50/30' : 'hover:bg-gray-50/60'
+                          isFuture
+                            ? 'bg-amber-50/20 opacity-80'
+                            : isSelected ? 'bg-emerald-50/30' : 'hover:bg-gray-50/60'
                         }`}
                       >
                         <td className="py-3 px-4 font-mono font-bold text-gray-900">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 text-gray-800 border border-gray-200">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${
+                            isFuture ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-gray-100 text-gray-800 border-gray-200'
+                          }`}>
                             {batch.poNumber}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-gray-500">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                            {batch.date ? new Date(batch.date).toLocaleDateString() : '-'}
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                              <span className={isFuture ? 'font-bold text-amber-700' : ''}>
+                                {batch.date ? new Date(batch.date).toLocaleDateString('en-GB') : '-'}
+                              </span>
+                            </div>
+                            {isFuture && (
+                              <span className="text-[10px] text-amber-600 font-bold">Future Arrival</span>
+                            )}
                           </div>
                         </td>
                         <td className="py-3 px-3 text-gray-600 font-medium">
@@ -310,30 +337,42 @@ export const SelectPOBatchesModal: React.FC<SelectPOBatchesModalProps> = ({
                           {format(batch.unitCost)}
                         </td>
                         <td className="py-3 px-3 text-center font-bold text-gray-700">
-                          <span className="px-2 py-0.5 bg-gray-100 rounded-md">
-                            {batch.availableQuantity}
-                          </span>
+                          {isFuture ? (
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded-md border border-amber-200 text-[11px]" title={`Batch size: ${batch.totalBatchQuantity || 0}, but not available on invoice date`}>
+                              0 / {batch.totalBatchQuantity || 0}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 bg-gray-100 rounded-md">
+                              {batch.availableQuantity}
+                            </span>
+                          )}
                         </td>
                         <td className="py-2.5 px-4 bg-emerald-50/20 border-l border-emerald-100">
-                          <div className="flex items-center gap-1.5">
-                            <input
-                              type="number"
-                              min="0"
-                              max={batch.availableQuantity}
-                              value={picked > 0 ? picked : ''}
-                              placeholder="0"
-                              onChange={(e) => handleQtyChange(batch.purchaseItemId, batch.availableQuantity, e.target.value)}
-                              className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-center font-bold text-sm text-gray-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleQtyChange(batch.purchaseItemId, batch.availableQuantity, String(batch.availableQuantity))}
-                              className="text-[10px] font-extrabold text-emerald-700 hover:bg-emerald-100 px-1.5 py-1 rounded bg-emerald-50 border border-emerald-200 cursor-pointer"
-                              title="Pick all available in this PO"
-                            >
-                              ALL
-                            </button>
-                          </div>
+                          {isFuture ? (
+                            <div className="text-center text-[10px] font-bold text-amber-800 bg-amber-100/60 py-1.5 px-2 rounded-lg border border-amber-200" title={batch.batchWarning}>
+                              Not in stock on {invoiceDate ? new Date(invoiceDate).toLocaleDateString('en-GB') : 'date'}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min="0"
+                                max={batch.availableQuantity}
+                                value={picked > 0 ? picked : ''}
+                                placeholder="0"
+                                onChange={(e) => handleQtyChange(batch.purchaseItemId, batch.availableQuantity, e.target.value)}
+                                className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-center font-bold text-sm text-gray-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleQtyChange(batch.purchaseItemId, batch.availableQuantity, String(batch.availableQuantity))}
+                                className="text-[10px] font-extrabold text-emerald-700 hover:bg-emerald-100 px-1.5 py-1 rounded bg-emerald-50 border border-emerald-200 cursor-pointer"
+                                title="Pick all available in this PO"
+                              >
+                                ALL
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
