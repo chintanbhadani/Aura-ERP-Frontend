@@ -154,6 +154,7 @@ const MasterDataBase: React.FC = () => {
         <CompactTable
           data={data}
           loading={loading}
+          onRowClick={(row: any) => type === 'skus' ? navigate(`/products/edit?id=${row.id}`) : openModal(row)}
           columns={[
             {
               key: 'name',

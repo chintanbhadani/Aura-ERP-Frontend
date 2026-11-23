@@ -693,6 +693,7 @@ function StockEntryListBase() {
               columns={inventoryColumns}
               data={products}
               loading={inventoryLoading}
+              onRowClick={(row: Product) => navigate(`/products/edit?id=${row.id}`)}
               renderActions={(row: Product) => (
                 <div className="flex items-center justify-end gap-1.5 cursor-pointer">
                   <button
@@ -736,6 +737,13 @@ function StockEntryListBase() {
               columns={stockEntryColumns}
               data={stockEntries}
               loading={entriesLoading}
+              onRowClick={(row: StockEntryItem) => {
+                if (row.invoiceId) {
+                  navigate(`/invoices/${row.invoiceId}`);
+                } else {
+                  handleOpenEditModal(row);
+                }
+              }}
               renderActions={(row: StockEntryItem) => (
                 <div className="flex items-center gap-1 cursor-pointer">
                   {!row.invoiceId && (

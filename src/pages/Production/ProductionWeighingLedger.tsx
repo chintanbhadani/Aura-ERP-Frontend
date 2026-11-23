@@ -707,6 +707,7 @@ const ProductionWeighingLedgerBase: React.FC = () => {
         title="Production Weighing Ledger & Roll Sticker Generator"
         data={filteredRecords}
         columns={columns}
+        onRowClick={(row) => navigate(`/production/roll/${row.rollStickerCode}`)}
         onFetchAllRecords={async () => {
           try {
             const res = await dataService.get('/weighments');

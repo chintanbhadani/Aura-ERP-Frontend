@@ -119,6 +119,18 @@ function StockLedgerListBase() {
   };
 
   const handleNavigateVoucher = (row: StockLedgerItem) => {
+    // 0. Repack resolution
+    const repackRef = (row as any).repackId || (row as any).repack?.id;
+    if (repackRef) {
+      navigate(`/repack/${repackRef}`);
+      return;
+    }
+    const rpkRef = row.grn?.grnNumber || row.invoice?.invoiceNumber || (row as any).reference || '';
+    if (rpkRef.startsWith('RPK-')) {
+      navigate('/repack');
+      return;
+    }
+
     // 1. Direct GRN resolution (grn.grnNumber, grnId, or grn.id)
     const grnRef = row.grn?.grnNumber || row.grnId || row.grn?.id;
     if (grnRef) {

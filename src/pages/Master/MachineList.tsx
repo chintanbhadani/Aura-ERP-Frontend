@@ -271,6 +271,7 @@ const MachineListBase: React.FC = () => {
         title="Machine Master (Capacity & Per-Hour Limits)"
         data={filteredMachines}
         columns={columns}
+        onRowClick={(row) => handleOpenEditModal(row)}
         onFetchAllRecords={async () => machines}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}

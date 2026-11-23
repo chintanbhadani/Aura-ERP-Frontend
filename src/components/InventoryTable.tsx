@@ -185,6 +185,7 @@ export const InventoryTable: React.FC = () => {
         <DataTable 
           data={products}
           paginate
+          onRowClick={(row: Product) => row.id && navigate(`/products/edit?id=${row.id}`)}
           columns={[
             {
               header: '__checkbox__',

@@ -383,6 +383,7 @@ function BinReportListBase() {
       columns={columns}
       selectedIds={selectedIds}
       onSelectionChange={setSelectedIds}
+      onRowClick={(row) => navigate(row.id ? `/products/edit?id=${row.id}` : '/master/skus')}
       onToggleFavorite={(id: string) => setFavorites(prev => ({ ...prev, [id]: !prev[id] }))}
       favorites={favorites}
     >

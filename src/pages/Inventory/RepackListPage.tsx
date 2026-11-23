@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Boxes, 
   Plus, 
@@ -28,6 +28,7 @@ import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
 
 function RepackListPageBase() {
+  const navigate = useNavigate();
   const [repacks, setRepacks] = useState<RepackEntryData[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
@@ -204,17 +205,21 @@ function RepackListPageBase() {
                     const isSubmitted = !isDraft && !isCancelled;
 
                     return (
-                      <tr key={r.id} className="hover:bg-gray-50/70 transition">
+                      <tr 
+                        key={r.id} 
+                        onClick={() => navigate(`/repack/${r.id}`)}
+                        className="hover:bg-emerald-50/40 hover:shadow-2xs transition-colors cursor-pointer group"
+                      >
                         <td className="py-3.5 px-4 font-mono font-bold text-emerald-700">
-                          <Link to={`/repack/${r.id}`} className="hover:underline flex items-center gap-1.5">
+                          <span className="group-hover:underline flex items-center gap-1.5">
                             {r.repackNumber}
-                          </Link>
+                          </span>
                         </td>
                         <td className="py-3.5 px-4 text-gray-600 font-medium">
                           {r.date ? new Date(r.date).toLocaleDateString() : '-'}
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="font-bold text-gray-900">{src?.name || 'Unknown Bulk Item'}</div>
+                          <div className="font-bold text-gray-900 group-hover:text-emerald-950">{src?.name || 'Unknown Bulk Item'}</div>
                           <div className="text-[11px] text-gray-400 font-mono">{src?.sku}</div>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 font-bold text-[10px]">
@@ -231,7 +236,7 @@ function RepackListPageBase() {
                           <ArrowRight className="w-4 h-4 mx-auto text-emerald-600" />
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="font-bold text-gray-900">{tgt?.name || 'Unknown Packed Item'}</div>
+                          <div className="font-bold text-gray-900 group-hover:text-emerald-950">{tgt?.name || 'Unknown Packed Item'}</div>
                           <div className="text-[11px] text-gray-400 font-mono">{tgt?.sku}</div>
                           <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 font-bold text-[10px]">
                             + {Number(r.targetQuantity)} {tgtUnit}
@@ -258,14 +263,15 @@ function RepackListPageBase() {
                             </span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <Link
-                            to={`/repack/${r.id}`}
-                            className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors inline-block"
+                        <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/repack/${r.id}`)}
+                            className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors inline-block cursor-pointer"
                             title="View / Edit Repack"
                           >
                             <FileText className="w-4 h-4" />
-                          </Link>
+                          </button>
                         </td>
                       </tr>
                     );

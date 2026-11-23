@@ -20,9 +20,10 @@ interface CompactTableProps {
   footer?: Record<string, React.ReactNode>;
   loading?: boolean;
   selectable?: boolean;
+  onRowClick?: (row: any) => void;
 }
 
-export function CompactTable({ columns, data, onFilterChange, renderActions, footer, loading, selectable = false }: CompactTableProps) {
+export function CompactTable({ columns, data, onFilterChange, renderActions, footer, loading, selectable = false, onRowClick }: CompactTableProps) {
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(new Set());
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -173,9 +174,13 @@ export function CompactTable({ columns, data, onFilterChange, renderActions, foo
                 </td>
               </tr>
             ) : paginatedData.map((row, idx) => (
-              <tr key={row.id || idx} className="hover:bg-gray-50/80 transition-colors group">
+              <tr 
+                key={row.id || idx} 
+                onClick={() => onRowClick?.(row)}
+                className={`hover:bg-gray-50/80 transition-colors group ${onRowClick ? 'cursor-pointer' : ''}`}
+              >
                 {selectable && (
-                  <td className="px-4 py-2.5 text-center">
+                  <td className="px-4 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
                     <input 
                       type="checkbox" 
                       className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 opacity-50 group-hover:opacity-100 transition-opacity cursor-pointer"
@@ -190,7 +195,7 @@ export function CompactTable({ columns, data, onFilterChange, renderActions, foo
                   </td>
                 ))}
                 {renderActions && (
-                  <td className="px-4 py-2.5 text-right whitespace-nowrap flex items-center justify-end gap-3">
+                  <td className="px-4 py-2.5 text-right whitespace-nowrap flex items-center justify-end gap-3" onClick={(e) => e.stopPropagation()}>
                     {renderActions(row)}
                   </td>
                 )}
