@@ -768,6 +768,11 @@ export const createRepack = async (data: RepackEntryData): Promise<RepackEntryDa
   return response.data;
 };
 
+export const updateRepack = async (id: string, data: Partial<RepackEntryData>): Promise<RepackEntryData> => {
+  const response = await dataService.put(`/repack/${id}`, data);
+  return response.data;
+};
+
 export const fetchRepackById = async (id: string): Promise<RepackEntryData> => {
   const response = await dataService.get(`/repack/${id}`);
   return response.data;

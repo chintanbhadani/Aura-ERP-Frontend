@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { Formik, Form, FieldArray } from 'formik';
 import * as Yup from 'yup';
 import { ERPFormHeader, ERPFormPageLayout } from '../../components/ERPForm';
@@ -22,7 +22,7 @@ import {
   type PointInTimeStockInfo
 } from '../../services/api';
 import type { SkuMaster, Product, Customer, Supplier, Category, Unit } from '../../services/api';
-import { successToast, errorToast } from '../../helper/toast';
+import { successToast, errorToast, infoToast } from '../../helper/toast';
 import { TextFieldComponent, SelectOutlinedField, DatePickerComponent, ReusableAutocomplete } from '../../components/input/index';
 import { 
   Plus, 
@@ -47,7 +47,8 @@ import {
   Sparkles,
   Upload,
   AlertCircle,
-  Ban
+  Ban,
+  Loader2
 } from 'lucide-react';
 import { useCurrency } from '../../helper/currency';
 import WithAuth from '../../components/WithAuth';
@@ -134,6 +135,19 @@ const productModalValidationSchema = Yup.object({
   cost_price: Yup.number().min(0, 'Min 0'),
 });
 
+// Helper to generate amended document ID with -01 suffix
+export function getAmendedNumber(originalNumber: string): string {
+  if (!originalNumber) return '';
+  const clean = String(originalNumber).trim();
+  const match = clean.match(/^(.*?)-(\d{1,2})$/);
+  if (match) {
+    const base = match[1];
+    const num = parseInt(match[2], 10) + 1;
+    return `${base}-${num.toString().padStart(2, '0')}`;
+  }
+  return `${clean}-01`;
+}
+
 export interface InvoiceFormPageProps {
   defaultType?: 'SALES' | 'PURCHASE';
 }
@@ -195,6 +209,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
   // Bulk Upload Items State
   const [isBulkUploadOpen, setIsBulkUploadOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isAmending, setIsAmending] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   const customerResolveRef = useRef<((val: Customer) => void) | null>(null);
@@ -409,28 +424,34 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     }
   };
 
-  const handleAmendInvoice = () => {
-    const currentValues = formikRef.current?.values || existingInvoice;
-    if (!currentValues) return;
+  const handleAmendInvoice = async () => {
+    if (!existingInvoice) return;
 
-    const amendedData = {
-      type: currentValues.type || initialInvoiceType,
-      invoiceNumber: '',
-      date: new Date().toISOString().split('T')[0],
-      dueDate: currentValues.dueDate || '',
-      clientId: currentValues.clientId || '',
-      supplierId: currentValues.supplierId || '',
-      paymentType: currentValues.paymentType || 'CASH',
-      cashAmount: currentValues.cashAmount,
-      bankAmount: currentValues.bankAmount,
-      mobileMoneyAmount: currentValues.mobileMoneyAmount,
-      creditAmount: currentValues.creditAmount,
-      shippingCharge: currentValues.shippingCharge,
-      laborCost: currentValues.laborCost,
-      notes: currentValues.notes || '',
-      paymentTerms: currentValues.paymentTerms || 'Payment due on receipt',
-      status: 'Draft',
-      items: (currentValues.items || []).map((i: any) => ({
+    const targetUrl = existingInvoice.type === 'SALES' ? '/invoices/sales/new' : '/invoices/purchase/new';
+
+    // If this cancelled invoice has already been amended, navigate to that amended invoice
+    if ((existingInvoice as any)?.amendedAs) {
+      infoToast(`This invoice is already amended as ${(existingInvoice as any).amendedAs.invoiceNumber}`);
+      navigate(`${targetUrl}?id=${(existingInvoice as any).amendedAs.id}`);
+      return;
+    }
+
+    const originalNumber = existingInvoice.invoiceNumber;
+    const amendedNumber = getAmendedNumber(originalNumber);
+
+    try {
+      setIsAmending(true);
+      const src = existingInvoice || formikRef.current?.values;
+      const effectiveCustomerId = src.customerId || src.customer?.id || src.clientId || src.client?.id || formikRef.current?.values?.clientId;
+      const effectiveSupplierId = src.supplierId || src.supplier?.id;
+      const effectiveShippingCharge = Number(src.shippingCharge ?? formikRef.current?.values?.shippingCharge ?? 0);
+      const effectiveLaborCost = Number(src.laborCost ?? formikRef.current?.values?.laborCost ?? 0);
+
+      const rawItems = (src.items && src.items.length > 0)
+        ? src.items
+        : (formikRef.current?.values?.items || []);
+
+      const items = rawItems.map((i: any) => ({
         productId: i.productId || i.product?.id || '',
         quantity: Number(i.quantity) || 1,
         unitPrice: Number(i.unitPrice) || 0,
@@ -438,13 +459,38 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         purchaseInvoiceNo: i.purchaseInvoiceNo || '',
         purchaseItemId: i.purchaseItemId || '',
         poAllocations: i.poAllocations || [],
-        uom: i.uom || i.product?.unit?.name || 'Pcs',
-      }))
-    };
+      }));
 
-    const targetUrl = currentValues.type === 'SALES' ? '/invoices/sales/new' : '/invoices/purchase/new';
-    navigate(targetUrl, { state: { amendedInvoice: amendedData } });
-    successToast('Amended invoice loaded as a new draft. You can now adjust details and submit.');
+      const payload = {
+        type: src.type || initialInvoiceType,
+        invoiceNumber: amendedNumber,
+        amendedFrom: originalNumber,
+        date: new Date().toISOString().split('T')[0],
+        dueDate: src.dueDate ? new Date(src.dueDate).toISOString().split('T')[0] : '',
+        customerId: effectiveCustomerId,
+        supplierId: effectiveSupplierId,
+        paymentType: src.paymentType || 'CASH',
+        cashAmount: src.cashAmount !== undefined && src.cashAmount !== null && src.cashAmount !== '' ? Number(src.cashAmount) : undefined,
+        bankAmount: src.bankAmount !== undefined && src.bankAmount !== null && src.bankAmount !== '' ? Number(src.bankAmount) : undefined,
+        creditAmount: src.creditAmount !== undefined && src.creditAmount !== null && src.creditAmount !== '' ? Number(src.creditAmount) : undefined,
+        mobileMoneyAmount: src.mobileMoneyAmount !== undefined && src.mobileMoneyAmount !== null && src.mobileMoneyAmount !== '' ? Number(src.mobileMoneyAmount) : undefined,
+        shippingCharge: effectiveShippingCharge,
+        laborCost: effectiveLaborCost,
+        notes: src.notes || '',
+        paymentTerms: src.paymentTerms || 'Payment due on receipt',
+        status: 'Draft',
+        items,
+      };
+
+      const created = await createInvoice(payload);
+      successToast(`Amended draft "${amendedNumber}" created successfully with Draft status`);
+      navigate(`${targetUrl}?id=${created.id || created.invoice?.id}`);
+    } catch (err: any) {
+      console.error('Failed to create amended invoice:', err);
+      errorToast(err.response?.data?.error || err.message || 'Failed to create amended invoice');
+    } finally {
+      setIsAmending(false);
+    }
   };
 
   const handleCopyLink = () => {
@@ -677,11 +723,9 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
   const handleCancelInvoice = () => {
     if (!invoiceId) return;
 
-    const currentType = formikRef.current?.values?.type || existingInvoice?.type;
     const currentStatus = formikRef.current?.values?.status || existingInvoice?.status;
-
-    if (currentType === 'SALES' && currentStatus !== 'Draft') {
-      errorToast('Cannot cancel Sales Invoice: Only draft sales invoices can be cancelled.');
+    if (currentStatus === 'Cancelled') {
+      errorToast('Invoice is already cancelled.');
       return;
     }
 
@@ -844,18 +888,21 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         await updateInvoice(invoiceId, payload);
         if (submissionStatusRef.current === 'Submitted' && existingInvoice?.status === 'Draft') {
           successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice submitted successfully!`);
+          navigate(values.type === 'SALES' ? '/invoices/sales' : '/invoices/purchase');
         } else {
-          successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice updated successfully!`);
+          successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice saved as draft!`);
+          await loadExistingInvoice(invoiceId);
         }
       } else {
-        await createInvoice(payload);
+        const created = await createInvoice(payload);
         if (finalStatus === 'Draft') {
           successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice saved as draft!`);
+          navigate(values.type === 'SALES' ? `/invoices/sales/new?id=${created.id}` : `/invoices/purchase/new?id=${created.id}`);
         } else {
           successToast(`${values.type === 'SALES' ? 'Sales' : 'Purchase'} Invoice submitted successfully!`);
+          navigate(values.type === 'SALES' ? '/invoices/sales' : '/invoices/purchase');
         }
       }
-      navigate(values.type === 'SALES' ? '/invoices/sales' : '/invoices/purchase');
     } catch (err: any) {
       console.error('Invoice save error:', err);
       const errorMsg =
@@ -898,17 +945,18 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         const isReadOnly = isSubmitted || isCancelled;
 
         // Button Visibility Lifecycle:
-        // Not save   -> Save
-        // Draft      -> Submit (and Save if editing)
-        // Submitted  -> Cancel
-        // Cancelled  -> Amended
-        const showSaveBtn = isNew || isDraft;
-        const showSubmitBtn = isDraft;
-        const showCancelBtn = isSubmitted || isDraft;
+        // 1. Not Saved (new or draft with unsaved changes) -> Save button
+        // 2. Draft (saved draft with no pending changes) -> Submit button (NO Cancel button on draft)
+        // 3. Submitted -> Cancel button
+        // 4. Cancelled -> Amended button
+        const isUnsaved = isNew || (isDraft && dirty);
+        const showSaveBtn = isUnsaved;
+        const showSubmitBtn = isDraft && !dirty;
+        const showCancelBtn = isSubmitted;
         const showAmendBtn = isCancelled;
 
-        const statusBadgeConfig = isNew
-          ? { label: 'Not Saved', variant: 'gray' as const }
+        const statusBadgeConfig = isUnsaved
+          ? { label: 'Not Saved', variant: 'warning' as const }
           : isDraft
           ? { label: 'Draft', variant: 'warning' as const }
           : isSubmitted
@@ -924,6 +972,16 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                 onBack={() => navigate(backUrl)}
                 backTitle={values.type === 'SALES' ? 'Back to Sales Invoices' : 'Back to Purchase Invoices'}
                 statusBadge={statusBadgeConfig}
+                extraBadges={[
+                  ...((existingInvoice as any)?.amendedAs ? [{
+                    label: `Already amended as ${(existingInvoice as any).amendedAs.invoiceNumber}`,
+                    variant: 'gray' as const,
+                  }] : []),
+                  ...((existingInvoice as any)?.amendedFrom ? [{
+                    label: `Amended from ${(existingInvoice as any).amendedFrom}`,
+                    variant: 'warning' as const,
+                  }] : []),
+                ]}
                 dirty={dirty}
                 onDuplicate={() => {
                   setFieldValue('invoiceNumber', '');
@@ -965,9 +1023,10 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                 onCancelAction={handleCancelInvoice}
                 cancelLabel="Cancel"
                 isCancellingAction={isCancelling}
-                showAmend={showAmendBtn}
+                showAmend={showAmendBtn && !(existingInvoice as any)?.amendedAs}
                 onAmendAction={handleAmendInvoice}
                 amendLabel="Amended"
+                isAmendingAction={isAmending}
                 saveLabel="Save"
                 onSave={() => handleTriggerAction('Draft')}
                 showSave={showSaveBtn}
@@ -981,21 +1040,76 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
           >
             <Form noValidate className="space-y-6 w-full">
               {/* STATUS NOTIFICATIONS */}
+              {/* If amended from original cancelled invoice */}
+              {(existingInvoice as any)?.amendedFrom && (
+                <div className="p-3 bg-purple-50/80 border border-purple-200/80 rounded-2xl flex items-center justify-between text-purple-900 text-xs shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <FileEdit className="w-4 h-4 text-purple-600 shrink-0" />
+                    <span>
+                      Amended from original cancelled invoice: <strong className="font-mono text-purple-950 font-bold">{(existingInvoice as any).amendedFrom}</strong>
+                    </span>
+                  </div>
+                  {(existingInvoice as any)?.amendedFromId && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/invoices/${values.type === 'SALES' ? 'sales' : 'purchase'}/new?id=${(existingInvoice as any).amendedFromId}`)}
+                      className="text-purple-700 hover:text-purple-900 font-bold hover:underline cursor-pointer"
+                    >
+                      View Original
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {isDraft && !dirty && (
+                <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-2xl flex items-center justify-between text-blue-900 text-xs shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span>Submit this document to confirm and finalize stock & financial ledgers.</span>
+                  </div>
+                </div>
+              )}
+
+              {isDraft && dirty && (
+                <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-2xl flex items-center justify-between text-amber-900 text-xs shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>You have unsaved changes. Click <strong>Save</strong> to update this draft before submitting.</span>
+                  </div>
+                </div>
+              )}
+
               {isCancelled && (
                 <div className="p-4 bg-rose-50/90 border border-rose-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-rose-900 text-xs shadow-2xs">
                   <div className="flex items-start sm:items-center gap-2.5">
                     <Ban className="w-4 h-4 text-rose-600 shrink-0 mt-0.5 sm:mt-0" />
                     <span>
                       This invoice is <strong>Cancelled</strong>. Stock adjustments have been reverted and transactions are void.
+                      {(existingInvoice as any)?.amendedAs ? (
+                        <> Already amended as <strong className="font-mono font-bold text-gray-900">{(existingInvoice as any).amendedAs.invoiceNumber}</strong>.</>
+                      ) : null}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => navigate(values.type === 'SALES' ? '/invoices/sales/new' : '/invoices/purchase/new')}
-                    className="shrink-0 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                  >
-                    + Create New Invoice
-                  </button>
+                  {(existingInvoice as any)?.amendedAs ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/invoices/${values.type === 'SALES' ? 'sales' : 'purchase'}/new?id=${(existingInvoice as any).amendedAs.id}`)}
+                      className="shrink-0 px-3.5 py-1.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                    >
+                      <FileEdit className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>View Amended ({(existingInvoice as any).amendedAs.invoiceNumber})</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleAmendInvoice}
+                      disabled={isAmending}
+                      className="shrink-0 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      {isAmending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileEdit className="w-3.5 h-3.5" />}
+                      <span>Amended (Create New Draft)</span>
+                    </button>
+                  )}
                 </div>
               )}
               {/* MAIN 2-COLUMN LAYOUT ALIGNED WITH ITEM MASTER DETAIL PAGE */}

@@ -356,6 +356,10 @@ function StockLedgerListBase() {
           badgeStyle = 'bg-blue-50 text-blue-800 border-blue-300 hover:bg-blue-100';
         } else if (val === 'ADJUSTMENT') {
           badgeStyle = 'bg-purple-50 text-purple-800 border-purple-300 hover:bg-purple-100';
+        } else if (val === 'SALES_CANCEL') {
+          badgeStyle = 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100';
+        } else if (val === 'PURCHASE_CANCEL') {
+          badgeStyle = 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100';
         }
 
         return (

@@ -257,14 +257,14 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
   };
 
   const handleCancelInvoice = async (row: Invoice) => {
-    if (row.type === 'SALES' && row.status !== 'Draft') {
-      errorToast('Cannot cancel Sales Invoice: Only draft sales invoices can be cancelled.');
+    if (row.status === 'Cancelled') {
+      errorToast('Invoice is already cancelled.');
       return;
     }
 
     const confirmMsg = row.type === 'PURCHASE'
-      ? `Are you sure you want to cancel Purchase Invoice "${row.invoiceNumber}"? This will revert added stock in inventory.`
-      : `Are you sure you want to cancel draft Sales Invoice "${row.invoiceNumber}"?`;
+      ? `Are you sure you want to cancel Purchase Invoice "${row.invoiceNumber}"? This will safely revert added stock in inventory.`
+      : `Are you sure you want to cancel Sales Invoice "${row.invoiceNumber}"? This will safely return deducted stock to inventory and maintain the stock ledger.`;
 
     if (!window.confirm(confirmMsg)) return;
 

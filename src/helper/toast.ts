@@ -25,3 +25,16 @@ export const errorToast = (message: string) => {
     },
   });
 };
+
+export const infoToast = (message: string) => {
+  return toast.info(message, {
+    autoClose: 4000,
+    closeOnClick: true,
+    pauseOnHover: true,
+    draggable: true,
+    closeButton: true,
+    style: {
+      borderBottom: "none",
+    },
+  });
+};
