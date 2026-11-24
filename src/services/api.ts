@@ -30,6 +30,27 @@ export interface Unit {
   status?: string;
 }
 
+export interface Company {
+  id: string;
+  name: string;
+  code?: string;
+  taxId?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  currency?: string;
+  isDefault?: boolean;
+  status?: string;
+  disabled?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: {
+    invoices?: number;
+  };
+}
+
 export interface Supplier {
   id: string | number;
   name: string;
@@ -258,6 +279,34 @@ export const deleteUnit = async (id: string): Promise<void> => {
 export const bulkImportUnits = async (items: any[]): Promise<any> => {
   const response = await dataService.post('/units/bulk-import', { items });
   return response.data;
+};
+
+// Company Master API
+export const fetchCompanies = async (search?: string, status?: string): Promise<Company[]> => {
+  const params: Record<string, any> = {};
+  if (search) params.search = search;
+  if (status) params.status = status;
+  const response = await dataService.get('/companies', { params: Object.keys(params).length ? params : undefined });
+  return response.data;
+};
+
+export const fetchCompanyById = async (id: string): Promise<Company> => {
+  const response = await dataService.get(`/companies/${id}`);
+  return response.data;
+};
+
+export const createCompany = async (data: Partial<Company>): Promise<Company> => {
+  const response = await dataService.post('/companies', data);
+  return response.data;
+};
+
+export const updateCompany = async (id: string, data: Partial<Company>): Promise<Company> => {
+  const response = await dataService.put(`/companies/${id}`, data);
+  return response.data;
+};
+
+export const deleteCompany = async (id: string): Promise<void> => {
+  await dataService.delete(`/companies/${id}`);
 };
 
 export const bulkUploadUnits = async (file: File): Promise<any> => {

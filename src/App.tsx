@@ -31,6 +31,8 @@ import { CustomerList } from './pages/Master/CustomerList';
 import { CustomerFormPage } from './pages/Master/CustomerFormPage';
 import { UnitList } from './pages/Master/UnitList';
 import { UnitFormPage } from './pages/Master/UnitFormPage';
+import { CompanyList } from './pages/Master/CompanyList';
+import { CompanyFormPage } from './pages/Master/CompanyFormPage';
 import { MachineList } from './pages/Master/MachineList';
 import { ProductMasterList } from './pages/Master/ProductMasterList';
 import { UserManagementList } from './pages/Master/UserManagementList';
@@ -168,6 +170,12 @@ function App() {
         <Route path="/master/units" element={<UnitList />} />
         <Route path="/master/units/new" element={<UnitFormPage />} />
         <Route path="/master/units/:id" element={<UnitFormPage />} />
+        <Route path="/master/companies" element={<CompanyList />} />
+        <Route path="/master/companies/new" element={<CompanyFormPage />} />
+        <Route path="/master/companies/:id" element={<CompanyFormPage />} />
+        <Route path="/companies" element={<CompanyList />} />
+        <Route path="/companies/new" element={<CompanyFormPage />} />
+        <Route path="/companies/:id" element={<CompanyFormPage />} />
         <Route path="/master/machines" element={<MachineList />} />
         <Route path="/master/skus" element={<ProductMasterList />} />
         

@@ -102,11 +102,12 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
     setFavorites(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // KPI Calculations matching user spreadsheet summary
-  const grandTotal = useMemo(() => invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0), [invoices]);
-  const cashTotal = useMemo(() => invoices.filter(inv => (inv as any).paymentType === 'CASH').reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0), [invoices]);
-  const creditTotal = useMemo(() => invoices.filter(inv => (inv as any).paymentType === 'CREDIT').reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0), [invoices]);
-  const bankTotal = useMemo(() => invoices.filter(inv => (inv as any).paymentType === 'BANK').reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0), [invoices]);
+  // KPI Calculations: Only active/submitted invoices count towards turnover, spend, and settlements (Cancelled & Draft are excluded)
+  const activeInvoices = useMemo(() => invoices.filter(inv => inv.status !== 'Cancelled' && inv.status !== 'Draft'), [invoices]);
+  const grandTotal = useMemo(() => activeInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0), [activeInvoices]);
+  const cashTotal = useMemo(() => activeInvoices.filter(inv => (inv as any).paymentType === 'CASH').reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0), [activeInvoices]);
+  const creditTotal = useMemo(() => activeInvoices.filter(inv => (inv as any).paymentType === 'CREDIT').reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0), [activeInvoices]);
+  const bankTotal = useMemo(() => activeInvoices.filter(inv => (inv as any).paymentType === 'BANK').reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0), [activeInvoices]);
 
   const pageTitle = fixedType === 'SALES' ? 'Sales Invoices' : fixedType === 'PURCHASE' ? 'Purchase Invoices' : 'Invoices';
   const partyHeader = fixedType === 'SALES' ? 'Customer' : fixedType === 'PURCHASE' ? 'Supplier' : 'Customer / Supplier';
@@ -556,7 +557,7 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
             </div>
             <div className="mt-2">
               <p className="text-xl font-extrabold text-gray-900 tracking-tight">{format(grandTotal)}</p>
-              <p className="text-[11px] text-gray-400 mt-0.5">{invoices.length} {invoices.length === 1 ? 'Invoice' : 'Invoices'}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">{activeInvoices.length} {activeInvoices.length === 1 ? 'Invoice' : 'Invoices'}</p>
             </div>
           </div>
 

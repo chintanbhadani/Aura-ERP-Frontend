@@ -77,6 +77,27 @@ export interface InvoiceItem {
   product?: any; // To hold related product info
 }
 
+export interface Company {
+  id: string;
+  name: string;
+  code?: string;
+  taxId?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  currency?: string;
+  isDefault?: boolean;
+  status?: string;
+  disabled?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: {
+    invoices?: number;
+  };
+}
+
 export type PaymentType = 'CASH' | 'BANK' | 'CREDIT' | 'PARTIAL' | 'MOBILE_MONEY';
 
 export interface Invoice {
@@ -97,6 +118,8 @@ export interface Invoice {
   mobileMoneyAmount?: number;
   customerId?: string | null;
   supplierId?: string | null;
+  companyId?: string | null;
+  company?: Company;
   items?: InvoiceItem[];
   customer?: Customer;
   client?: any;

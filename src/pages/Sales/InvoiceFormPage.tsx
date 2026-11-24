@@ -11,17 +11,19 @@ import {
   fetchSuppliers, 
   fetchCategories, 
   fetchUnits,
+  fetchCompanies,
   createInvoice, 
   updateInvoice,
   fetchInvoiceById,
   createCustomer, 
   createSupplier, 
   createProduct,
+  createCompany,
   uploadFile,
   fetchStockAsOfDate,
   type PointInTimeStockInfo
 } from '../../services/api';
-import type { SkuMaster, Product, Customer, Supplier, Category, Unit } from '../../services/api';
+import type { SkuMaster, Product, Customer, Supplier, Category, Unit, Company } from '../../services/api';
 import { successToast, errorToast, infoToast } from '../../helper/toast';
 import { TextFieldComponent, SelectOutlinedField, DatePickerComponent, ReusableAutocomplete } from '../../components/input/index';
 import { 
@@ -48,7 +50,8 @@ import {
   Upload,
   AlertCircle,
   Ban,
-  Loader2
+  Loader2,
+  Building2
 } from 'lucide-react';
 import { useCurrency } from '../../helper/currency';
 import WithAuth from '../../components/WithAuth';
@@ -60,6 +63,7 @@ import { CancelInvoiceConfirmModal } from '../../components/CancelInvoiceConfirm
 
 const invoiceValidationSchema = Yup.object({
   type: Yup.string().required(),
+  companyId: Yup.string().trim().required('Company is required'),
   date: Yup.string().required('Date is required'),
   clientId: Yup.string().when('type', {
     is: 'SALES',
@@ -135,6 +139,15 @@ const productModalValidationSchema = Yup.object({
   cost_price: Yup.number().min(0, 'Min 0'),
 });
 
+const companyModalValidationSchema = Yup.object({
+  name: Yup.string().trim().required('Company name is required'),
+  code: Yup.string().trim().nullable(),
+  taxId: Yup.string().trim().nullable(),
+  contact: Yup.string().trim().nullable(),
+  email: Yup.string().trim().email('Must be a valid email').nullable(),
+  address: Yup.string().trim().nullable(),
+});
+
 // Helper to generate amended document ID with -01 suffix
 export function getAmendedNumber(originalNumber: string): string {
   if (!originalNumber) return '';
@@ -173,16 +186,19 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [existingInvoice, setExistingInvoice] = useState<any>(null);
 
   // Quick modals for on-the-fly adding
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
 
   const [pendingCustomerName, setPendingCustomerName] = useState('');
   const [pendingSupplierName, setPendingSupplierName] = useState('');
   const [pendingProductName, setPendingProductName] = useState('');
+  const [pendingCompanyName, setPendingCompanyName] = useState('');
   const [pendingItemIndex, setPendingItemIndex] = useState<number | null>(null);
 
   const [copiedLink, setCopiedLink] = useState(false);
@@ -215,6 +231,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
   const customerResolveRef = useRef<((val: Customer) => void) | null>(null);
   const supplierResolveRef = useRef<((val: Supplier) => void) | null>(null);
   const productResolveRef = useRef<((val: any) => void) | null>(null);
+  const companyResolveRef = useRef<((val: Company) => void) | null>(null);
   const formikRef = useRef<any>(null);
   const submissionStatusRef = useRef<'Draft' | 'Submitted' | string | null>(null);
   const [isSubmittingSubmit, setIsSubmittingSubmit] = useState(false);
@@ -246,18 +263,20 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
 
   const loadMasterData = async () => {
     try {
-      const [skuList, custs, supps, cats, uList] = await Promise.all([
+      const [skuList, custs, supps, cats, uList, compList] = await Promise.all([
         fetchSkus().catch(() => []),
         fetchCustomers().catch(() => []),
         fetchSuppliers().catch(() => []),
         fetchCategories().catch(() => []),
         fetchUnits().catch(() => []),
+        fetchCompanies().catch(() => []),
       ]);
       setSkus(skuList || []);
       setCustomers(custs || []);
       setSuppliers(supps || []);
       setCategories(cats || []);
       setUnits(uList || []);
+      setCompanies(compList || []);
     } catch (err) {
       console.error('Failed to load master data for invoice form', err);
     }
@@ -424,6 +443,34 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     }
   };
 
+  // Quick Company Creation
+  const handleSaveCompany = async (values: any, resetForm: () => void) => {
+    try {
+      const created = await createCompany({
+        name: values.name.trim(),
+        code: values.code?.trim() || values.name.trim().slice(0, 4).toUpperCase(),
+        taxId: values.taxId?.trim() || undefined,
+        phone: values.contact?.trim() || undefined,
+        email: values.email?.trim() || undefined,
+        address: values.address?.trim() || undefined,
+        status: 'Active'
+      });
+
+      setCompanies((prev) => [created, ...prev]);
+      formikRef.current?.setFieldValue('companyId', created.id);
+      successToast(`Company "${created.name}" created`);
+      setIsCompanyModalOpen(false);
+      resetForm();
+
+      if (companyResolveRef.current) {
+        companyResolveRef.current(created);
+        companyResolveRef.current = null;
+      }
+    } catch (err: any) {
+      errorToast(err.response?.data?.error || 'Failed to create company');
+    }
+  };
+
   const handleAmendInvoice = async () => {
     if (!existingInvoice) return;
 
@@ -444,6 +491,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       const src = existingInvoice || formikRef.current?.values;
       const effectiveCustomerId = src.customerId || src.customer?.id || src.clientId || src.client?.id || formikRef.current?.values?.clientId;
       const effectiveSupplierId = src.supplierId || src.supplier?.id;
+      const effectiveCompanyId = src.companyId || src.company?.id || formikRef.current?.values?.companyId || (companies.find(c => c.isDefault)?.id || companies[0]?.id);
       const effectiveShippingCharge = Number(src.shippingCharge ?? formikRef.current?.values?.shippingCharge ?? 0);
       const effectiveLaborCost = Number(src.laborCost ?? formikRef.current?.values?.laborCost ?? 0);
 
@@ -467,6 +515,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
         amendedFrom: originalNumber,
         date: new Date().toISOString().split('T')[0],
         dueDate: src.dueDate ? new Date(src.dueDate).toISOString().split('T')[0] : '',
+        companyId: effectiveCompanyId,
         customerId: effectiveCustomerId,
         supplierId: effectiveSupplierId,
         paymentType: src.paymentType || 'CASH',
@@ -513,9 +562,12 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
   };
 
   const initialValues = useMemo(() => {
+    const defaultCompanyId = companies.find(c => c.isDefault)?.id || companies[0]?.id || '';
+
     if (existingInvoice) {
       return {
         type: existingInvoice.type || initialInvoiceType,
+        companyId: existingInvoice.companyId || existingInvoice.company?.id || defaultCompanyId,
         invoiceNumber: existingInvoice.invoiceNumber || '',
         date: existingInvoice.date ? new Date(existingInvoice.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         dueDate: existingInvoice.dueDate ? new Date(existingInvoice.dueDate).toISOString().split('T')[0] : '',
@@ -554,6 +606,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
     if (amended) {
       return {
         ...amended,
+        companyId: amended.companyId || amended.company?.id || defaultCompanyId,
         invoiceNumber: '',
         status: 'Draft',
         items: (amended.items && amended.items.length > 0)
@@ -564,6 +617,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
 
     return {
       type: initialInvoiceType,
+      companyId: defaultCompanyId,
       invoiceNumber: '',
       date: new Date().toISOString().split('T')[0],
       dueDate: '',
@@ -585,7 +639,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
       allowNegativeStock: false,
       items: [{ productId: '', quantity: 1, unitPrice: 0, costPrice: 0, purchaseInvoiceNo: '', purchaseItemId: '', poAllocations: [], uom: 'Pcs' }],
     };
-  }, [existingInvoice, initialInvoiceType]);
+  }, [existingInvoice, initialInvoiceType, companies, location.state]);
 
   const handleOpenPOModal = (index: number, currentItem: any) => {
     if (!currentItem.productId) {
@@ -851,6 +905,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
 
       const payload: any = {
         type: values.type,
+        companyId: values.companyId || (companies.find(c => c.isDefault)?.id || companies[0]?.id || undefined),
         date: values.date,
         dueDate: values.dueDate || undefined,
         paymentType: values.paymentType,
@@ -1374,7 +1429,7 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                             BASIC INFORMATION
                           </h4>
                           
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                             <SelectOutlinedField
                               name="type"
                               label="Invoice Type *"
@@ -1407,6 +1462,28 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                                 if (newDate) {
                                   loadPointInTimeStock(newDate);
                                 }
+                              }}
+                            />
+
+                            {/* Company Autocomplete (Required) */}
+                            <ReusableAutocomplete
+                              keyName="companyId"
+                              label="Company *"
+                              placeholder="Search or add company..."
+                              disabled={isReadOnly}
+                              options={companies}
+                              getOptionLabel={(c: Company) => c.name || ''}
+                              compareKey="id"
+                              creatable
+                              onCreate={(inputValue) => {
+                                setPendingCompanyName(inputValue);
+                                setIsCompanyModalOpen(true);
+                                return new Promise<Company>((resolve) => {
+                                  companyResolveRef.current = resolve;
+                                });
+                              }}
+                              onChange={(val: any) => {
+                                setFieldValue('companyId', val?.id || '');
                               }}
                             />
 
@@ -2168,6 +2245,70 @@ const InvoiceFormPageBase: React.FC<InvoiceFormPageProps> = ({ defaultType }) =>
                             className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow cursor-pointer"
                           >
                             Create & Select
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </Formik>
+                </div>
+              </div>
+            )}
+
+            {/* QUICK MODAL: ADD COMPANY */}
+            {isCompanyModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+                <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">Add New Company</h3>
+                      <p className="text-xs text-gray-500">Quickly register a company master record</p>
+                    </div>
+                    <button type="button" onClick={() => setIsCompanyModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <Formik
+                    initialValues={{
+                      name: pendingCompanyName,
+                      code: pendingCompanyName ? pendingCompanyName.slice(0, 4).toUpperCase() : '',
+                      taxId: '',
+                      contact: '',
+                      email: '',
+                      address: '',
+                    }}
+                    validationSchema={companyModalValidationSchema}
+                    onSubmit={(vals, { resetForm }) => handleSaveCompany(vals, resetForm)}
+                  >
+                    {({ handleSubmit, isSubmitting }) => (
+                      <div className="flex flex-col gap-4 pt-1">
+                        <TextFieldComponent name="name" label="Company Name *" placeholder="e.g. Shashtri Hardware" />
+                        <div className="grid grid-cols-2 gap-3">
+                          <TextFieldComponent name="code" label="Company Code" placeholder="e.g. SH" />
+                          <TextFieldComponent name="taxId" label="Tax ID / TIN" placeholder="e.g. TIN-100234" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <TextFieldComponent name="contact" label="Contact / Phone" placeholder="e.g. +256 700 123456" />
+                          <TextFieldComponent name="email" label="Email Address" placeholder="e.g. info@company.com" />
+                        </div>
+                        <TextFieldComponent name="address" label="Address" placeholder="e.g. Kampala, Uganda" />
+
+                        <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsCompanyModalOpen(false)}
+                            className="px-5 py-2.5 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={() => handleSubmit()}
+                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm hover:shadow cursor-pointer flex items-center gap-1.5"
+                          >
+                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                            <span>Save & Select</span>
                           </button>
                         </div>
                       </div>
