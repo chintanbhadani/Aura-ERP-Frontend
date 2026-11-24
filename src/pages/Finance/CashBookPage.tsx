@@ -30,16 +30,19 @@ import {
   SlidersHorizontal,
   Receipt,
   ExternalLink,
-  Package
+  Package,
+  Boxes
 } from 'lucide-react';
 import { 
   fetchCashBookReport, 
   fetchCashBookConfig, 
   updateCashBookConfig, 
   createCashQuickEntry, 
+  fetchCompanies,
   type CashBookDay, 
   type CashBookSummary,
-  type CashBookConfig
+  type CashBookConfig,
+  type Company
 } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
 import WithAuth from '../../components/WithAuth';
@@ -99,6 +102,8 @@ const CashBookPageBase: React.FC = () => {
     days: []
   });
   const [loading, setLoading] = useState(true);
+  const [selectedCompany, setSelectedCompany] = useState<string>('ALL');
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [activePreset, setActivePreset] = useState<'all' | 'today' | 'this_month' | 'last_month'>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -136,7 +141,8 @@ const CashBookPageBase: React.FC = () => {
       const res = await fetchCashBookReport({
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        search: search || undefined
+        search: search || undefined,
+        companyId: selectedCompany !== 'ALL' ? selectedCompany : undefined
       });
       setData(res);
     } catch (err: any) {
@@ -165,9 +171,13 @@ const CashBookPageBase: React.FC = () => {
   };
 
   useEffect(() => {
+    fetchCompanies().then(comps => setCompanies(Array.isArray(comps) ? comps : [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     loadReport();
     loadConfig();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedCompany]);
 
   // Handle Preset selection
   const handleSelectPreset = (preset: 'all' | 'today' | 'this_month' | 'last_month') => {
@@ -330,6 +340,7 @@ const CashBookPageBase: React.FC = () => {
         cashPurchase: acc.cashPurchase + (d.cashPurchase || 0),
         cashExpense: acc.cashExpense + (d.cashExpense || 0),
         cashPaymentForPurchase: acc.cashPaymentForPurchase + (d.cashPaymentForPurchase || 0),
+        mobileMoneyPaymentForPurchase: (acc.mobileMoneyPaymentForPurchase || 0) + (d.mobileMoneyPaymentForPurchase || 0),
         cashInBank: acc.cashInBank + (d.cashInBank || 0),
         cashOutFromBank: acc.cashOutFromBank + (d.cashOutFromBank || 0),
       }),
@@ -343,6 +354,7 @@ const CashBookPageBase: React.FC = () => {
         cashPurchase: 0,
         cashExpense: 0,
         cashPaymentForPurchase: 0,
+        mobileMoneyPaymentForPurchase: 0,
         cashInBank: 0,
         cashOutFromBank: 0,
       }
@@ -365,7 +377,7 @@ const CashBookPageBase: React.FC = () => {
     return {
       storeCash: last7.map(d => d.closingBalance),
       bank: last7.map(d => d.cashInBank - d.cashOutFromBank),
-      airtel: last7.map(d => d.mobileMoneySale),
+      airtel: last7.map(d => (d.mobileMoneySale || 0) - (d.mobileMoneyPaymentForPurchase || 0)),
       receivable: last7.map(d => d.creditSale),
       payable: last7.map(d => d.cashPurchase),
     };
@@ -390,6 +402,7 @@ const CashBookPageBase: React.FC = () => {
       'CASH PURCHASE',
       'CASH EXPENSE',
       'CASH PAYMENT FOR PURCHASE',
+      'MOMO PAYMENT PO',
       'CASH IN BANK',
       'CASH OUT FROM BANK',
       'CLOSING BALANCE'
@@ -407,6 +420,7 @@ const CashBookPageBase: React.FC = () => {
       d.cashPurchase,
       d.cashExpense,
       d.cashPaymentForPurchase,
+      d.mobileMoneyPaymentForPurchase || 0,
       d.cashInBank,
       d.cashOutFromBank,
       d.closingBalance
@@ -495,7 +509,7 @@ const CashBookPageBase: React.FC = () => {
       </div>
 
       {/* BALANCE SHEET KPI CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* 1. Cash at Store */}
         <StatSparkCard
           title="Cash at Store"
@@ -558,6 +572,24 @@ const CashBookPageBase: React.FC = () => {
           sparklineData={sparklines.payable}
           icon={DollarSign}
         />
+
+        {/* 6. Stock Valuation (Inventory Asset in Finance) */}
+        <div 
+          onClick={() => navigate('/bin-report')} 
+          className="cursor-pointer transition-transform hover:scale-[1.02]"
+          title="Click to view live Bin Report & Stock Valuation"
+        >
+          <StatSparkCard
+            title="Stock Valuation"
+            value={summary?.stockValuation || 0}
+            prefix={symbol ? `${symbol} ` : 'USh '}
+            decimals={0}
+            badge={{ text: 'Stock Asset', trend: 'up' }}
+            subtitle={`${Number(summary?.totalStockQuantity || 0).toLocaleString('en-US', { maximumFractionDigits: 1 })} units on hand`}
+            sparklineData={sparklines.storeCash}
+            icon={Boxes}
+          />
+        </div>
       </div>
 
       {/* FILTER TOOLBAR */}
@@ -577,6 +609,23 @@ const CashBookPageBase: React.FC = () => {
 
           {/* Date Picker & Search */}
           <div className="flex flex-wrap items-center gap-3">
+            {/* Company Selector */}
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-1.5 text-xs">
+              <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+              <select
+                value={selectedCompany}
+                onChange={e => setSelectedCompany(e.target.value)}
+                className="bg-transparent outline-none text-gray-700 text-xs font-semibold cursor-pointer"
+              >
+                <option value="ALL">🏢 All Companies</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.code ? `[${c.code}] ` : ''}{c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-2xl px-3 py-1.5 text-xs">
               <Calendar className="w-3.5 h-3.5 text-gray-400" />
               <input
@@ -643,6 +692,12 @@ const CashBookPageBase: React.FC = () => {
                     Sales Breakdown
                   </span>
                 </th>
+                <th colSpan={1} className="py-2.5 px-3 text-center bg-teal-50/90 border-r border-teal-200/60">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-100/80 text-teal-900 font-extrabold text-[10px] uppercase tracking-wider border border-teal-300">
+                    <CheckCircle2 className="w-3 h-3 text-teal-700" />
+                    Receipts (IN)
+                  </span>
+                </th>
                 <th colSpan={4} className="py-2.5 px-3 text-left bg-rose-50/80 border-r border-rose-200/60">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-100/80 text-rose-800 font-extrabold text-[10px] uppercase tracking-wider border border-rose-200">
                     <DollarSign className="w-3 h-3" />
@@ -688,9 +743,9 @@ const CashBookPageBase: React.FC = () => {
                   Cash Sale
                 </th>
 
-                {/* Store Outflows & Purchases Columns */}
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-teal-800 bg-rose-50/40 font-semibold">
-                  Received for Credit
+                {/* Customer Receipts Column */}
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-teal-900 bg-teal-50/60 font-black border-r border-teal-200/60" title="Customer Receipts & Credit Settlements (Cash IN)">
+                  Received Payment
                 </th>
                 <th className="py-3.5 px-3 text-right whitespace-nowrap text-rose-800 bg-rose-100/50 font-bold">
                   Cash Purchase
@@ -698,8 +753,11 @@ const CashBookPageBase: React.FC = () => {
                 <th className="py-3.5 px-3 text-right whitespace-nowrap text-rose-800 bg-rose-100/50 font-bold">
                   Cash Expense
                 </th>
-                <th className="py-3.5 px-3 text-right whitespace-nowrap text-amber-900 bg-rose-50/40 font-semibold border-r border-rose-200/60">
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-amber-900 bg-rose-50/40 font-semibold">
                   Cash Payment PO
+                </th>
+                <th className="py-3.5 px-3 text-right whitespace-nowrap text-purple-900 bg-rose-100/50 font-bold border-r border-rose-200/60">
+                  MoMo Payment PO
                 </th>
 
                 {/* Bank Transfers Columns */}
@@ -720,7 +778,7 @@ const CashBookPageBase: React.FC = () => {
             <tbody className="divide-y divide-gray-100 font-mono text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={15} className="py-16 text-center text-gray-500 font-sans">
+                  <td colSpan={16} className="py-16 text-center text-gray-500 font-sans">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <RefreshCw className="w-8 h-8 animate-spin text-emerald-600" />
                       <span className="text-sm font-semibold">Balancing accounts & computing cash ledgers...</span>
@@ -729,7 +787,7 @@ const CashBookPageBase: React.FC = () => {
                 </tr>
               ) : displayedDays.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="py-16 text-center text-gray-500 font-sans">
+                  <td colSpan={16} className="py-16 text-center text-gray-500 font-sans">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <AlertCircle className="w-9 h-9 text-gray-400" />
                       <span className="text-sm font-bold text-gray-700">No transactions found</span>
@@ -816,8 +874,14 @@ const CashBookPageBase: React.FC = () => {
                         </td>
 
                         {/* Received for Credit Sale */}
-                        <td className={`py-3 px-3 text-right bg-rose-50/20 ${row.receivedCreditSale > 0 ? 'text-teal-800 font-bold' : 'text-gray-300'}`}>
-                          {formatNum(row.receivedCreditSale)}
+                        <td className={`py-3 px-3 text-right bg-rose-50/20 ${row.receivedCreditSale > 0 || (row.mobileMoneyCustomerIn && row.mobileMoneyCustomerIn > 0) || (row.bankCustomerIn && row.bankCustomerIn > 0) ? 'text-teal-800 font-bold' : 'text-gray-300'}`}>
+                          <div>{formatNum(row.receivedCreditSale)}</div>
+                          {row.mobileMoneyCustomerIn && row.mobileMoneyCustomerIn > 0 ? (
+                            <div className="text-[10px] font-bold text-purple-700">+{formatNum(row.mobileMoneyCustomerIn)} MoMo</div>
+                          ) : null}
+                          {row.bankCustomerIn && row.bankCustomerIn > 0 ? (
+                            <div className="text-[10px] font-bold text-blue-700">+{formatNum(row.bankCustomerIn)} Bank</div>
+                          ) : null}
                         </td>
 
                         {/* Cash Purchase */}
@@ -831,8 +895,13 @@ const CashBookPageBase: React.FC = () => {
                         </td>
 
                         {/* Cash Payment For Purchase */}
-                        <td className={`py-3 px-3 text-right bg-rose-50/20 border-r border-rose-200/50 ${row.cashPaymentForPurchase > 0 ? 'text-amber-900 font-bold' : 'text-gray-300'}`}>
+                        <td className={`py-3 px-3 text-right bg-rose-50/20 ${row.cashPaymentForPurchase > 0 ? 'text-amber-900 font-bold' : 'text-gray-300'}`}>
                           {formatNum(row.cashPaymentForPurchase)}
+                        </td>
+
+                        {/* Mobile Money Payment For Purchase */}
+                        <td className={`py-3 px-3 text-right bg-rose-100/30 border-r border-rose-200/50 ${row.mobileMoneyPaymentForPurchase && row.mobileMoneyPaymentForPurchase > 0 ? 'text-purple-900 font-bold' : 'text-gray-300'}`}>
+                          {formatNum(row.mobileMoneyPaymentForPurchase || 0)}
                         </td>
 
                         {/* Cash in Bank */}
@@ -854,7 +923,7 @@ const CashBookPageBase: React.FC = () => {
                       {/* Expandable Transaction Details Drawer */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan={15} className="bg-slate-50/80 p-4 font-sans border-b border-emerald-100">
+                          <td colSpan={16} className="bg-slate-50/80 p-4 font-sans border-b border-emerald-100">
                             <div className="bg-white rounded-2xl p-4 border border-gray-200/80 shadow-xs space-y-4">
                               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-2">
@@ -1066,12 +1135,28 @@ const CashBookPageBase: React.FC = () => {
                                       {row.details.payments.map((m: any) => (
                                         <div key={m.id} className="p-2 rounded-xl bg-gray-50 border border-gray-100 text-[11px]">
                                           <div className="flex justify-between font-bold text-gray-900">
-                                            <span className="truncate max-w-[120px]">{m.description || m.direction}</span>
+                                            <span className="truncate max-w-[140px]" title={m.customer?.name || m.supplier?.name || m.description || ''}>
+                                              {m.customer?.name 
+                                                ? `${m.customer.name}`
+                                                : m.supplier?.name 
+                                                ? `${m.supplier.name}`
+                                                : (m.description || m.direction)}
+                                            </span>
                                             <span>{formatCur(m.amount)}</span>
                                           </div>
                                           <div className="text-gray-500 flex justify-between mt-0.5">
-                                            <span>{m.direction === 'IN' ? 'Cash IN' : 'Cash OUT'}</span>
-                                            <span className="uppercase text-[9px] font-extrabold px-1.5 py-0.2 bg-gray-200 rounded">
+                                            <span className="truncate max-w-[140px] text-[10px]">
+                                              {m.customerId
+                                                ? (m.paymentType === 'MOBILE_MONEY' ? 'Customer Receipt (MoMo IN)' : m.paymentType === 'BANK' ? 'Customer Receipt (Bank IN)' : 'Customer Receipt (Cash IN)')
+                                                : m.supplierId
+                                                ? (m.paymentType === 'MOBILE_MONEY' ? 'Supplier Payout (MoMo OUT)' : m.paymentType === 'BANK' ? 'Supplier Payout (Bank OUT)' : 'Supplier Payout (Cash OUT)')
+                                                : (m.direction === 'IN' ? 'Cash IN' : 'Cash OUT')}
+                                            </span>
+                                            <span className={`uppercase text-[9px] font-extrabold px-1.5 py-0.5 rounded ${
+                                              m.paymentType === 'MOBILE_MONEY' ? 'bg-purple-100 text-purple-800' :
+                                              m.paymentType === 'BANK' ? 'bg-blue-100 text-blue-800' :
+                                              'bg-emerald-100 text-emerald-800'
+                                            }`}>
                                               {m.paymentType}
                                             </span>
                                           </div>
@@ -1125,8 +1210,11 @@ const CashBookPageBase: React.FC = () => {
                   <td className="py-3.5 px-3 text-right text-rose-800 bg-rose-100/60 font-bold">
                     {formatNum(periodTotals.cashExpense)}
                   </td>
-                  <td className="py-3.5 px-3 text-right text-amber-900 bg-rose-50/50 border-r border-rose-200/60">
+                  <td className="py-3.5 px-3 text-right text-amber-900 bg-rose-50/50">
                     {formatNum(periodTotals.cashPaymentForPurchase)}
+                  </td>
+                  <td className="py-3.5 px-3 text-right text-purple-900 bg-rose-100/60 font-bold border-r border-rose-200/60">
+                    {formatNum(periodTotals.mobileMoneyPaymentForPurchase || 0)}
                   </td>
                   <td className="py-3.5 px-3 text-right text-indigo-800 bg-indigo-50/50">
                     {formatNum(periodTotals.cashInBank)}

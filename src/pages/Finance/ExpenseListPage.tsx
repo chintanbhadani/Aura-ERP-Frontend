@@ -5,7 +5,9 @@ import { type ColumnDef } from '../../components/CustomTable';
 import { 
   fetchExpenses, 
   deleteExpense, 
-  type Expense 
+  fetchCompanies,
+  type Expense,
+  type Company
 } from '../../services/api';
 import { useCurrency } from '../../helper/currency';
 import { successToast, errorToast } from '../../helper/toast';
@@ -14,7 +16,8 @@ import {
   Calendar,
   Wallet,
   TrendingUp,
-  Receipt
+  Receipt,
+  Building2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -43,6 +46,8 @@ const ExpenseListPageBase: React.FC = () => {
 
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<string>('ALL');
+  const [companies, setCompanies] = useState<Company[]>([]);
 
   // Global & Toolbar Filter States
   const [globalSearch, setGlobalSearch] = useState('');
@@ -69,10 +74,19 @@ const ExpenseListPageBase: React.FC = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  useEffect(() => {
+    fetchCompanies().then(comps => setCompanies(Array.isArray(comps) ? comps : [])).catch(() => {});
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await fetchExpenses(globalSearch, quickFilters.startDate, quickFilters.endDate);
+      const data = await fetchExpenses(
+        globalSearch, 
+        quickFilters.startDate, 
+        quickFilters.endDate,
+        selectedCompany !== 'ALL' ? selectedCompany : undefined
+      );
       setExpenses(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch expenses:', err);
@@ -85,7 +99,7 @@ const ExpenseListPageBase: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [globalSearch, quickFilters.startDate, quickFilters.endDate]);
+  }, [globalSearch, quickFilters.startDate, quickFilters.endDate, selectedCompany]);
 
   const handleQuickFilterChange = (key: string, value: string) => {
     setQuickFilters(prev => ({ ...prev, [key]: value }));
@@ -93,6 +107,7 @@ const ExpenseListPageBase: React.FC = () => {
 
   const handleClearAllFilters = () => {
     setGlobalSearch('');
+    setSelectedCompany('ALL');
     setAssignedToFilter('');
     setCreatedByFilter('');
     setTagFilter('');
@@ -102,6 +117,7 @@ const ExpenseListPageBase: React.FC = () => {
 
   const hasActiveFilters =
     !!globalSearch ||
+    selectedCompany !== 'ALL' ||
     !!assignedToFilter ||
     !!createdByFilter ||
     !!tagFilter ||
@@ -229,6 +245,28 @@ const ExpenseListPageBase: React.FC = () => {
       ),
     },
     {
+      key: 'company',
+      title: 'COMPANY',
+      width: '150px',
+      render: (_, row: Expense) => {
+        const companyName = (row as any).company?.name || (row as any).companyName;
+        const companyCode = (row as any).company?.code || (row as any).companyCode;
+        return (
+          <span 
+            onClick={(e) => {
+              e.stopPropagation();
+              if (row.companyId) setSelectedCompany(row.companyId);
+            }}
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 cursor-pointer transition-colors"
+            title="Filter by this company"
+          >
+            <Building2 className="w-3 h-3 text-emerald-600" />
+            {companyCode ? `${companyCode} - ` : ''}{companyName || 'General'}
+          </span>
+        );
+      },
+    },
+    {
       key: 'amount',
       title: 'AMOUNT',
       align: 'right',
@@ -318,6 +356,25 @@ const ExpenseListPageBase: React.FC = () => {
         showTags={showTags}
         setShowTags={setShowTags}
         onRefresh={loadData}
+        customSidebarItems={
+          <div className="space-y-4 pt-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Company Filter</label>
+              <select
+                value={selectedCompany}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+                className="w-full text-xs rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 font-medium"
+              >
+                <option value="ALL">🏢 All Companies</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code ? `[${c.code}] ` : ''}{c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        }
         topContent={
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pb-1">
             <div className="bg-white p-4.5 rounded-2xl border border-gray-200/80 shadow-2xs flex items-center gap-4 transition-all hover:shadow-xs">

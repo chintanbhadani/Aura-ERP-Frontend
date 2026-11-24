@@ -30,7 +30,7 @@ import {
   ShieldCheck,
   Wallet
 } from 'lucide-react';
-import { fetchSalesReport, fetchExpenses, type SalesReportRow, type SalesReportSummary, type SalesReportBatch, type Expense } from '../../services/api';
+import { fetchSalesReport, fetchExpenses, fetchCompanies, type SalesReportRow, type SalesReportSummary, type SalesReportBatch, type Expense, type Company } from '../../services/api';
 import { useCurrency } from '../../helper/currency';
 import { errorToast, successToast } from '../../helper/toast';
 import WithAuth from '../../components/WithAuth';
@@ -82,6 +82,8 @@ const SalesReportPageBase: React.FC = () => {
   const [viewSegment, setViewSegment] = useState('all');
 
   // Filters
+  const [selectedCompany, setSelectedCompany] = useState<string>('ALL');
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -94,6 +96,10 @@ const SalesReportPageBase: React.FC = () => {
   const [totalExpenses, setTotalExpenses] = useState<number>(0);
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
 
+  useEffect(() => {
+    fetchCompanies().then(comps => setCompanies(Array.isArray(comps) ? comps : [])).catch(() => {});
+  }, []);
+
   const loadReport = async () => {
     setLoading(true);
     try {
@@ -101,9 +107,10 @@ const SalesReportPageBase: React.FC = () => {
         fetchSalesReport({
           startDate: startDate || undefined,
           endDate: endDate || undefined,
-          search: searchTerm || undefined
+          search: searchTerm || undefined,
+          companyId: selectedCompany !== 'ALL' ? selectedCompany : undefined
         }),
-        fetchExpenses(undefined, startDate || undefined, endDate || undefined)
+        fetchExpenses(undefined, startDate || undefined, endDate || undefined, selectedCompany !== 'ALL' ? selectedCompany : undefined)
       ]);
 
       if (salesData.status === 'fulfilled') {
@@ -134,7 +141,7 @@ const SalesReportPageBase: React.FC = () => {
 
   useEffect(() => {
     loadReport();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedCompany]);
 
   const toggleRow = (id: string) => {
     setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
@@ -501,7 +508,7 @@ const SalesReportPageBase: React.FC = () => {
           {/* Search and Secondary Filter Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-3 border-t border-gray-100">
             {/* Search Input */}
-            <div className="lg:col-span-4 relative">
+            <div className="lg:col-span-3 relative">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -545,6 +552,22 @@ const SalesReportPageBase: React.FC = () => {
               />
             </div>
 
+            {/* Company Filter */}
+            <div className="lg:col-span-2">
+              <select
+                value={selectedCompany}
+                onChange={e => setSelectedCompany(e.target.value)}
+                className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none bg-white font-semibold text-emerald-800"
+              >
+                <option value="ALL">🏢 All Companies</option>
+                {companies.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.code ? `[${c.code}] ` : ''}{c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Client Filter */}
             <div className="lg:col-span-2">
               <select
@@ -560,13 +583,13 @@ const SalesReportPageBase: React.FC = () => {
             </div>
 
             {/* Supplier Filter */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-1">
               <select
                 value={selectedSupplier}
                 onChange={e => setSelectedSupplier(e.target.value)}
                 className="w-full text-xs px-2.5 py-1.5 border border-gray-200 rounded-xl focus:ring-1 focus:ring-emerald-500 outline-none bg-white font-medium"
               >
-                <option value="ALL">All Suppliers ({supplierOptions.length})</option>
+                <option value="ALL">Suppliers</option>
                 {supplierOptions.map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
@@ -596,6 +619,7 @@ const SalesReportPageBase: React.FC = () => {
                   <th className="py-3.5 px-3 w-10 text-center">#</th>
                   <th className="py-3.5 px-3">Date</th>
                   <th className="py-3.5 px-3">Invoice #</th>
+                  <th className="py-3.5 px-3">Company</th>
                   <th className="py-3.5 px-3">Client (Customer)</th>
                   <th className="py-3.5 px-3">Item Details</th>
                   <th className="py-3.5 px-3">Supplier Name(s)</th>
@@ -612,7 +636,7 @@ const SalesReportPageBase: React.FC = () => {
               <tbody className="divide-y divide-gray-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={14} className="py-16 text-center text-gray-500">
+                    <td colSpan={15} className="py-16 text-center text-gray-500">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <RefreshCw className="w-7 h-7 animate-spin text-emerald-600" />
                         <span className="text-sm font-semibold">Updating sales telemetry & margins...</span>
@@ -621,7 +645,7 @@ const SalesReportPageBase: React.FC = () => {
                   </tr>
                 ) : filteredAndSortedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="py-16 text-center text-gray-500">
+                    <td colSpan={15} className="py-16 text-center text-gray-500">
                       <div className="flex flex-col items-center justify-center gap-2">
                         <AlertCircle className="w-9 h-9 text-gray-400" />
                         <span className="text-sm font-bold text-gray-700">No matching sales records</span>
@@ -687,6 +711,21 @@ const SalesReportPageBase: React.FC = () => {
                                 {row.paymentType}
                               </span>
                             )}
+                          </td>
+
+                          {/* Company */}
+                          <td className="py-3.5 px-3 whitespace-nowrap">
+                            <span 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (row.companyId) setSelectedCompany(row.companyId);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 cursor-pointer transition-colors"
+                              title="Filter by this company"
+                            >
+                              <Building2 className="w-3 h-3 text-emerald-600" />
+                              {row.companyCode ? `${row.companyCode} - ` : ''}{row.companyName || 'General'}
+                            </span>
                           </td>
 
                           {/* Client Name */}
@@ -814,7 +853,7 @@ const SalesReportPageBase: React.FC = () => {
                               transition={{ duration: 0.25 }}
                               className="bg-emerald-50/25 border-b border-emerald-100"
                             >
-                              <td colSpan={14} className="py-3.5 px-8">
+                              <td colSpan={15} className="py-3.5 px-8">
                                 <div className="bg-white rounded-2xl border border-emerald-200/90 p-4 shadow-sm space-y-2.5">
                                   <div className="text-xs font-bold text-emerald-950 flex items-center justify-between">
                                     <div className="flex items-center gap-2">

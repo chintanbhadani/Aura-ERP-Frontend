@@ -19,10 +19,11 @@ import {
   CheckCircle2, 
   AlertCircle,
   Calendar,
-  Plus
+  Plus,
+  Building2
 } from 'lucide-react';
 import { formatCurrency } from '../../helper/currency';
-import { fetchPartyLedgerReport } from '../../services/api';
+import { fetchPartyLedgerReport, fetchCompanies, type Company } from '../../services/api';
 import { errorToast } from '../../helper/toast';
 import { ERPExportModal } from '../../components/ERPList/ERPExportModal';
 import { RecordPaymentModal } from '../../components/PartyLedger/RecordPaymentModal';
@@ -46,17 +47,24 @@ export const PartyLedgerPageBase: React.FC = () => {
   });
 
   const [activeTab, setActiveTab] = useState<'ALL' | 'CUSTOMER' | 'SUPPLIER'>('ALL');
+  const [selectedCompany, setSelectedCompany] = useState<string>('ALL');
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
   const [paymentModalParty, setPaymentModalParty] = useState<{ id: string; name: string; type: 'CUSTOMER' | 'SUPPLIER' } | null>(null);
+
+  useEffect(() => {
+    fetchCompanies().then(comps => setCompanies(Array.isArray(comps) ? comps : [])).catch(() => {});
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     try {
       const res = await fetchPartyLedgerReport({
         type: activeTab,
-        search: searchQuery || undefined
+        search: searchQuery || undefined,
+        companyId: selectedCompany !== 'ALL' ? selectedCompany : undefined
       });
       setData(res || { rows: [], summary: {} });
     } catch (err: any) {
@@ -69,7 +77,7 @@ export const PartyLedgerPageBase: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, [activeTab, selectedCompany]);
 
   const filteredRows = useMemo(() => {
     if (!data?.rows) return [];
@@ -216,26 +224,45 @@ export const PartyLedgerPageBase: React.FC = () => {
 
         {/* CONTROLS: TABS & SEARCH */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Tabs */}
-          <div className="flex items-center gap-1.5 p-1 bg-gray-100 rounded-2xl w-fit">
-            {[
-              { id: 'ALL', label: 'All Parties' },
-              { id: 'CUSTOMER', label: 'Customers' },
-              { id: 'SUPPLIER', label: 'Suppliers' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                  activeTab === tab.id
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-800'
-                }`}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-gray-100 rounded-2xl w-fit">
+              {[
+                { id: 'ALL', label: 'All Parties' },
+                { id: 'CUSTOMER', label: 'Customers' },
+                { id: 'SUPPLIER', label: 'Suppliers' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`px-4 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                    activeTab === tab.id
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-800'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Company Filter Dropdown */}
+            <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-xl px-3 py-1.5 text-xs shadow-2xs">
+              <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+              <select
+                value={selectedCompany}
+                onChange={(e) => setSelectedCompany(e.target.value)}
+                className="bg-transparent outline-none text-gray-700 text-xs font-semibold cursor-pointer"
               >
-                {tab.label}
-              </button>
-            ))}
+                <option value="ALL">🏢 All Companies</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code ? `[${c.code}] ` : ''}{c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Search */}
@@ -275,7 +302,7 @@ export const PartyLedgerPageBase: React.FC = () => {
                     <th className="py-3.5 px-3 text-right">Payment for Purchase</th>
                     <th className="py-3.5 px-3 text-right">Sale</th>
                     <th className="py-3.5 px-3 text-right">Credit</th>
-                    <th className="py-3.5 px-3 text-right">Cash</th>
+                    <th className="py-3.5 px-3 text-right" title="Cash Received from Customers or Paid to Suppliers">Cash Received / Paid</th>
                     <th className="py-3.5 px-4 text-right">Pending</th>
                     <th className="py-3.5 px-3 text-center">Month End</th>
                     <th className="py-3.5 px-4">Date</th>
@@ -348,9 +375,15 @@ export const PartyLedgerPageBase: React.FC = () => {
                           {row.credit > 0 ? formatCurrency(row.credit) : '-'}
                         </td>
 
-                        {/* CASH */}
-                        <td className="py-3 px-3 text-right font-mono font-medium text-gray-700">
-                          {row.cash > 0 ? formatCurrency(row.cash) : '-'}
+                        {/* CASH / RECEIVED */}
+                        <td className="py-3 px-3 text-right font-mono font-bold">
+                          {row.cash > 0 ? (
+                            <span className={isCust ? 'text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200' : 'text-gray-800'}>
+                              {formatCurrency(row.cash)}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
                         </td>
 
                         {/* PENDING (COLOR CODED LIKE GOOGLE SHEETS) */}

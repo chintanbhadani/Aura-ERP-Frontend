@@ -19,7 +19,8 @@ import {
   X,
   TrendingUp,
   Receipt,
-  Scale
+  Scale,
+  Sparkles
 } from 'lucide-react';
 import { formatCurrency } from '../../helper/currency';
 import { successToast, errorToast } from '../../helper/toast';
@@ -402,6 +403,18 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
           </span>
         </div>
 
+        {/* Advance Balance Notice when no invoices exist */}
+        {isCustomer && (summary?.advanceAmount > 0) && (summary?.totalSales === 0) && (
+          <div className="mx-5 my-3 p-3 bg-emerald-50/90 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                <strong>Customer Advance Recorded ({formatCurrency(summary.advanceAmount)}):</strong> Recorded under <strong>Credit (Received)</strong> as advance funds. Once a sales invoice is billed for this customer, this advance balance will automatically settle against it.
+              </span>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="p-12 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-2" />
@@ -417,56 +430,80 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-left border-collapse text-xs min-w-[720px]">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-200 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-3">Voucher Type</th>
-                  <th className="py-3 px-3">Ref No</th>
-                  <th className="py-3 px-4">Particulars</th>
-                  <th className="py-3 px-3">Mode</th>
-                  <th className="py-3 px-3 text-right">Debit (DR)</th>
-                  <th className="py-3 px-3 text-right">Credit (CR)</th>
-                  <th className="py-3 px-4 text-right">Running Balance</th>
+                <tr className="bg-gray-50/90 border-b border-gray-200 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                  <th className="py-2.5 px-3 w-24">Date</th>
+                  <th className="py-2.5 px-2.5 w-36">Voucher Type</th>
+                  <th className="py-2.5 px-2.5 w-28">Ref No</th>
+                  <th className="py-2.5 px-3">Particulars</th>
+                  <th className="py-2.5 px-2 text-center w-16">Mode</th>
+                  <th className="py-2.5 px-3 text-right w-32 bg-amber-50/40">
+                    <div>{isCustomer ? 'Debit (Billed)' : 'Debit (Paid)'}</div>
+                    <div className="text-[9px] font-normal normal-case text-amber-700/80">
+                      {isCustomer ? 'Sales to customer' : 'Payment to supplier'}
+                    </div>
+                  </th>
+                  <th className="py-2.5 px-3 text-right w-32 bg-emerald-50/50">
+                    <div className="text-emerald-900">{isCustomer ? 'Credit (Received)' : 'Credit (Billed)'}</div>
+                    <div className="text-[9px] font-normal normal-case text-emerald-700">
+                      {isCustomer ? 'Money received (IN)' : 'Purchase PO billed'}
+                    </div>
+                  </th>
+                  <th className="py-2.5 px-3 text-right w-36 bg-gray-50/80">Running Bal</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filteredTransactions.map((tx: any, idx: number) => {
                   const isInv = tx.type === 'INVOICE';
                   const isPayment = tx.type === 'PAYMENT';
+                  const hasCredit = tx.credit > 0;
+                  const hasDebit = tx.debit > 0;
 
                   return (
                     <tr 
                       key={tx.id || idx}
-                      className="hover:bg-gray-50/70 transition-colors group"
+                      className="hover:bg-gray-50/80 transition-colors group"
                     >
                       {/* Date */}
-                      <td className="py-3 px-4 text-gray-600 font-medium whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-gray-600 font-medium whitespace-nowrap text-[11px]">
                         {new Date(tx.date).toLocaleDateString('en-GB', {
                           day: '2-digit',
                           month: 'short',
-                          year: 'numeric'
+                          year: '2-digit'
                         })}
                       </td>
 
-                      {/* Voucher Type */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${
-                          isInv 
-                            ? 'bg-blue-50 text-blue-700 border-blue-200' 
-                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        }`}>
-                          {isInv ? (
-                            <Receipt className="w-3 h-3 text-blue-500" />
-                          ) : (
-                            <Wallet className="w-3 h-3 text-emerald-500" />
-                          )}
-                          <span>{tx.voucherType || (isInv ? 'Invoice' : 'Payment')}</span>
-                        </span>
+                      {/* Voucher Type + Quick Amount Pill */}
+                      <td className="py-2.5 px-2.5 whitespace-nowrap">
+                        <div className="flex flex-col gap-0.5 items-start">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold border ${
+                            isInv 
+                              ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}>
+                            {isInv ? (
+                              <Receipt className="w-3 h-3 text-blue-500 shrink-0" />
+                            ) : (
+                              <Wallet className="w-3 h-3 text-emerald-500 shrink-0" />
+                            )}
+                            <span className="truncate max-w-[100px]">{tx.voucherType || (isInv ? 'Invoice' : 'Payment')}</span>
+                          </span>
+                          {/* Quick Amount Pill for instant readability */}
+                          {hasCredit ? (
+                            <span className="text-[10px] font-mono font-black text-emerald-700">
+                              +{formatCurrency(tx.credit)}
+                            </span>
+                          ) : hasDebit ? (
+                            <span className="text-[10px] font-mono font-black text-amber-700">
+                              -{formatCurrency(tx.debit)}
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
 
                       {/* Ref No */}
-                      <td className="py-3 px-3 font-mono font-bold whitespace-nowrap">
+                      <td className="py-2.5 px-2.5 font-mono font-bold whitespace-nowrap text-xs">
                         {tx.invoiceId ? (
                           <button
                             type="button"
@@ -479,55 +516,55 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
                             className="text-primary-700 hover:text-primary-900 underline flex items-center gap-1 cursor-pointer"
                             title="View / Edit Invoice"
                           >
-                            <span>{tx.refNo}</span>
-                            <ExternalLink className="w-3 h-3 opacity-60" />
+                            <span className="truncate max-w-[90px]">{tx.refNo}</span>
+                            <ExternalLink className="w-3 h-3 opacity-60 shrink-0" />
                           </button>
                         ) : (
-                          <span className="text-gray-800">{tx.refNo}</span>
+                          <span className="text-gray-800 truncate max-w-[90px] block">{tx.refNo}</span>
                         )}
                       </td>
 
                       {/* Particulars */}
-                      <td className="py-3 px-4 text-gray-800 font-medium max-w-xs truncate" title={tx.particulars}>
+                      <td className="py-2.5 px-3 text-gray-800 font-medium max-w-[180px] truncate" title={tx.particulars}>
                         {tx.particulars}
                       </td>
 
                       {/* Payment Mode */}
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-600 uppercase">
+                      <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                        <span className="px-1.5 py-0.5 rounded text-[9.5px] font-extrabold bg-gray-100 text-gray-700 uppercase border border-gray-200">
                           {tx.paymentMethod || 'CASH'}
                         </span>
                       </td>
 
                       {/* Debit (DR) */}
-                      <td className="py-3 px-3 text-right font-mono font-bold whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-right font-mono font-bold whitespace-nowrap bg-amber-50/20">
                         {tx.debit > 0 ? (
                           <span className={isCustomer ? 'text-amber-800' : 'text-emerald-800'}>
                             {formatCurrency(tx.debit)}
                           </span>
                         ) : (
-                          <span className="text-gray-300">-</span>
+                          <span className="text-gray-300">—</span>
                         )}
                       </td>
 
-                      {/* Credit (CR) */}
-                      <td className="py-3 px-3 text-right font-mono font-bold whitespace-nowrap">
+                      {/* Credit (CR) - Prominently highlighted for Customer Receipts */}
+                      <td className="py-2.5 px-3 text-right font-mono font-black whitespace-nowrap bg-emerald-50/40">
                         {tx.credit > 0 ? (
-                          <span className={isCustomer ? 'text-emerald-800' : 'text-amber-800'}>
+                          <span className="text-emerald-800 bg-emerald-100/60 px-1.5 py-0.5 rounded border border-emerald-300/60">
                             {formatCurrency(tx.credit)}
                           </span>
                         ) : (
-                          <span className="text-gray-300">-</span>
+                          <span className="text-gray-300">—</span>
                         )}
                       </td>
 
                       {/* Running Balance */}
-                      <td className="py-3 px-4 text-right font-mono whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <span className="font-bold text-gray-900">
+                      <td className="py-2.5 px-3 text-right font-mono whitespace-nowrap bg-gray-50/30">
+                        <div className="flex items-center justify-end gap-1">
+                          <span className="font-extrabold text-gray-900">
                             {formatCurrency(tx.runningBalance || 0)}
                           </span>
-                          <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${
+                          <span className={`text-[9px] font-black px-1 py-0.2 rounded ${
                             tx.balanceType === 'DR'
                               ? (isCustomer ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800')
                               : tx.balanceType === 'CR'
@@ -545,22 +582,35 @@ export const PartyLedgerTab: React.FC<PartyLedgerTabProps> = ({
 
               {/* Table Footer: Totals */}
               <tfoot>
-                <tr className="bg-gray-50 border-t-2 border-gray-200 font-bold text-gray-900">
-                  <td colSpan={5} className="py-3 px-4 text-right uppercase text-[11px] text-gray-500">
-                    Total Debit & Credit Summary:
+                <tr className="bg-gray-50/90 border-t-2 border-gray-200 font-bold text-gray-900 text-xs">
+                  <td colSpan={5} className="py-2.5 px-3 text-right uppercase text-[10.5px] text-gray-500 font-sans">
+                    Total Summary:
                   </td>
-                  <td className="py-3 px-3 text-right font-mono text-amber-800 font-extrabold">
-                    {formatCurrency(
-                      filteredTransactions.reduce((acc: number, t: any) => acc + (t.debit || 0), 0)
-                    )}
+                  <td className="py-2.5 px-3 text-right font-mono text-amber-800 bg-amber-50/30">
+                    <div className="text-[9px] font-sans font-medium text-amber-700 uppercase">
+                      {isCustomer ? 'Total Billed' : 'Total Paid'}
+                    </div>
+                    <div className="font-extrabold text-xs">
+                      {formatCurrency(
+                        filteredTransactions.reduce((acc: number, t: any) => acc + (t.debit || 0), 0)
+                      )}
+                    </div>
                   </td>
-                  <td className="py-3 px-3 text-right font-mono text-emerald-800 font-extrabold">
-                    {formatCurrency(
-                      filteredTransactions.reduce((acc: number, t: any) => acc + (t.credit || 0), 0)
-                    )}
+                  <td className="py-2.5 px-3 text-right font-mono text-emerald-800 bg-emerald-50/50">
+                    <div className="text-[9px] font-sans font-bold text-emerald-700 uppercase">
+                      {isCustomer ? 'Total Received' : 'Total Billed'}
+                    </div>
+                    <div className="font-black text-xs text-emerald-800">
+                      +{formatCurrency(
+                        filteredTransactions.reduce((acc: number, t: any) => acc + (t.credit || 0), 0)
+                      )}
+                    </div>
                   </td>
-                  <td className="py-3 px-4 text-right font-mono font-black text-primary-900 text-sm">
-                    {formatCurrency(Math.abs(summary.netBalance))} {isCustomer ? (summary.netBalance > 0 ? 'DR' : 'CR') : (summary.netBalance > 0 ? 'CR' : 'DR')}
+                  <td className="py-2.5 px-3 text-right font-mono text-primary-900 bg-gray-50/80">
+                    <div className="text-[9px] font-sans font-medium text-gray-500 uppercase">Net Balance</div>
+                    <div className="font-black text-xs">
+                      {formatCurrency(Math.abs(summary.netBalance))} {isCustomer ? (summary.netBalance > 0 ? 'DR (Due)' : summary.netBalance < 0 ? 'CR (Advance)' : 'Settled') : (summary.netBalance > 0 ? 'CR (Payable)' : summary.netBalance < 0 ? 'DR (Advance)' : 'Settled')}
+                    </div>
                   </td>
                 </tr>
               </tfoot>

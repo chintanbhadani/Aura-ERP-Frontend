@@ -12,8 +12,10 @@ import {
   deleteExpense,
   fetchExpenseDescriptions,
   createExpenseDescription,
+  fetchCompanies,
   type Expense,
-  type ExpenseDescriptionOption
+  type ExpenseDescriptionOption,
+  type Company
 } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
 import { useCurrency } from '../../helper/currency';
@@ -25,7 +27,8 @@ import {
   Share2, 
   Calendar,
   Wallet,
-  FileText
+  FileText,
+  Building2
 } from 'lucide-react';
 import { 
   Dialog, 
@@ -57,6 +60,7 @@ const ExpenseFormPageBase: React.FC = () => {
 
   const [loading, setLoading] = useState(isEditMode);
   const [descriptions, setDescriptions] = useState<ExpenseDescriptionOption[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [tags, setTags] = useState<string[]>(['EXPENSE', 'FINANCE']);
   const [newTagInput, setNewTagInput] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
@@ -71,6 +75,7 @@ const ExpenseFormPageBase: React.FC = () => {
     description: string;
     amount: number | string;
     notes: string;
+    companyId: string;
     createdAt?: string;
     updatedAt?: string;
   }>({
@@ -78,10 +83,22 @@ const ExpenseFormPageBase: React.FC = () => {
     description: '',
     amount: '',
     notes: '',
+    companyId: '',
   });
 
   useEffect(() => {
     loadDescriptions();
+    fetchCompanies().then(comps => {
+      const compList = Array.isArray(comps) ? comps : [];
+      setCompanies(compList);
+      if (!isEditMode) {
+        const def = compList.find(c => c.isDefault) || compList[0];
+        if (def) {
+          setInitialValues(prev => ({ ...prev, companyId: def.id }));
+        }
+      }
+    }).catch(() => {});
+
     if (isEditMode && id) {
       loadExpense(id);
     }
@@ -116,6 +133,7 @@ const ExpenseFormPageBase: React.FC = () => {
           description: data.description || '',
           amount: Number(data.amount || 0),
           notes: data.notes || '',
+          companyId: data.companyId || '',
           createdAt: data.createdAt,
           updatedAt: data.updatedAt,
         });
@@ -151,6 +169,7 @@ const ExpenseFormPageBase: React.FC = () => {
         description: values.description.trim(),
         amount: Number(values.amount),
         notes: values.notes ? values.notes.trim() : null,
+        companyId: values.companyId || null,
       };
 
       if (isEditMode && id) {
@@ -388,6 +407,27 @@ const ExpenseFormPageBase: React.FC = () => {
 
               {/* Form Fields Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Operating Company */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                    Operating Company
+                  </label>
+                  <select
+                    name="companyId"
+                    value={values.companyId || ''}
+                    onChange={(e) => setFieldValue('companyId', e.target.value)}
+                    className="w-full text-xs px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-primary-500 font-medium bg-white"
+                  >
+                    <option value="">🏢 None / General</option>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.code ? `[${c.code}] ` : ''}{c.name} {c.isDefault ? '★ (Default)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 {/* Date */}
                 <TextFieldComponent
                   name="date"

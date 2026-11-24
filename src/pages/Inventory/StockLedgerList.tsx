@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ERPListPageLayout, type QuickFilterField, type FilterRule } from '../../components/ERPList';
 import { type ColumnDef } from '../../components/CustomTable';
-import { fetchStockEntries } from '../../services/api';
+import { fetchStockEntries, fetchCompanies, type Company } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
@@ -18,7 +18,8 @@ import {
   TrendingDown, 
   Boxes,
   PlusCircle,
-  MinusCircle
+  MinusCircle,
+  Building2
 } from 'lucide-react';
 
 export interface StockLedgerItem {
@@ -58,6 +59,7 @@ export interface StockLedgerItem {
 }
 
 const QUICK_FILTER_FIELDS: QuickFilterField[] = [
+  { key: 'company', placeholder: 'Company' },
   { key: 'itemCode', placeholder: 'Item SKU / Code' },
   { key: 'itemName', placeholder: 'Item Name' },
   { key: 'reference', placeholder: 'Invoice / GRN #' },
@@ -66,6 +68,7 @@ const QUICK_FILTER_FIELDS: QuickFilterField[] = [
 ];
 
 const FILTER_RULE_FIELDS = [
+  'Company',
   'Item Code',
   'Item Name',
   'Transaction Type',
@@ -93,6 +96,8 @@ function StockLedgerListBase() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Custom Sidebar Filters
+  const [selectedCompany, setSelectedCompany] = useState<string>('ALL');
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [actionFilter, setActionFilter] = useState<'ALL' | 'CREDITED' | 'DEBITED'>('ALL');
   const [typeFilter, setTypeFilter] = useState('ALL');
 
@@ -101,13 +106,21 @@ function StockLedgerListBase() {
   const [filterRules, setFilterRules] = useState<FilterRule[]>([]);
 
   useEffect(() => {
-    loadData();
+    fetchCompanies().then(comps => setCompanies(Array.isArray(comps) ? comps : [])).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [selectedCompany]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const data = await fetchStockEntries();
+      const params: Record<string, string> = {};
+      if (selectedCompany && selectedCompany !== 'ALL') {
+        params.companyId = selectedCompany;
+      }
+      const data = await fetchStockEntries(params);
       setLedgers(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to load stock ledger:', err);
@@ -203,6 +216,12 @@ function StockLedgerListBase() {
       if (typeFilter !== 'ALL' && item.type !== typeFilter) return false;
 
       // Quick Filters
+      if (quickFilters.company) {
+        const cTerm = quickFilters.company.toLowerCase();
+        const cName = (item as any).companyName || (item as any).invoice?.company?.name || (item as any).product?.company?.name || '';
+        const cCode = (item as any).companyCode || (item as any).invoice?.company?.code || (item as any).product?.company?.code || '';
+        if (!cName.toLowerCase().includes(cTerm) && !cCode.toLowerCase().includes(cTerm)) return false;
+      }
       if (quickFilters.itemCode && !(item.product?.sku || '').toLowerCase().includes(quickFilters.itemCode.toLowerCase())) return false;
       if (quickFilters.itemName && !(item.product?.name || '').toLowerCase().includes(quickFilters.itemName.toLowerCase())) return false;
       if (quickFilters.type && !item.type.toLowerCase().includes(quickFilters.type.toLowerCase())) return false;
@@ -330,6 +349,29 @@ function StockLedgerListBase() {
             title="Click to open linked record"
           >
             {refNo}
+          </span>
+        );
+      }
+    },
+    {
+      key: 'company',
+      title: 'Company',
+      width: '150px',
+      render: (_, row) => {
+        const companyName = (row as any).companyName || (row as any).invoice?.company?.name || (row as any).product?.company?.name;
+        const companyCode = (row as any).companyCode || (row as any).invoice?.company?.code || (row as any).product?.company?.code;
+        return (
+          <span 
+            onClick={(e) => {
+              e.stopPropagation();
+              const cId = (row as any).companyId || (row as any).invoice?.companyId || (row as any).product?.companyId;
+              if (cId) setSelectedCompany(cId);
+            }}
+            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 cursor-pointer transition-colors"
+            title="Filter by this company"
+          >
+            <Building2 className="w-3 h-3 text-emerald-600" />
+            {companyCode ? `${companyCode} - ` : ''}{companyName || 'General'}
           </span>
         );
       }
@@ -520,6 +562,22 @@ function StockLedgerListBase() {
       customSidebarItems={
         <div className="space-y-4 pt-3">
           <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Company Filter</label>
+            <select
+              value={selectedCompany}
+              onChange={(e) => setSelectedCompany(e.target.value)}
+              className="w-full text-xs rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 font-medium"
+            >
+              <option value="ALL">🏢 All Companies</option>
+              {companies.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code ? `[${c.code}] ` : ''}{c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Action Type</label>
             <select
               value={actionFilter}
@@ -562,9 +620,10 @@ function StockLedgerListBase() {
       onUpdateFilterRule={(id, key, val) => setFilterRules(prev => prev.map(r => r.id === id ? { ...r, [key]: val } : r))}
       onClearFilterRules={() => setFilterRules([])}
       onApplyFilterRules={loadData}
-      hasActiveFilters={Boolean(globalSearch || actionFilter !== 'ALL' || typeFilter !== 'ALL' || Object.keys(quickFilters).length > 0)}
+      hasActiveFilters={Boolean(globalSearch || selectedCompany !== 'ALL' || actionFilter !== 'ALL' || typeFilter !== 'ALL' || Object.keys(quickFilters).length > 0)}
       onClearAllFilters={() => {
         setGlobalSearch('');
+        setSelectedCompany('ALL');
         setActionFilter('ALL');
         setTypeFilter('ALL');
         setQuickFilters({});

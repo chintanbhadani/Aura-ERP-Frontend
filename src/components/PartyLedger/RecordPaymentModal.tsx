@@ -14,7 +14,8 @@ import {
   FileText, 
   ExternalLink,
   Receipt,
-  ArrowRight
+  ArrowRight,
+  Building2
 } from 'lucide-react';
 import { formatCurrency } from '../../helper/currency';
 import { successToast, errorToast } from '../../helper/toast';
@@ -25,7 +26,9 @@ import {
   fetchSupplierLedger, 
   recordCustomerPayment, 
   recordSupplierPayment,
-  type PaymentAllocationItem
+  fetchCompanies,
+  type PaymentAllocationItem,
+  type Company
 } from '../../services/api';
 
 export interface OpenInvoiceItem {
@@ -67,6 +70,8 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
   const [customers, setCustomers] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loadingParties, setLoadingParties] = useState<boolean>(false);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>('');
 
   // Ledger and open invoices state for selected party
   const [loadingLedger, setLoadingLedger] = useState<boolean>(false);
@@ -91,11 +96,22 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
+  // Load companies
+  useEffect(() => {
+    fetchCompanies().then((comps) => {
+      const list = Array.isArray(comps) ? comps : [];
+      setCompanies(list);
+      const def = list.find((c) => c.isDefault) || list[0];
+      if (def) setSelectedCompanyId(def.id);
+    }).catch(() => {});
+  }, []);
+
   // Sync initial props whenever modal opens
   useEffect(() => {
     if (isOpen) {
       setPartyType(initialPartyType || 'CUSTOMER');
       setSelectedPartyId(initialPartyId || '');
+      setPartySearch(initialPartyName || '');
       setAmount('');
       setPaymentType('CASH');
       setPaymentDate(new Date().toISOString().split('T')[0]);
@@ -108,7 +124,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
         loadPartyInvoices(initialPartyId, initialPartyType || 'CUSTOMER');
       }
     }
-  }, [isOpen, initialPartyId, initialPartyType]);
+  }, [isOpen, initialPartyId, initialPartyType, initialPartyName]);
 
   const loadPartiesList = async () => {
     setLoadingParties(true);
@@ -188,10 +204,12 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
     return partyType === 'CUSTOMER' ? customers : suppliers;
   }, [partyType, customers, suppliers]);
 
+  const effectivePartyId = selectedPartyId || initialPartyId;
+
   const selectedParty = useMemo(() => {
-    if (!selectedPartyId) return null;
-    return currentPartiesList.find((p: any) => p.id === selectedPartyId);
-  }, [selectedPartyId, currentPartiesList]);
+    if (!effectivePartyId) return null;
+    return currentPartiesList.find((p: any) => p.id === effectivePartyId);
+  }, [effectivePartyId, currentPartiesList]);
 
   const filteredParties = useMemo(() => {
     if (!partySearch.trim()) return currentPartiesList;
@@ -212,8 +230,15 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
   };
 
   const handleSwitchPartyType = (newType: 'CUSTOMER' | 'SUPPLIER') => {
+    // If locked to a specific party from props, keep locked
+    if (initialPartyId && newType === (initialPartyType || 'CUSTOMER')) {
+      setPartyType(newType);
+      setSelectedPartyId(initialPartyId);
+      return;
+    }
+    if (newType === partyType && selectedPartyId) return;
     setPartyType(newType);
-    setSelectedPartyId('');
+    setSelectedPartyId(initialPartyId && newType === initialPartyType ? initialPartyId : '');
     setOpenInvoices([]);
     setPartySummary(null);
     setAmount('');
@@ -321,7 +346,8 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPartyId) {
+    const effectivePartyId = selectedPartyId || initialPartyId;
+    if (!effectivePartyId) {
       errorToast('Please select a party first');
       return;
     }
@@ -349,14 +375,15 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
         description: description.trim() || undefined,
         direction: partyType === 'CUSTOMER' ? ('IN' as const) : ('OUT' as const),
         allocations: selectedAllocations.length > 0 ? selectedAllocations : undefined,
-        invoiceId: selectedAllocations.length === 1 ? selectedAllocations[0].invoiceId : undefined
+        invoiceId: selectedAllocations.length === 1 ? selectedAllocations[0].invoiceId : undefined,
+        companyId: selectedCompanyId || undefined
       };
 
       if (partyType === 'CUSTOMER') {
-        await recordCustomerPayment(selectedPartyId, payload);
+        await recordCustomerPayment(effectivePartyId, payload);
         successToast(`Customer receipt of ${formatCurrency(numEnteredAmount)} recorded successfully!`);
       } else {
-        await recordSupplierPayment(selectedPartyId, payload);
+        await recordSupplierPayment(effectivePartyId, payload);
         successToast(`Supplier payment of ${formatCurrency(numEnteredAmount)} recorded successfully!`);
       }
 
@@ -441,24 +468,49 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
           </div>
 
           {/* 2. PARTY SELECTOR AUTOCOMPLETE */}
-          <div className="space-y-1.5 relative" ref={partyDropdownRef}>
-            <label className="block text-xs font-bold text-gray-700">
-              Select {partyType === 'CUSTOMER' ? 'Customer' : 'Supplier'} *
-            </label>
+          {initialPartyId ? (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-gray-700">
+                {partyType === 'CUSTOMER' ? 'Customer' : 'Supplier'}
+              </label>
+              <div className="flex items-center justify-between p-3 bg-emerald-50/80 border border-emerald-200 rounded-2xl">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800 font-bold text-xs">
+                    {partyType === 'CUSTOMER' ? <Users className="w-4 h-4 text-emerald-700" /> : <Truck className="w-4 h-4 text-emerald-700" />}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-emerald-950">
+                      {selectedParty?.name || selectedParty?.companyName || initialPartyName || 'Selected Party'}
+                    </div>
+                    <div className="text-[10px] text-emerald-700 font-medium">
+                      Account #{(selectedPartyId || initialPartyId).slice(0, 8).toUpperCase()}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full border border-emerald-300">
+                  Linked {partyType === 'CUSTOMER' ? 'Customer' : 'Supplier'}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5 relative" ref={partyDropdownRef}>
+              <label className="block text-xs font-bold text-gray-700">
+                Select {partyType === 'CUSTOMER' ? 'Customer' : 'Supplier'} *
+              </label>
 
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={loadingParties ? 'Loading parties...' : `Search and select ${partyType.toLowerCase()}...`}
-                value={selectedParty ? (selectedParty.name || selectedParty.companyName) : partySearch}
-                onChange={(e) => {
-                  setPartySearch(e.target.value);
-                  setSelectedPartyId('');
-                  setIsPartyDropdownOpen(true);
-                }}
-                onFocus={() => setIsPartyDropdownOpen(true)}
-                className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-300 focus:border-[#059669] rounded-xl text-xs font-semibold text-gray-800 outline-none shadow-2xs transition-all"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={loadingParties ? 'Loading parties...' : `Search and select ${partyType.toLowerCase()}...`}
+                  value={selectedParty ? (selectedParty.name || selectedParty.companyName) : partySearch}
+                  onChange={(e) => {
+                    setPartySearch(e.target.value);
+                    setSelectedPartyId('');
+                    setIsPartyDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsPartyDropdownOpen(true)}
+                  className="w-full pl-9 pr-8 py-2.5 bg-white border border-gray-300 focus:border-[#059669] rounded-xl text-xs font-semibold text-gray-800 outline-none shadow-2xs transition-all"
+                />
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               {selectedPartyId && (
                 <button
@@ -534,6 +586,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* 3. PAYMENT AMOUNT */}
           <div className="space-y-1.5">
@@ -571,8 +624,26 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
             </div>
           </div>
 
-          {/* 4. PAYMENT MODE & DATE */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* 4. COMPANY, PAYMENT MODE & DATE */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-gray-700 flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Operating Company *</span>
+              </label>
+              <select
+                value={selectedCompanyId}
+                onChange={(e) => setSelectedCompanyId(e.target.value)}
+                className="w-full px-3 py-2.5 bg-white border border-gray-300 focus:border-[#059669] rounded-xl text-xs font-bold text-gray-800 focus:outline-none shadow-2xs cursor-pointer"
+              >
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.code ? `[${c.code}] ` : ''}{c.name} {c.isDefault ? '★' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-gray-700">
                 Payment Method *
@@ -603,7 +674,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
           </div>
 
           {/* 5. MULTI-SELECT & AUTO-SELECT OPEN INVOICES ALLOCATION */}
-          {selectedPartyId && (
+          {effectivePartyId && (
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <div>
@@ -764,7 +835,7 @@ export const RecordPaymentModal: React.FC<RecordPaymentModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={submitting || !selectedPartyId || numEnteredAmount <= 0}
+              disabled={submitting || !effectivePartyId || numEnteredAmount <= 0}
               className="px-6 py-2.5 bg-[#059669] hover:bg-[#047857] active:bg-[#065f46] disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-sm hover:shadow"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

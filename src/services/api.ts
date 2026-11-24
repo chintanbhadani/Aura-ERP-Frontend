@@ -196,7 +196,17 @@ export interface BinReportItem {
   subPartOf: string;
   uom: string;
   actualQuantity: number;
+  purchaseRate: number;
+  sellingRate: number;
+  stockValuation: number;
+  salesValuation?: number;
+  totalPurchasedValue?: number;
+  totalSoldValue?: number;
+  netInvoicedBalance?: number;
   warehouse: string;
+  companyId?: string | null;
+  companyName?: string;
+  companyCode?: string;
   assignedTo?: string;
   tags?: string;
 }
@@ -459,6 +469,7 @@ export const recordSupplierPayment = async (id: string, data: {
   invoiceId?: string;
   direction?: 'OUT' | 'IN';
   allocations?: PaymentAllocationItem[];
+  companyId?: string;
 }): Promise<any> => {
   const response = await dataService.post(`/suppliers/${id}/payments`, data);
   return response.data;
@@ -623,12 +634,13 @@ export const recordCustomerPayment = async (id: string, data: {
   invoiceId?: string;
   direction?: 'IN' | 'OUT';
   allocations?: PaymentAllocationItem[];
+  companyId?: string;
 }): Promise<any> => {
   const response = await dataService.post(`/clients/${id}/payments`, data);
   return response.data;
 };
 
-export const fetchPartyLedgerReport = async (params?: { type?: string; search?: string }): Promise<any> => {
+export const fetchPartyLedgerReport = async (params?: { type?: string; search?: string; companyId?: string }): Promise<any> => {
   const response = await dataService.get('/reports/party-ledger', { params });
   return response.data;
 };
@@ -946,6 +958,8 @@ export interface Expense {
   amount: number;
   paymentType?: string;
   notes?: string | null;
+  companyId?: string | null;
+  company?: Company;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -956,11 +970,12 @@ export interface ExpenseDescriptionOption {
   name: string;
 }
 
-export const fetchExpenses = async (search?: string, startDate?: string, endDate?: string): Promise<Expense[]> => {
+export const fetchExpenses = async (search?: string, startDate?: string, endDate?: string, companyId?: string): Promise<Expense[]> => {
   const params = new URLSearchParams();
   if (search) params.append('search', search);
   if (startDate) params.append('startDate', startDate);
   if (endDate) params.append('endDate', endDate);
+  if (companyId && companyId !== 'ALL') params.append('companyId', companyId);
   const query = params.toString();
   const url = query ? `/expenses?${query}` : '/expenses';
   const response = await dataService.get(url);
@@ -1505,6 +1520,9 @@ export interface SalesReportRow {
   clientName: string;
   clientContact?: string;
   customerId?: string;
+  companyId?: string | null;
+  companyName?: string;
+  companyCode?: string;
   productId?: string;
   itemCode: string;
   itemName: string;
@@ -1543,6 +1561,7 @@ export const fetchSalesReport = async (params?: {
   customerId?: string;
   supplierId?: string;
   productId?: string;
+  companyId?: string;
 }): Promise<SalesReportResponse> => {
   const response = await dataService.get('/reports/sales-summary', { params });
   return response.data;
@@ -1560,6 +1579,10 @@ export interface CashBookDay {
   cashPurchase: number;
   cashExpense: number;
   cashPaymentForPurchase: number;
+  mobileMoneyPaymentForPurchase?: number;
+  bankPaymentForPurchase?: number;
+  mobileMoneyCustomerIn?: number;
+  bankCustomerIn?: number;
   cashInBank: number;
   cashOutFromBank: number;
   closingBalance: number;
@@ -1578,6 +1601,9 @@ export interface CashBookSummary {
   currentAirtelBalance: number;
   totalCreditReceivable: number;
   totalCreditPayable: number;
+  stockValuation?: number;
+  salesValuation?: number;
+  totalStockQuantity?: number;
   initialCash: number;
   initialBank: number;
   initialAirtel: number;
@@ -1591,6 +1617,8 @@ export interface CashBookSummary {
     cashPurchase: number;
     cashExpense: number;
     cashPaymentForPurchase: number;
+    mobileMoneyPaymentForPurchase?: number;
+    bankPaymentForPurchase?: number;
     cashInBank: number;
     cashOutFromBank: number;
   };
@@ -1615,6 +1643,7 @@ export const fetchCashBookReport = async (params?: {
   startDate?: string;
   endDate?: string;
   search?: string;
+  companyId?: string;
 }): Promise<CashBookResponse> => {
   const response = await dataService.get('/reports/cash-book', { params });
   return response.data;
