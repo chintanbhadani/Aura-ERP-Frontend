@@ -8,7 +8,8 @@ import {
   FileSpreadsheet,
   FileText,
   Printer,
-  Download
+  Download,
+  ChevronsUpDown
 } from 'lucide-react';
 import { ButtonComponent } from '../button/ButtonComponent';
 
@@ -34,6 +35,20 @@ export interface ERPPageHeaderProps {
   onImport?: () => void;
   importLabel?: string;
   extraActions?: React.ReactNode;
+  // Bulk selection actions
+  selectedCount?: number;
+  onBulkSubmit?: () => void;
+  onBulkCancel?: () => void;
+  onBulkDelete?: () => void;
+  onBulkExport?: () => void;
+  onBulkPrint?: () => void;
+  onBulkEdit?: () => void;
+  onBulkAssign?: () => void;
+  onBulkClearAssignment?: () => void;
+  onBulkApplyRule?: () => void;
+  onBulkAddTags?: () => void;
+  submittingBulk?: boolean;
+  cancellingBulk?: boolean;
 }
 
 export const ERPPageHeader: React.FC<ERPPageHeaderProps> = ({
@@ -57,15 +72,35 @@ export const ERPPageHeader: React.FC<ERPPageHeaderProps> = ({
   addNewLabel = 'Add Item',
   onImport,
   importLabel = 'Bulk Add',
-  extraActions
+  extraActions,
+  selectedCount = 0,
+  onBulkSubmit,
+  onBulkCancel,
+  onBulkDelete,
+  onBulkExport,
+  onBulkPrint,
+  onBulkEdit,
+  onBulkAssign,
+  onBulkClearAssignment,
+  onBulkApplyRule,
+  onBulkAddTags,
+  submittingBulk = false,
+  cancellingBulk = false
 }) => {
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const optionsMenuRef = useRef<HTMLDivElement>(null);
 
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(target)) {
         setShowOptionsMenu(false);
+      }
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(target)) {
+        setShowActionsMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -86,7 +121,6 @@ export const ERPPageHeader: React.FC<ERPPageHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-2">
-
         {onRefresh && (
           <ButtonComponent
             variant="secondary"
@@ -189,6 +223,50 @@ export const ERPPageHeader: React.FC<ERPPageHeaderProps> = ({
             </div>
           )}
         </div>
+
+        {/* ACTIONS DROPDOWN MENU WHEN ROWS ARE SELECTED */}
+        {selectedCount > 0 && (
+          <div className="relative" ref={actionsMenuRef}>
+            <ButtonComponent
+              variant="primary"
+              onClick={() => setShowActionsMenu(prev => !prev)}
+              endIcon={<ChevronsUpDown className="w-3.5 h-3.5" />}
+              title="Bulk Actions"
+            >
+              Actions
+            </ButtonComponent>
+
+            {showActionsMenu && (
+              <div className="absolute right-0 mt-1.5 w-36 bg-white border border-gray-200 rounded-lg shadow-xl py-1 z-50 text-xs font-medium text-gray-700 animate-in fade-in duration-150 divide-y divide-gray-100">
+                {/* SUBMIT */}
+                <button
+                  onClick={() => {
+                    setShowActionsMenu(false);
+                    if (onBulkSubmit) onBulkSubmit();
+                  }}
+                  disabled={submittingBulk}
+                  className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 text-emerald-800 hover:text-emerald-900 font-semibold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <span>Submit</span>
+                  {submittingBulk && <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />}
+                </button>
+
+                {/* CANCEL */}
+                <button
+                  onClick={() => {
+                    setShowActionsMenu(false);
+                    if (onBulkCancel) onBulkCancel();
+                  }}
+                  disabled={cancellingBulk}
+                  className="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-700 hover:text-rose-800 font-semibold flex items-center justify-between cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  <span>Cancel</span>
+                  {cancellingBulk && <RefreshCw className="w-3.5 h-3.5 animate-spin text-rose-600" />}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {extraActions}
 

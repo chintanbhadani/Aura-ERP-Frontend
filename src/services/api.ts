@@ -707,6 +707,15 @@ export const bulkSubmitInvoices = async (ids: string[]): Promise<{
   return response.data;
 };
 
+export const bulkCancelInvoices = async (ids: string[]): Promise<{
+  message?: string;
+  cancelledCount: number;
+  errors?: string[];
+}> => {
+  const response = await dataService.post('/invoices/bulk-cancel', { ids });
+  return response.data;
+};
+
 export const bulkImportInvoices = async (items: any[], type: 'PURCHASE' | 'SALES' = 'PURCHASE'): Promise<{
   successCount: number;
   createdCount?: number;

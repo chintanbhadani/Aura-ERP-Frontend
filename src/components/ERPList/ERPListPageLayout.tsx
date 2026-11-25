@@ -34,6 +34,20 @@ export interface ERPListPageLayoutProps<T extends Record<string, any> = any> {
   importLabel?: string;
   extraHeaderActions?: React.ReactNode;
 
+  // Bulk Selection Actions
+  onBulkSubmit?: () => void;
+  onBulkCancel?: () => void;
+  onBulkDelete?: () => void;
+  onBulkExport?: () => void;
+  onBulkPrint?: () => void;
+  onBulkEdit?: () => void;
+  onBulkAssign?: () => void;
+  onBulkClearAssignment?: () => void;
+  onBulkApplyRule?: () => void;
+  onBulkAddTags?: () => void;
+  submittingBulk?: boolean;
+  cancellingBulk?: boolean;
+
   // Sidebar Filter Props
   assignedToFilter?: string;
   setAssignedToFilter?: (val: string) => void;
@@ -125,6 +139,19 @@ export function ERPListPageLayout<T extends Record<string, any> = any>({
   onImport,
   importLabel,
   extraHeaderActions,
+
+  onBulkSubmit,
+  onBulkCancel,
+  onBulkDelete,
+  onBulkExport,
+  onBulkPrint,
+  onBulkEdit,
+  onBulkAssign,
+  onBulkClearAssignment,
+  onBulkApplyRule,
+  onBulkAddTags,
+  submittingBulk = false,
+  cancellingBulk = false,
 
   assignedToFilter = '',
   onAssignedToChange = () => {},
@@ -234,6 +261,19 @@ export function ERPListPageLayout<T extends Record<string, any> = any>({
           onImport={onImport}
           importLabel={importLabel}
           extraActions={extraHeaderActions}
+          selectedCount={selectedIds?.length || 0}
+          onBulkSubmit={onBulkSubmit}
+          onBulkCancel={onBulkCancel}
+          onBulkDelete={onBulkDelete}
+          onBulkExport={onBulkExport}
+          onBulkPrint={onBulkPrint}
+          onBulkEdit={onBulkEdit}
+          onBulkAssign={onBulkAssign}
+          onBulkClearAssignment={onBulkClearAssignment}
+          onBulkApplyRule={onBulkApplyRule}
+          onBulkAddTags={onBulkAddTags}
+          submittingBulk={submittingBulk}
+          cancellingBulk={cancellingBulk}
         />
 
         {/* MAIN BODY (SIDEBAR + CONTENT) */}
@@ -270,9 +310,7 @@ export function ERPListPageLayout<T extends Record<string, any> = any>({
               onRowClick={onRowClick}
               emptyText={emptyMessage}
               toolbar={
-                selectable && selectedIds.length > 0 ? (
-                  bulkActions
-                ) : (
+                <div className="space-y-2">
                   <ERPToolbar
                     quickFilters={quickFilters}
                     onQuickFilterChange={onQuickFilterChange}
@@ -286,7 +324,10 @@ export function ERPListPageLayout<T extends Record<string, any> = any>({
                     onSortChange={onSortChange}
                     sortOptions={sortOptions}
                   />
-                )
+                  {bulkActions && selectable && selectedIds.length > 0 && (
+                    <div>{bulkActions}</div>
+                  )}
+                </div>
               }
             />
             {children}

@@ -224,57 +224,88 @@ export function CustomTable<T extends Record<string, any>>({
       <div className="flex-1 overflow-x-auto relative z-10">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-gray-200/80 bg-gray-50/70 text-gray-600 font-semibold text-xs uppercase tracking-wider sticky top-0 z-10 select-none">
-              {selectable && (
-                <th className="py-3 px-4 w-10 text-center">
+            {selectable && activeSelectedIds.length > 0 ? (
+              <tr className="border-b border-gray-200 bg-gray-100/90 text-gray-800 text-xs sticky top-0 z-10 select-none">
+                <th className="py-2.5 px-4 w-10 text-center">
                   <input
                     type="checkbox"
                     checked={isAllCurrentSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = activeSelectedIds.length > 0 && !isAllCurrentSelected;
+                    }}
                     onChange={(e) => handleSelectAll(e.target.checked)}
                     disabled={loading}
                     className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer accent-primary-600 disabled:opacity-40"
                   />
                 </th>
-              )}
-
-              {columns.map((col) => {
-                const isSorted = sortKey === col.key;
-                const colW = colWidths[col.key] ? `${colWidths[col.key]}px` : col.width;
-                return (
-                  <th
-                    key={col.key}
-                    style={colW ? { width: colW, minWidth: colW, maxWidth: colW } : undefined}
-                    onClick={() => col.sortable && handleSort(col.key)}
-                    className={`py-3 px-4 relative group ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${
-                      col.sortable ? 'cursor-pointer hover:bg-gray-100/80 transition-colors' : ''
-                    }`}
-                  >
-                    <div className={`inline-flex items-center gap-1.5 ${col.align === 'right' ? 'justify-end' : col.align === 'center' ? 'justify-center' : 'justify-start'}`}>
-                      {col.headerRender ? col.headerRender({ currentPageCount: currentPageData.length, totalCount: totalItems }) : <span>{col.title}</span>}
-                      {col.sortable && (
-                        <span className="text-gray-400">
-                          {isSorted ? (
-                            sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-primary-600 font-bold" /> : <ArrowDown className="w-3.5 h-3.5 text-primary-600 font-bold" />
-                          ) : (
-                            <ArrowUpDown className="w-3 h-3 text-gray-400 hover:text-primary-600 transition-colors" />
-                          )}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Resizable Column Handle Divider */}
-                    <div
-                      onMouseDown={(e) => handleResizeMouseDown(col.key, e, col.width)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="absolute right-0 top-0 bottom-0 w-3.5 cursor-col-resize flex items-center justify-center z-20 group-hover:bg-gray-200/50 hover:bg-primary-500/20 transition-all"
-                      title="Drag to resize column width"
+                <th colSpan={columns.length} className="py-2.5 px-3 text-left font-normal normal-case text-gray-800">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-800 tracking-wide">
+                      {activeSelectedIds.length} {activeSelectedIds.length === 1 ? 'item' : 'items'} selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateSelection([])}
+                      className="text-xs text-primary-600 hover:text-primary-800 font-semibold cursor-pointer underline mr-2"
                     >
-                      <div className="w-0.5 h-4 bg-gray-300 group-hover:bg-gray-400 hover:bg-primary-600 rounded-full transition-colors" />
-                    </div>
+                      Deselect all
+                    </button>
+                  </div>
+                </th>
+              </tr>
+            ) : (
+              <tr className="border-b border-gray-200/80 bg-gray-50/70 text-gray-600 font-semibold text-xs uppercase tracking-wider sticky top-0 z-10 select-none">
+                {selectable && (
+                  <th className="py-3 px-4 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllCurrentSelected}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      disabled={loading}
+                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer accent-primary-600 disabled:opacity-40"
+                    />
                   </th>
-                );
-              })}
-            </tr>
+                )}
+
+                {columns.map((col) => {
+                  const isSorted = sortKey === col.key;
+                  const colW = colWidths[col.key] ? `${colWidths[col.key]}px` : col.width;
+                  return (
+                    <th
+                      key={col.key}
+                      style={colW ? { width: colW, minWidth: colW, maxWidth: colW } : undefined}
+                      onClick={() => col.sortable && handleSort(col.key)}
+                      className={`py-3 px-4 relative group ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'} ${
+                        col.sortable ? 'cursor-pointer hover:bg-gray-100/80 transition-colors' : ''
+                      }`}
+                    >
+                      <div className={`inline-flex items-center gap-1.5 ${col.align === 'right' ? 'justify-end' : col.align === 'center' ? 'justify-center' : 'justify-start'}`}>
+                        {col.headerRender ? col.headerRender({ currentPageCount: currentPageData.length, totalCount: totalItems }) : <span>{col.title}</span>}
+                        {col.sortable && (
+                          <span className="text-gray-400">
+                            {isSorted ? (
+                              sortDirection === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-primary-600 font-bold" /> : <ArrowDown className="w-3.5 h-3.5 text-primary-600 font-bold" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 text-gray-400 hover:text-primary-600 transition-colors" />
+                            )}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Resizable Column Handle Divider */}
+                      <div
+                        onMouseDown={(e) => handleResizeMouseDown(col.key, e, col.width)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-0 bottom-0 w-3.5 cursor-col-resize flex items-center justify-center z-20 group-hover:bg-gray-200/50 hover:bg-primary-500/20 transition-all"
+                        title="Drag to resize column width"
+                      >
+                        <div className="w-0.5 h-4 bg-gray-300 group-hover:bg-gray-400 hover:bg-primary-600 rounded-full transition-colors" />
+                      </div>
+                    </th>
+                  );
+                })}
+              </tr>
+            )}
           </thead>
 
           <tbody className="divide-y divide-gray-100 text-sm">
