@@ -16,7 +16,7 @@ import {
   Trash2,
   Ban
 } from 'lucide-react';
-import { fetchInvoices, deleteInvoice, cancelInvoice, bulkImportInvoices } from '../services/api';
+import { fetchInvoices, deleteInvoice, cancelInvoice, bulkImportInvoices, bulkSubmitInvoices } from '../services/api';
 import { successToast, errorToast } from '../helper/toast';
 import type { Invoice } from '../types';
 import { printInvoice, downloadInvoicePdf } from '../helper/invoicePrinter';
@@ -242,6 +242,32 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
     link.click();
     document.body.removeChild(link);
     successToast('Exported CSV successfully');
+  };
+
+  const [submittingBulk, setSubmittingBulk] = useState(false);
+
+  const handleBulkSubmit = async () => {
+    if (selectedIds.length === 0) return;
+    const draftSelected = invoices.filter(inv => selectedIds.includes(inv.id) && (inv.status || 'Draft') === 'Draft');
+    if (draftSelected.length === 0) {
+      errorToast('None of the selected invoices are in Draft status.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to submit ${draftSelected.length} draft invoice(s)? This will update stock inventory and financial ledgers.`)) return;
+    try {
+      setSubmittingBulk(true);
+      const res = await bulkSubmitInvoices(draftSelected.map(i => i.id));
+      successToast(res.message || `Submitted ${res.submittedCount} invoice(s)`);
+      if (res.errors && res.errors.length > 0) {
+        errorToast(res.errors.join(' | '));
+      }
+      setSelectedIds([]);
+      loadInvoices();
+    } catch (err: any) {
+      errorToast(err.response?.data?.error || err.message || 'Failed to submit selected invoices');
+    } finally {
+      setSubmittingBulk(false);
+    }
   };
 
   const handleBulkDelete = async () => {
@@ -537,12 +563,21 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
         selectedIds.length > 0 && (
           <div className="flex items-center gap-2 p-2 bg-emerald-50/80 border border-emerald-200 rounded-xl text-xs font-semibold text-emerald-900">
             <span>{selectedIds.length} invoice(s) selected</span>
-            <button
-              onClick={handleBulkDelete}
-              className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition cursor-pointer font-bold ml-auto"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Delete Selected
-            </button>
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={handleBulkSubmit}
+                disabled={submittingBulk}
+                className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition cursor-pointer font-bold disabled:opacity-50"
+              >
+                <Check className="w-3.5 h-3.5" /> {submittingBulk ? 'Submitting...' : 'Submit Selected'}
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="flex items-center gap-1 px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition cursor-pointer font-bold"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete Selected
+              </button>
+            </div>
           </div>
         )
       }
