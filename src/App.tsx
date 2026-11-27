@@ -19,6 +19,7 @@ import { ExpenseFormPage } from './pages/Finance/ExpenseFormPage';
 import { SalesReportPage } from './pages/Finance/SalesReportPage';
 import { CashBookPage } from './pages/Finance/CashBookPage';
 import { PartyLedgerPage } from './pages/Finance/PartyLedgerPage';
+import { PartyLedgerDetailPage } from './pages/Finance/PartyLedgerDetailPage';
 import { CategoryList } from './pages/Master/CategoryList';
 import { CategoryFormPage } from './pages/Master/CategoryFormPage';
 import { PartOfList } from './pages/Master/PartOfList';
@@ -211,6 +212,8 @@ function App() {
         <Route path="/balance-sheet" element={<CashBookPage />} />
         <Route path="/finance/party-ledger" element={<PartyLedgerPage />} />
         <Route path="/party-ledger" element={<PartyLedgerPage />} />
+        <Route path="/finance/party-ledger/:partyId" element={<PartyLedgerDetailPage />} />
+        <Route path="/party-ledger/:partyId" element={<PartyLedgerDetailPage />} />
         <Route path="/invoices" element={<InvoiceList />} />
         <Route path="/invoices/sales" element={<InvoiceList fixedType="SALES" />} />
         <Route path="/invoices/purchase" element={<InvoiceList fixedType="PURCHASE" />} />

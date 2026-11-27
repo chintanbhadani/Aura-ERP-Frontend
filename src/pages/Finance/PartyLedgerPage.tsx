@@ -331,10 +331,7 @@ export const PartyLedgerPageBase: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              const route = isCust
-                                ? `/master/customers/${row.partyId}?tab=ledger`
-                                : `/master/suppliers/${row.partyId}?tab=ledger`;
-                              navigate(route);
+                              navigate(`/finance/party-ledger/${row.partyId}?type=${isCust ? 'customer' : 'supplier'}`);
                             }}
                             className="hover:text-primary-700 hover:underline flex items-center gap-1.5 text-left cursor-pointer"
                           >
@@ -432,10 +429,7 @@ export const PartyLedgerPageBase: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                const route = isCust
-                                  ? `/master/customers/${row.partyId}?tab=ledger`
-                                  : `/master/suppliers/${row.partyId}?tab=ledger`;
-                                navigate(route);
+                                navigate(`/finance/party-ledger/${row.partyId}?type=${isCust ? 'customer' : 'supplier'}`);
                               }}
                               className="px-2.5 py-1 text-[11px] font-bold text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-lg border border-primary-200 transition-colors cursor-pointer"
                             >

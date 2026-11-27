@@ -6,6 +6,7 @@ import { AnimatedNumber } from '../../components/motion/AnimatedNumber';
 import { fetchProductionOrders, updateProductionOrder, type ProductionOrder } from '../../services/api';
 import { getStoredBoms } from '../Production/bomStorage';
 import { StandaloneAutocomplete } from '../../components/input/index';
+import Tooltip from '@mui/material/Tooltip';
 import { successToast, errorToast } from '../../helper/toast';
 import WithAuth from '../../components/WithAuth';
 import { ModuleName, Permission } from '../../helper/constants';
@@ -1730,13 +1731,14 @@ const ProductionPlanningPageBase: React.FC = () => {
                             {/* CARD TOP: ORDER NO, ITEM BADGE & PRIORITY */}
                             <div className="flex items-center justify-between gap-1.5">
                               <div className="flex items-center gap-1.5 min-w-0">
-                                <span 
-                                  className="font-black font-mono text-xs text-emerald-700 hover:underline cursor-pointer truncate"
-                                  onClick={() => navigate('/production-orders')}
-                                  title="View Production Orders"
-                                >
-                                  {item.orderNumber}
-                                </span>
+                                <Tooltip title={`Order #: ${item.orderNumber}`} arrow placement="top" enterDelay={200}>
+                                  <span 
+                                    className="font-black font-mono text-xs text-emerald-700 hover:underline cursor-pointer truncate"
+                                    onClick={() => navigate('/production-orders')}
+                                  >
+                                    {item.orderNumber}
+                                  </span>
+                                </Tooltip>
                                 <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[9px] font-black uppercase shrink-0">
                                   #{item.orderItemSrNo || 1} {item.totalItemsInOrder ? `of ${item.totalItemsInOrder}` : ''}
                                 </span>

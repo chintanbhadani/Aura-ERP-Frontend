@@ -30,6 +30,7 @@ import { formatFullDateTime } from '../helper/helper';
 import { getInvoiceImportColumns, PURCHASE_INVOICE_IMPORT_SAMPLE_DATA, SALES_INVOICE_IMPORT_SAMPLE_DATA } from '../pages/Sales/invoiceImportConfig';
 import { CancelInvoiceConfirmModal } from './CancelInvoiceConfirmModal';
 import { SubmitInvoiceConfirmModal } from './SubmitInvoiceConfirmModal';
+import Tooltip from '@mui/material/Tooltip';
 
 export interface InvoiceListProps {
   fixedType?: 'SALES' | 'PURCHASE';
@@ -314,15 +315,18 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
       sortable: true,
       render: (val, row) => {
         const itemSubtitle = `${row.type === 'PURCHASE' ? 'Purchase' : 'Sales'} • ${row.items?.length || 0} ${row.items?.length === 1 ? 'Item' : 'Items'}`;
+        const fullDisplay = val || row.id;
         return (
-          <div className="flex flex-col py-0.5">
-            <span className="font-bold text-gray-900 font-mono text-sm tracking-tight hover:text-emerald-700 transition-colors">
-              {val || row.id}
-            </span>
-            <span className="text-xs text-gray-500 font-normal">
-              {itemSubtitle}
-            </span>
-          </div>
+          <Tooltip title={fullDisplay} arrow placement="top" enterDelay={200}>
+            <div className="flex flex-col py-0.5 truncate max-w-[200px]">
+              <span className="font-bold text-gray-900 font-mono text-sm tracking-tight hover:text-emerald-700 transition-colors truncate">
+                {fullDisplay}
+              </span>
+              <span className="text-xs text-gray-500 font-normal truncate">
+                {itemSubtitle}
+              </span>
+            </div>
+          </Tooltip>
         );
       }
     },
@@ -339,18 +343,20 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
           ? (row.customer?.contact || row.client?.contact)
           : row.supplier?.contact;
         return (
-          <div className="flex flex-col">
-            <span 
-              onClick={(e) => {
-                e.stopPropagation();
-                setQuickFilters(prev => ({ ...prev, party: partyName }));
-              }}
-              className="font-semibold text-gray-800 text-sm hover:text-emerald-700 hover:underline cursor-pointer"
-            >
-              {partyName}
-            </span>
-            {contact && <span className="text-[11px] text-gray-400">{contact}</span>}
-          </div>
+          <Tooltip title={contact ? `${partyName} (${contact})` : partyName} arrow placement="top" enterDelay={200}>
+            <div className="flex flex-col truncate max-w-[170px]">
+              <span 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setQuickFilters(prev => ({ ...prev, party: partyName }));
+                }}
+                className="font-semibold text-gray-800 text-sm hover:text-emerald-700 hover:underline cursor-pointer truncate"
+              >
+                {partyName}
+              </span>
+              {contact && <span className="text-[11px] text-gray-400 truncate">{contact}</span>}
+            </div>
+          </Tooltip>
         );
       }
     },
@@ -382,12 +388,45 @@ const InvoiceListBase: React.FC<InvoiceListProps> = ({ fixedType: propFixedType 
         const first = items[0];
         const firstName = first?.product?.name || first?.product?.sku || (first as any)?.name || 'Line Item';
         const moreCount = items.length - 1;
-        return (
-          <div className="text-xs text-gray-700 truncate max-w-[180px]">
-            <span className="font-semibold">{firstName}</span>{' '}
-            <span className="font-mono text-emerald-800 bg-emerald-50 px-1 py-0.2 rounded text-[11px]">× {first?.quantity}</span>
-            {moreCount > 0 && <span className="text-gray-400 text-[11px] ml-1">+{moreCount} more</span>}
+
+        const tooltipNode = (
+          <div className="p-1.5 space-y-2 max-w-sm text-xs">
+            <div className="flex items-center justify-between gap-3 pb-1.5 border-b border-gray-600/70">
+              <span className="font-bold text-emerald-400 text-xs">
+                Invoice Items ({items.length})
+              </span>
+              <span className="text-[10px] text-gray-300 font-mono">
+                {row.invoiceNumber}
+              </span>
+            </div>
+            <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
+              {items.map((it: any, idx: number) => {
+                const itName = it.product?.name || it.product?.sku || it.name || `Item ${idx + 1}`;
+                const itQty = it.quantity || 0;
+                const itUom = it.product?.unit?.name || it.uom || '';
+                return (
+                  <div key={idx} className="flex items-start justify-between gap-2.5 text-[11px] leading-tight">
+                    <span className="text-gray-100 font-medium">
+                      {idx + 1}. {itName}
+                    </span>
+                    <span className="font-mono font-bold text-emerald-300 shrink-0 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-700/50">
+                      × {itQty} {itUom}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
+        );
+
+        return (
+          <Tooltip title={tooltipNode} arrow placement="top" enterDelay={150}>
+            <div className="text-xs text-gray-700 truncate max-w-[180px] cursor-pointer hover:text-emerald-700">
+              <span className="font-semibold">{firstName}</span>{' '}
+              <span className="font-mono text-emerald-800 bg-emerald-50 px-1 py-0.2 rounded text-[11px]">× {first?.quantity}</span>
+              {moreCount > 0 && <span className="text-gray-400 text-[11px] ml-1 font-medium">+{moreCount} more</span>}
+            </div>
+          </Tooltip>
         );
       }
     },

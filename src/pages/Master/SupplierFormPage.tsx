@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { 
@@ -26,7 +26,6 @@ import {
 } from '../../services/api';
 import { successToast, errorToast } from '../../helper/toast';
 import { TextFieldComponent, SelectOutlinedField } from '../../components/input/index';
-import { PartyLedgerTab } from '../../components/PartyLedger/PartyLedgerTab';
 import { 
   ArrowLeft,
   Printer, 
@@ -54,7 +53,8 @@ import {
   Globe,
   Edit3,
   Check,
-  X
+  X,
+  Scale
 } from 'lucide-react';
 
 const supplierValidationSchema = Yup.object({
@@ -157,17 +157,16 @@ const SupplierFormPageBase: React.FC = () => {
   const [loading, setLoading] = useState(isEditMode);
 
   // Active Tab State
-  const initialTab = searchParams.get('tab') === 'ledger' ? 'ledger' : 'details';
   const [activeTab, setActiveTab] = useState<
-    'details' | 'dashboard' | 'tax' | 'contact' | 'accounting' | 'settings' | 'portal' | 'ledger'
-  >(initialTab);
+    'details' | 'dashboard' | 'tax' | 'contact' | 'accounting' | 'settings' | 'portal'
+  >('details');
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'ledger') {
-      setActiveTab('ledger');
+    if (tabParam === 'ledger' && id && id !== 'new') {
+      navigate(`/finance/party-ledger/${id}?type=supplier`, { replace: true });
     }
-  }, [searchParams]);
+  }, [searchParams, id, navigate]);
 
   // Sidebar interactive states
   const [assignedTo, setAssignedTo] = useState<string>(user?.name || user?.username || 'Administrator');
@@ -799,30 +798,45 @@ const SupplierFormPageBase: React.FC = () => {
               <div className="flex-1 w-full bg-white border border-gray-200 rounded-2xl sm:rounded-3xl shadow-sm overflow-hidden flex flex-col">
                 
                 {/* ERP Tabs Header */}
-                <div className="border-b border-gray-200 bg-gray-50/50 px-3 sm:px-6 flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
-                  {[
-                    { id: 'details', label: 'Details' },
-                    { id: 'dashboard', label: 'Dashboard' },
-                    { id: 'tax', label: 'Tax' },
-                    { id: 'contact', label: 'Address & Contact' },
-                    // { id: 'accounting', label: 'Accounting' },
-                    { id: 'settings', label: 'Settings' },
-                    { id: 'ledger', label: 'Party Ledger' },
-                    // { id: 'portal', label: 'Portal Users' }
-                  ].map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveTab(tab.id as any)}
-                      className={`px-3.5 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-                        activeTab === tab.id
-                          ? 'border-primary-600 text-primary-700 bg-white shadow-xs'
-                          : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+                <div className="border-b border-gray-200 bg-gray-50/50 px-3 sm:px-6 flex items-center justify-between gap-1.5 sm:gap-2 overflow-x-auto">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    {[
+                      { id: 'details', label: 'Details' },
+                      { id: 'dashboard', label: 'Dashboard' },
+                      { id: 'tax', label: 'Tax' },
+                      { id: 'contact', label: 'Address & Contact' },
+                      // { id: 'accounting', label: 'Accounting' },
+                      { id: 'settings', label: 'Settings' },
+                      // { id: 'portal', label: 'Portal Users' }
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`px-3.5 sm:px-5 py-3 sm:py-4 text-xs sm:text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+                          activeTab === tab.id
+                            ? 'border-primary-600 text-primary-700 bg-white shadow-xs'
+                            : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {isEditMode && (
+                    <div className="py-2 shrink-0">
+                      <Link
+                        to={`/finance/party-ledger/${id}?type=supplier`}
+                        className="px-3 py-1.5 bg-white hover:bg-gray-100 text-gray-700 hover:text-primary-700 border border-gray-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs whitespace-nowrap"
+                        title="Open Dedicated Party Ledger Page"
+                      >
+                        <Scale className="w-3.5 h-3.5 text-primary-600" />
+                        <span>Party Ledger</span>
+                        <ExternalLink className="w-3 h-3 text-gray-400" />
+                      </Link>
+                    </div>
+                  )}
                 </div>
 
                 {/* TAB 1: DETAILS */}
@@ -1580,15 +1594,6 @@ const SupplierFormPageBase: React.FC = () => {
                       </label>
                     </div>
                   </div>
-                )}
-
-                {/* TAB: PARTY LEDGER */}
-                {activeTab === 'ledger' && (
-                  <PartyLedgerTab
-                    partyId={id || ''}
-                    partyType="SUPPLIER"
-                    partyName={values.supplierName || initialValues.supplierName || initialValues.name || 'Supplier'}
-                  />
                 )}
 
                 {/* TAB 7: PORTAL USERS - COMMENTED OUT

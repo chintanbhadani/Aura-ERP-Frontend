@@ -467,6 +467,7 @@ export function CustomTable<T extends Record<string, any>>({
                         <td
                           key={col.key}
                           style={colW ? { width: colW, minWidth: colW, maxWidth: colW } : undefined}
+                          title={!col.render && (typeof val === 'string' || typeof val === 'number') ? String(val) : undefined}
                           className={`py-3 px-4 overflow-hidden truncate ${
                             col.align === 'right' 
                               ? 'text-right' 
